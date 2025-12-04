@@ -35,6 +35,8 @@ export type TranslationKeys = {
     export: string;
     exportSimple: string;
     exportMarkdown: string;
+    loadSample: string;
+    confirmLoadSample: string;
   };
   nodes: {
     event: string;

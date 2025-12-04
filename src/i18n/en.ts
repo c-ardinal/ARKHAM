@@ -37,6 +37,8 @@ export const en: TranslationKeys = {
     export: 'Export',
     exportSimple: 'Simple Text',
     exportMarkdown: 'Markdown',
+    loadSample: 'Load Sample Data',
+    confirmLoadSample: 'Current data will be lost. Are you sure you want to load sample data?',
   },
   nodes: {
     event: 'Event',
