@@ -377,6 +377,20 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               if (newData.conditionValue === oldName) {
                   newData.conditionValue = newName;
               }
+              
+              // Update targetVariable and variableValue for VariableNodes
+              if (newData.targetVariable === oldName) {
+                  newData.targetVariable = newName;
+              }
+              newData.variableValue = replaceRef(newData.variableValue);
+
+              // Update Switch cases
+              if (newData.branches) {
+                  newData.branches = newData.branches.map(b => ({
+                      ...b,
+                      label: replaceRef(b.label) || b.label
+                  }));
+              }
 
               return { ...node, data: newData };
           });
@@ -440,6 +454,20 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               // Also check direct usage in conditionValue if it matches the variable name exactly (for switch/check)
               if (newData.conditionValue === oldName) {
                   newData.conditionValue = newName;
+              }
+              
+              // Update targetVariable and variableValue for VariableNodes
+              if (newData.targetVariable === oldName) {
+                  newData.targetVariable = newName;
+              }
+              newData.variableValue = replaceRef(newData.variableValue);
+
+              // Update Switch cases
+              if (newData.branches) {
+                  newData.branches = newData.branches.map(b => ({
+                      ...b,
+                      label: replaceRef(b.label) || b.label
+                  }));
               }
 
               return { ...node, data: newData };
