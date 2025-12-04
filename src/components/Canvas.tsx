@@ -151,7 +151,7 @@ const ContextMenu = ({
           </button>
       )}
 
-      {mode === 'edit' && menu.type === 'node' && (
+      {mode === 'edit' && (menu.type === 'node' || menu.type === 'edge') && (
           <button 
             onClick={onDelete}
             className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
@@ -345,11 +345,17 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     
     if (nodesToDelete.length > 0) {
         deleteNodes(nodesToDelete.map(n => n.id));
-    } else if (menu?.type === 'edge') {
-        setEdges((edges) => edges.filter((e) => e.id !== menu.id));
+    } else {
+        // Check for selected edges
+        const selectedEdges = edges.filter(e => e.selected);
+        const edgesToDelete = selectedEdges.length > 0 ? selectedEdges : (menu?.type === 'edge' ? edges.filter(e => e.id === menu.id) : []);
+        
+        if (edgesToDelete.length > 0) {
+            setEdges((currentEdges) => currentEdges.filter((e) => !edgesToDelete.some(del => del.id === e.id)));
+        }
     }
     setMenu(null);
-  }, [menu, deleteNodes, setEdges, getNodes]);
+  }, [menu, deleteNodes, setEdges, getNodes, edges]);
 
   const handleDuplicate = useCallback(() => {
     const selectedNodes = getNodes().filter(n => n.selected);

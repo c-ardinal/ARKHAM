@@ -411,7 +411,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           // Helper to replace [val=OLD] with [val=NEW]
           const replaceRef = (text?: string) => {
               if (!text) return text;
-              return text.replaceAll(`\${${oldName}}`, `\${${newName}}`);
+              // Escape special characters in oldName for regex
+              const escapedOldName = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const regex = new RegExp(`\\$\\{${escapedOldName}\\}`, 'g');
+              return text.replace(regex, `\${${newName}}`);
           };
 
           // Refactor references in other variables (string types)
