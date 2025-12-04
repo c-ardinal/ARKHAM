@@ -8,6 +8,7 @@ import { useScenarioStore } from '../store/scenarioStore';
 import { Play, Edit, Save, Upload, Languages, Book, Sun, Moon, Undo, Redo, Eye, EyeOff, ChevronDown, Info, Check, ChevronRight, Spline, Download } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { generateScenarioText } from '../utils/exportUtils';
+import sampleData from '../../sample.json';
 
 interface MenuItemProps {
     onClick?: (e: React.MouseEvent) => void;
@@ -314,6 +315,21 @@ export const Layout = () => {
                 >
                     <MenuItem onClick={handleSave} icon={Save} label={t.common.save} />
                     <MenuItem onClick={() => fileInputRef.current?.click()} icon={Upload} label={t.common.load} />
+                    <MenuItem 
+                        onClick={() => {
+                            setConfirmModal({
+                                isOpen: true,
+                                title: t.menu.loadSample,
+                                message: t.menu.confirmLoadSample,
+                                onConfirm: () => {
+                                    // @ts-ignore
+                                    useScenarioStore.getState().loadScenario(sampleData);
+                                }
+                            });
+                        }} 
+                        icon={Upload} 
+                        label={t.menu.loadSample} 
+                    />
                     <div className="my-1 border-t border-border" />
                     <SubMenu label={t.menu.export} icon={Download}>
                         <MenuItem 

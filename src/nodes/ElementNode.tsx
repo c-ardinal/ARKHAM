@@ -49,7 +49,7 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
                   {getActionIcon()}
               </span>
           </div>
-          <div className="text-[10px] opacity-80 line-clamp-2">{substituteVariables(data.description || '', gameState.variables)}</div>
+          <div className="text-[10px] opacity-80 whitespace-pre-wrap">{substituteVariables(data.description || '', gameState.variables)}</div>
         </div>
       </div>
       

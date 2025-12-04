@@ -37,6 +37,8 @@ export const ja: TranslationKeys = {
     export: '出力',
     exportSimple: 'シンプルテキスト',
     exportMarkdown: 'Markdown',
+    loadSample: 'サンプルデータ読込',
+    confirmLoadSample: '現在のデータは失われます。サンプルデータを読み込みますか？',
   },
   nodes: {
     event: 'イベント',
