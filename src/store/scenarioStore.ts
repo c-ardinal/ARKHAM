@@ -76,7 +76,19 @@ interface ScenarioState {
 }
 
 export const useScenarioStore = create<ScenarioState>((set, get) => ({
-  nodes: [],
+  nodes: [
+    {
+      id: 'memo-initial-warning',
+      type: 'memo',
+      position: { x: 100, y: 100 },
+      data: {
+        label: '注意事項 / Warnings',
+        description: '・本ツールにはデータの自動保存機能は有りません。\n ページ再読み込み(更新)や再アクセスをするとそれまで編集していたデータは消えます。\n データを保持したい場合は「ファイル→保存」を実行または「Ctrl+S」押下で手動保存して下さい。\n・使用例を見たい場合は、「ファイル→サンプルデータ読込」を実行して下さい。\n・その他の注意事項や使い方は「ヘルプ→マニュアル」をご覧下さい。\n\n上記を読み終わったらこのノードは削除して問題有りません。'
+      },
+      width: 400,
+      height: 200,
+    }
+  ],
   edges: [],
   gameState: {
     currentNodes: [],
