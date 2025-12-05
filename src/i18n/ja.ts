@@ -150,6 +150,7 @@ export const ja: TranslationKeys = {
     value: '値',
     condition: '条件',
     cases: 'ケース一覧',
+    detachFromGroup: 'グループから抜ける',
   },
   mobileBlocker: {
     title: 'PCからアクセスしてください',

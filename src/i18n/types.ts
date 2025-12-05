@@ -146,6 +146,7 @@ export type TranslationKeys = {
     value: string;
     condition: string;
     cases: string;
+    detachFromGroup: string;
   };
   mobileBlocker: {
     title: string;

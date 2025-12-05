@@ -1,6 +1,6 @@
 import { memo, useEffect } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import { Forward } from 'lucide-react';
+import { Rabbit } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
@@ -32,7 +32,7 @@ const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
           </div>
       )}
       <div className="flex items-center mb-2">
-        <Forward size={16} className="mr-2 opacity-70" />
+        <Rabbit size={16} className="mr-2 opacity-70" />
         <div className="font-bold text-sm">{substituteVariables(data.label, gameState.variables)}</div>
       </div>
       

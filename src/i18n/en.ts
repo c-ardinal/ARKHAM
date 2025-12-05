@@ -148,6 +148,7 @@ export const en: TranslationKeys = {
     value: 'Value',
     condition: 'Condition',
     cases: 'Cases',
+    detachFromGroup: 'Detach from Group',
   },
   mobileBlocker: {
     title: 'Please access from PC',

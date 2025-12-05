@@ -39,6 +39,7 @@ interface ContextMenuState {
   left: number;
   data?: ScenarioNodeData;
   nodeType?: string;
+  parentNode?: string;
 }
 
 const ContextMenu = ({ 
@@ -49,9 +50,10 @@ const ContextMenu = ({
   onReduplicate,
   onCopyText,
   onToggleState,
-  onUngroup
+  onUngroup,
+  onDetachFromGroup
 }: { 
-  menu: ContextMenuState & { nodeType?: string }; 
+  menu: ContextMenuState & { nodeType?: string; parentNode?: string }; 
   onClose: () => void;
   onDelete: () => void;
   onDuplicate?: () => void;
@@ -60,6 +62,7 @@ const ContextMenu = ({
   onToggleState?: () => void;
   onGroup?: () => void;
   onUngroup?: () => void;
+  onDetachFromGroup?: () => void;
   isRevealed?: boolean;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -128,6 +131,15 @@ const ContextMenu = ({
                 className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
               >
                 {t.contextMenu.ungroup}
+              </button>
+          )}
+
+          {menu.parentNode && (
+              <button 
+                onClick={onDetachFromGroup}
+                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+              >
+                {t.contextMenu.detachFromGroup}
               </button>
           )}
           
@@ -419,7 +431,8 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         top: event.clientY,
         left: event.clientX,
         data: node.data,
-        nodeType: node.type // Pass node type
+        nodeType: node.type, // Pass node type
+        parentNode: node.parentNode
       });
     },
     []
@@ -455,6 +468,53 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   );
 
 
+
+  const handleDetachFromGroup = useCallback(() => {
+      if (!menu?.id) return;
+      
+      const node = getNodes().find(n => n.id === menu.id);
+      if (node && node.parentNode) {
+          // Find the top-level parent group
+          let topParent = getNodes().find(n => n.id === node.parentNode);
+          let currentParentId = topParent?.parentNode;
+          
+          while (currentParentId) {
+              const parent = getNodes().find(n => n.id === currentParentId);
+              if (parent) {
+                  topParent = parent;
+                  currentParentId = parent.parentNode;
+              } else {
+                  break;
+              }
+          }
+
+          if (topParent) {
+              // Calculate node's current absolute Y
+              let absY = node.position.y;
+              let pId: string | undefined = node.parentNode;
+              while(pId) {
+                  const p = getNodes().find(n => n.id === pId);
+                  if (p) {
+                      absY += p.position.y;
+                      pId = p.parentNode;
+                  } else {
+                      break;
+                  }
+              }
+
+              // Top parent is at root, so its position is absolute
+              const topParentX = topParent.position.x;
+              const topParentWidth = topParent.width || 150;
+
+              // New Position: Right of the top parent with some margin
+              const newX = topParentX + topParentWidth + 50;
+              const newY = absY;
+
+              useScenarioStore.getState().setNodeParent(node.id, undefined, { x: newX, y: newY });
+          }
+      }
+      setMenu(null);
+  }, [menu, getNodes]);
 
   const handleDelete = useCallback(() => {
     const selectedNodes = getNodes().filter(n => n.selected);
@@ -703,6 +763,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
           onToggleState={handleToggleState}
           onGroup={handleGroup}
           onUngroup={handleUngroup}
+          onDetachFromGroup={handleDetachFromGroup}
         />
       )}
     </div>
