@@ -370,13 +370,10 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   }, [setSelectedNode]);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    if (mode === 'play') {
-      setSelectedNode(null); // Ensure no node is selected in play mode
-    }
     if (node.type === 'group') {
         bringNodeToFront(node.id);
     }
-  }, [mode, setSelectedNode, bringNodeToFront]);
+  }, [bringNodeToFront]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -565,7 +562,18 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   // Keyboard Shortcuts
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-          if (mode === 'play') return;
+          // Prevent page reload on Ctrl+R
+          if (e.ctrlKey && e.key === 'r') {
+              e.preventDefault();
+          }
+
+          if (mode === 'play') {
+              // Only allow Ctrl+R in play mode
+              if (e.ctrlKey && e.key === 'r') {
+                  handleToggleState();
+              }
+              return;
+          }
           
           // Ignore if input/textarea is focused
           if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return;
@@ -579,7 +587,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
               e.preventDefault();
               handleReduplicate();
           } else if (e.ctrlKey && e.key === 'r') {
-              e.preventDefault();
+              // Handled above, but just in case logic flows here
               handleToggleState();
           }
       };
@@ -624,7 +632,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         onPaneClick={onPaneClick}
         nodesDraggable={mode === 'edit'}
         nodesConnectable={mode === 'edit'}
-        elementsSelectable={mode === 'edit'}
+        elementsSelectable={true}
         fitView
         selectionKeyCode="Control"
         deleteKeyCode={null} // Disable default delete to handle it manually
