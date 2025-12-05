@@ -1,7 +1,7 @@
 import React from 'react';
 import type { NodeType } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Package, ChevronsRight, Zap, BookOpen, Brain, ChevronsLeft, StickyNote, Variable as VariableIcon, Flag, GitBranch, Folder } from 'lucide-react';
+import { Package, ChevronsRight, Zap, BookOpen, Brain, ChevronsLeft, StickyNote, Variable as VariableIcon, Flag, GitBranch, Folder, Rabbit } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableList } from './VariableList';
 import { substituteVariables } from '../utils/textUtils';
@@ -176,7 +176,7 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
             </div>
 
             <div 
-            className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 dark:border-slate-600 bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300"
+            className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-100 dark:border-slate-600 bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300"
             onDragStart={(event) => onDragStart(event, 'group')}
             draggable
             >
@@ -185,6 +185,14 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
 
             <div 
             className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 dark:text-yellow-200 dark:border-yellow-800 bg-yellow-50 hover:bg-yellow-100 text-yellow-900 border-yellow-200"
+            onDragStart={(event) => onDragStart(event, 'jump')}
+            draggable
+            >
+            <Rabbit size={16} /> {t.nodes.jump}
+            </div>
+
+            <div 
+            className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-slate-500 dark:hover:bg-slate-400 dark:text-slate-100 dark:border-slate-500 bg-white hover:bg-slate-50 text-slate-900 border-slate-200"
             onDragStart={(event) => onDragStart(event, 'memo')}
             draggable
             >

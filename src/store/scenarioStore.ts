@@ -267,7 +267,13 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       while (changed) {
           changed = false;
           state.nodes.forEach(node => {
+              // 1. Delete descendants
               if (node.parentNode && idsToDelete.has(node.parentNode) && !idsToDelete.has(node.id)) {
+                  idsToDelete.add(node.id);
+                  changed = true;
+              }
+              // 2. Delete JumpNodes that target deleted nodes
+              if (node.type === 'jump' && node.data.jumpTarget && idsToDelete.has(node.data.jumpTarget) && !idsToDelete.has(node.id)) {
                   idsToDelete.add(node.id);
                   changed = true;
               }
@@ -284,7 +290,17 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       get().recalculateGameState();
   },
   setMode: (mode) => set({ mode }),
-  setSelectedNode: (id) => set({ selectedNodeId: id }),
+  setSelectedNode: (id) => {
+      const state = get();
+      const updatedNodes = state.nodes.map(n => ({
+          ...n,
+          selected: n.id === id
+      }));
+      set({ 
+          selectedNodeId: id,
+          nodes: updatedNodes
+      });
+  },
   loadScenario: (data) => set({ nodes: data.nodes, edges: data.edges, gameState: data.gameState }),
 
 

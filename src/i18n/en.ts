@@ -49,6 +49,7 @@ export const en: TranslationKeys = {
     condition: 'Condition',
     branch: 'Branch',
     group: 'Group',
+    jump: 'Jump',
     new: 'New',
   },
   properties: {
@@ -77,6 +78,8 @@ export const en: TranslationKeys = {
     addCase: '+ Add Case',
     selectItem: 'Select Item...',
     selectVariable: '',
+    jumpTarget: 'Jump Target',
+    noNodesAvailable: 'No nodes available',
   },
   gameState: {
     inventory: 'Inventory',

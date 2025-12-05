@@ -47,6 +47,7 @@ export type TranslationKeys = {
     condition: string;
     branch: string;
     group: string;
+    jump: string;
     new: string;
   };
   properties: {
@@ -75,6 +76,8 @@ export type TranslationKeys = {
     addCase: string;
     selectItem: string;
     selectVariable: string;
+    jumpTarget: string;
+    noNodesAvailable: string;
   };
   gameState: {
     inventory: string;

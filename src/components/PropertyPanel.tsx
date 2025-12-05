@@ -2,13 +2,14 @@ import { useScenarioStore } from '../store/scenarioStore';
 import type { ChangeEvent } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
+import { substituteVariables } from '../utils/textUtils';
 
 interface PropertyPanelProps {
   width: number;
 }
 
 export const PropertyPanel = ({ width }: PropertyPanelProps) => {
-  const { nodes, selectedNodeId, updateNodeData } = useScenarioStore();
+  const { nodes, selectedNodeId, updateNodeData, gameState } = useScenarioStore();
   const { t } = useTranslation();
   
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
@@ -288,6 +289,29 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                 />
                 <label className={labelClass}>{t.properties.isStartNode}</label>
              </div>
+          )}
+
+          {selectedNode.type === 'jump' && (
+              <div>
+                  <label className={labelClass}>{t.properties.jumpTarget}</label>
+                  <select
+                      value={selectedNode.data.jumpTarget || ''}
+                      onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value })}
+                      className={inputClass}
+                  >
+                      {nodes.filter(n => n.id !== selectedNode.id).length === 0 && (
+                           <option value="" disabled>{t.properties.noNodesAvailable}</option>
+                      )}
+                      {nodes
+                          .filter(n => n.id !== selectedNode.id)
+                          .map(n => (
+                              <option key={n.id} value={n.id}>
+                                  {substituteVariables(n.data.label, gameState.variables)} ({n.type})
+                              </option>
+                          ))
+                      }
+                  </select>
+              </div>
           )}
         </div>
       </div>

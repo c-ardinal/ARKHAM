@@ -49,6 +49,7 @@ export const ja: TranslationKeys = {
     condition: '条件',
     branch: '分岐',
     group: 'グループ',
+    jump: 'ジャンプ',
     new: '新規',
   },
   properties: {
@@ -77,6 +78,8 @@ export const ja: TranslationKeys = {
     addCase: '+ ケース追加',
     selectItem: 'アイテムを選択...',
     selectVariable: '',
+    jumpTarget: 'ジャンプ先',
+    noNodesAvailable: '対象ノードが有りません',
   },
   gameState: {
     inventory: '所持品',

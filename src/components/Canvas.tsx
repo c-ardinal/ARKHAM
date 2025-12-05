@@ -16,6 +16,7 @@ import BranchNode from '../nodes/BranchNode';
 import GroupNode from '../nodes/GroupNode';
 import MemoNode from '../nodes/MemoNode';
 import VariableNode from '../nodes/VariableNode';
+import JumpNode from '../nodes/JumpNode';
 import type { NodeType, ScenarioNode, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
@@ -28,6 +29,7 @@ const nodeTypes = {
   group: GroupNode,
   memo: MemoNode,
   variable: VariableNode,
+  jump: JumpNode,
 };
 
 interface ContextMenuState {
@@ -186,11 +188,16 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     selectedNodeId,
     bringNodeToFront,
   } = useScenarioStore();
-  const { setEdges, getNodes, screenToFlowPosition } = useReactFlow();
+  const { setEdges, getNodes, screenToFlowPosition, setCenter, getZoom } = useReactFlow();
   const { t } = useTranslation();
   
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const lastDuplicatedIds = useRef<string[]>([]);
+
+  const onPaneClick = useCallback(() => {
+    setMenu(null);
+    onCanvasClick?.();
+  }, [onCanvasClick]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -369,11 +376,39 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     }
   }, [setSelectedNode]);
 
+  const lastClickTime = useRef<number>(0);
+  const lastClickNodeId = useRef<string | null>(null);
+
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    const currentTime = Date.now();
+    const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 300;
+    lastClickTime.current = currentTime;
+    lastClickNodeId.current = node.id;
+
+    if (isDoubleClick && node.type === 'jump' && node.data.jumpTarget) {
+        const targetId = node.data.jumpTarget;
+        
+        // Use setTimeout to ensure state updates and rendering settle before moving view
+        setTimeout(() => {
+            const targetNode = getNodes().find(n => n.id === targetId);
+            
+            if (targetNode) {
+                const { x, y } = targetNode.position;
+                const width = targetNode.width || 150;
+                const height = targetNode.height || 50;
+                
+                const currentZoom = getZoom();
+                setCenter(x + width / 2, y + height / 2, { zoom: currentZoom, duration: 800 });
+                
+                setSelectedNode(targetId);
+            }
+        }, 50);
+    }
+
     if (node.type === 'group') {
         bringNodeToFront(node.id);
     }
-  }, [bringNodeToFront]);
+  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -419,10 +454,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     [mode]
   );
 
-  const onPaneClick = useCallback(() => {
-    setMenu(null);
-    onCanvasClick?.();
-  }, [onCanvasClick]);
+
 
   const handleDelete = useCallback(() => {
     const selectedNodes = getNodes().filter(n => n.selected);

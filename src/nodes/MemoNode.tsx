@@ -11,8 +11,8 @@ const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   return (
     <div className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] min-h-[100px] relative transition-all duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
-      border-yellow-200 dark:border-yellow-800
-      bg-yellow-50 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-100
+      border-slate-200 dark:border-slate-700
+      bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100
       hover:shadow-lg
     `}>
       {data.revealed && (
@@ -27,8 +27,8 @@ const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       <div className="text-xs whitespace-pre-wrap opacity-90 leading-relaxed">
         {substituteVariables(data.description || '', gameState.variables)}
       </div>
-      <Handle type="target" position={Position.Top} className="!bg-yellow-400" />
-      <Handle type="source" position={Position.Bottom} className="!bg-yellow-400" />
+      <Handle type="target" position={Position.Top} className="!bg-slate-400" />
+      <Handle type="source" position={Position.Bottom} className="!bg-slate-400" />
     </div>
   );
 };

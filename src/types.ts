@@ -1,6 +1,6 @@
 import type { Node, Edge } from 'reactflow';
 
-export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable';
+export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable' | 'jump';
 
 export interface ScenarioNodeData {
   label: string;
@@ -27,6 +27,9 @@ export interface ScenarioNodeData {
   targetVariable?: string;
   variableValue?: string;
   previousValue?: any; // To restore value when un-revealed
+
+  // For Jump nodes
+  jumpTarget?: string;
 
   // State
   revealed?: boolean;
