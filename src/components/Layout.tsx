@@ -385,7 +385,6 @@ export const Layout = () => {
                     onToggle={() => setOpenMenuId(openMenuId === 'edit' ? null : 'edit')}
                     onClose={closeMenu}
                 >
-                    <div className="my-1 border-t border-border" />
                     <SubMenu label={t.menu.bulkStickyOperations} icon={StickyNote}>
                         <MenuItem 
                             onClick={() => {

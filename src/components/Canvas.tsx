@@ -211,15 +211,16 @@ const ContextMenu = ({
             {/* Edit Mode Grouping/Deletion */}
             {mode === 'edit' && menu.nodeType !== 'sticky' && (
                 <>
-                    <div className="h-px bg-border my-1" />
-                    
                     {menu.nodeType === 'group' && (
+                      <>
+                        <div className="h-px bg-border my-1" />
                         <button 
                             onClick={onUngroup}
                             className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
                         >
                             {t.contextMenu.ungroup}
                         </button>
+                      </>
                     )}
 
                     {menu.parentNode && (
