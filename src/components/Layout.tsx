@@ -5,10 +5,11 @@ import { Canvas } from './Canvas';
 import { ManualModal } from './ManualModal';
 import { AboutModal } from './AboutModal';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Play, Edit, Save, Upload, Languages, Book, Sun, Moon, Undo, Redo, Eye, EyeOff, ChevronDown, Info, Check, ChevronRight, Spline, Download, StickyNote } from 'lucide-react';
+import { Play, Edit, Save, Upload, Languages, Book, Sun, Moon, Undo, Redo, Eye, EyeOff, ChevronDown, Info, Check, ChevronRight, Spline, Download, StickyNote, Layers } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { generateScenarioText } from '../utils/exportUtils';
-import sampleData from '../../sample.json';
+import sampleStory from '../../sample_Story.json';
+import sampleNestedGroup from '../../sample_NestedGroupNodes.json';
 
 interface MenuItemProps {
     onClick?: (e: React.MouseEvent) => void;
@@ -315,21 +316,38 @@ export const Layout = () => {
                 >
                     <MenuItem onClick={handleSave} icon={Save} label={t.common.save} />
                     <MenuItem onClick={() => fileInputRef.current?.click()} icon={Upload} label={t.common.load} />
-                    <MenuItem 
-                        onClick={() => {
-                            setConfirmModal({
-                                isOpen: true,
-                                title: t.menu.loadSample,
-                                message: t.menu.confirmLoadSample,
-                                onConfirm: () => {
-                                    // @ts-ignore
-                                    useScenarioStore.getState().loadScenario(sampleData);
-                                }
-                            });
-                        }} 
-                        icon={Upload} 
-                        label={t.menu.loadSample} 
-                    />
+                    <SubMenu label={t.menu.loadSample} icon={Upload}>
+                        <MenuItem 
+                            onClick={() => {
+                                setConfirmModal({
+                                    isOpen: true,
+                                    title: t.menu.loadSample,
+                                    message: t.menu.confirmLoadSample,
+                                    onConfirm: () => {
+                                        // @ts-ignore
+                                        useScenarioStore.getState().loadScenario(sampleStory);
+                                    }
+                                });
+                            }} 
+                            label={t.menu.loadStory}
+                            icon={Book}
+                        />
+                        <MenuItem 
+                            onClick={() => {
+                                setConfirmModal({
+                                    isOpen: true,
+                                    title: t.menu.loadSample,
+                                    message: t.menu.confirmLoadSample,
+                                    onConfirm: () => {
+                                        // @ts-ignore
+                                        useScenarioStore.getState().loadScenario(sampleNestedGroup);
+                                    }
+                                });
+                            }} 
+                            label={t.menu.loadNestedGroup} 
+                            icon={Layers}
+                        />
+                    </SubMenu>
                     <div className="my-1 border-t border-border" />
                     <SubMenu label={t.menu.export} icon={Download}>
                         <MenuItem 

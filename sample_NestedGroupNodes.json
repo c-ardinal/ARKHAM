@@ -1,0 +1,434 @@
+{
+  "nodes": [
+    {
+      "id": "element-1764912871920",
+      "type": "element",
+      "position": {
+        "x": 758.8533255082639,
+        "y": 1386.7182615341426
+      },
+      "data": {
+        "label": "${Demo}",
+        "infoType": "knowledge",
+        "description": "${Demo}",
+        "infoValue": "${Demo}",
+        "hasSticky": false
+      },
+      "width": 168,
+      "height": 134,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 556.6590990377287,
+        "y": 1576.3739618751977
+      },
+      "dragging": false,
+      "parentNode": "group-1764912848357",
+      "extent": "parent"
+    },
+    {
+      "id": "group-1764912848357",
+      "type": "group",
+      "position": {
+        "x": -202.19422647053523,
+        "y": 189.6557003410551
+      },
+      "data": {
+        "label": "${Demo}",
+        "expanded": true,
+        "contentWidth": 116.765625,
+        "contentHeight": 49,
+        "description": "${Demo}",
+        "hasSticky": false
+      },
+      "style": {
+        "width": 1535.6708834944693,
+        "height": 1560.7182615341426,
+        "zIndex": -1
+      },
+      "width": 1536,
+      "height": 1561,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -202.19422647053523,
+        "y": -19.471253522374013
+      },
+      "dragging": false
+    },
+    {
+      "id": "variable-1764912881419",
+      "type": "variable",
+      "position": {
+        "x": 689.7500433319078,
+        "y": 1045.5634769317146
+      },
+      "data": {
+        "label": "${Demo}",
+        "targetVariable": "Demo",
+        "description": "${Demo}",
+        "variableValue": "${Demo}",
+        "hasSticky": false
+      },
+      "width": 183,
+      "height": 126,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 550.2701620022754,
+        "y": 1350.3739618751977
+      },
+      "dragging": false,
+      "parentNode": "group-1764912825017",
+      "extent": "parent"
+    },
+    {
+      "id": "group-1764912825017",
+      "type": "group",
+      "position": {
+        "x": 62.714345140902765,
+        "y": 115.15478460242795
+      },
+      "data": {
+        "label": "${Demo}",
+        "expanded": true,
+        "contentWidth": 116.765625,
+        "contentHeight": 49,
+        "description": "${Demo}",
+        "hasSticky": false
+      },
+      "style": {
+        "width": 1432.9565383535664,
+        "height": 1211.5634769317146,
+        "zIndex": -1
+      },
+      "width": 1433,
+      "height": 1212,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -139.47988132963246,
+        "y": 304.81048494348306
+      },
+      "dragging": false,
+      "parentNode": "group-1764912848357",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "group-1764912826688",
+      "type": "group",
+      "position": {
+        "x": 62.31747132238945,
+        "y": 123.6746265600774
+      },
+      "data": {
+        "label": "${Demo}",
+        "expanded": true,
+        "contentWidth": 116.765625,
+        "contentHeight": 49,
+        "description": "${Demo}",
+        "hasSticky": false
+      },
+      "style": {
+        "width": 886.6286526800943,
+        "height": 821.8888503716372,
+        "zIndex": -1
+      },
+      "width": 887,
+      "height": 822,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -77.16241000724301,
+        "y": 428.48511150356046
+      },
+      "dragging": false,
+      "parentNode": "group-1764912825017",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "event-1764912838005",
+      "type": "event",
+      "position": {
+        "x": 317.45627836211804,
+        "y": 567.9146189174365
+      },
+      "data": {
+        "label": "新規 event",
+        "hasSticky": false
+      },
+      "width": 162,
+      "height": 52,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 296.6113396772646,
+        "y": 1118.3739618751977
+      },
+      "dragging": false,
+      "parentNode": "group-1764912839272",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "group-1764912839272",
+      "type": "group",
+      "position": {
+        "x": 56.317471322389565,
+        "y": 121.97423145420066
+      },
+      "data": {
+        "label": "${Demo}",
+        "expanded": true,
+        "contentWidth": 116.765625,
+        "contentHeight": 49,
+        "description": "${Demo}",
+        "hasSticky": false
+      },
+      "style": {
+        "width": 790.3111813577048,
+        "height": 659.9146189174365,
+        "zIndex": -1
+      },
+      "width": 790,
+      "height": 660,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -20.844938684853446,
+        "y": 550.4593429577611
+      },
+      "dragging": false,
+      "parentNode": "group-1764912826688",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "memo-initial-warning",
+      "type": "memo",
+      "position": {
+        "x": 88.17426318354285,
+        "y": 132.78165180204098
+      },
+      "data": {
+        "label": "注意事項 / Warnings",
+        "description": "・本ツールにはデータの自動保存機能は有りません。\n ページ再読み込み(更新)や再アクセスをするとそれまで編集していたデータは消えます。\n データを保持したい場合は「ファイル→保存」を実行または「Ctrl+S」押下で手動保存して下さい。\n・使用例を見たい場合は、「ファイル→サンプルデータ読込」を実行して下さい。\n・その他の注意事項や使い方は「ヘルプ→マニュアル」をご覧下さい。\n\n上記を読み終わったらこのノードは削除して問題有りません。",
+        "hasSticky": false
+      },
+      "width": 561,
+      "height": 219,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 128.4662426728513,
+        "y": 821.3739618751977
+      },
+      "dragging": false,
+      "parentNode": "group-1764912844966",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "group-1764912844966",
+      "type": "group",
+      "position": {
+        "x": 61.136918174161906,
+        "y": 138.13296711539556
+      },
+      "data": {
+        "label": "${Demo}",
+        "expanded": true,
+        "contentWidth": 116.765625,
+        "contentHeight": 49,
+        "description": "${Demo}",
+        "hasSticky": false
+      },
+      "style": {
+        "width": 689.1742631835428,
+        "height": 391.781651802041,
+        "zIndex": -1
+      },
+      "width": 689,
+      "height": 392,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 40.29197948930846,
+        "y": 688.5923100731567
+      },
+      "dragging": false,
+      "parentNode": "group-1764912839272",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "group-1764912829754",
+      "type": "group",
+      "position": {
+        "x": 982.9461240024838,
+        "y": 120.25596992005802
+      },
+      "data": {
+        "label": "${Demo}",
+        "expanded": true,
+        "contentWidth": 116.765625,
+        "contentHeight": 49,
+        "description": "${Demo}",
+        "hasSticky": false
+      },
+      "style": {
+        "width": 410.01041435108255,
+        "height": 474.8493397839707,
+        "zIndex": -1
+      },
+      "width": 410,
+      "height": 475,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 843.4662426728513,
+        "y": 425.0664548635411
+      },
+      "dragging": false,
+      "parentNode": "group-1764912825017",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "branch-1764912880232",
+      "type": "branch",
+      "position": {
+        "x": 56.097234258862954,
+        "y": 116.63494264477856
+      },
+      "data": {
+        "label": "${Demo}",
+        "branchType": "switch",
+        "description": "${Demo}",
+        "conditionValue": "${Demo}",
+        "branches": [
+          {
+            "id": "case-1764913058470",
+            "label": "New Case"
+          },
+          {
+            "id": "case-1764913059304",
+            "label": "${Demo}"
+          }
+        ],
+        "hasSticky": false
+      },
+      "width": 220,
+      "height": 178,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 953.4766570239341,
+        "y": 641.9157946475118
+      },
+      "dragging": false,
+      "parentNode": "group-1764912909579",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "group-1764912909579",
+      "type": "group",
+      "position": {
+        "x": 53.91318009221959,
+        "y": 100.21439713919216
+      },
+      "data": {
+        "label": "${Demo}",
+        "expanded": true,
+        "contentWidth": 116.765625,
+        "contentHeight": 49,
+        "description": "${Demo}",
+        "hasSticky": false
+      },
+      "style": {
+        "width": 316.09723425886295,
+        "height": 334.63494264477856,
+        "zIndex": -1
+      },
+      "width": 316,
+      "height": 335,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 873.3794227650709,
+        "y": 469.28085200273324
+      },
+      "dragging": false,
+      "parentNode": "group-1764912829754",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "group-1764912873361",
+      "type": "group",
+      "position": {
+        "x": 1002.9461240024838,
+        "y": 633.1053097040287
+      },
+      "data": {
+        "label": "${Demo}",
+        "expanded": true,
+        "contentWidth": 116.765625,
+        "contentHeight": 49,
+        "description": "${Demo}",
+        "hasSticky": false
+      },
+      "style": {
+        "width": 331.99604894123354,
+        "height": 305.31352026362254,
+        "zIndex": -1
+      },
+      "width": 332,
+      "height": 305,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 863.4662426728513,
+        "y": 937.9157946475118
+      },
+      "dragging": false,
+      "parentNode": "group-1764912825017",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "branch-1764912901742",
+      "type": "branch",
+      "position": {
+        "x": 62.99604894123354,
+        "y": 103.31352026362254
+      },
+      "data": {
+        "label": "${Demo}",
+        "branchType": "if_else",
+        "description": "${Demo}",
+        "conditionValue": "${Demo}",
+        "hasSticky": false
+      },
+      "width": 229,
+      "height": 162,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 693.3576052780382,
+        "y": 858.3562687745637
+      },
+      "dragging": false,
+      "parentNode": "group-1764912873361",
+      "extent": "parent",
+      "hidden": false
+    }
+  ],
+  "edges": [],
+  "gameState": {
+    "currentNodes": [],
+    "revealedNodes": [],
+    "inventory": {},
+    "knowledge": {
+      "${Demo}": 0
+    },
+    "skills": {},
+    "stats": {},
+    "variables": {
+      "Demo": {
+        "name": "Demo",
+        "type": "string",
+        "value": "Demo String"
+      }
+    }
+  }
+}

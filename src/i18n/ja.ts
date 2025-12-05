@@ -38,6 +38,8 @@ export const ja: TranslationKeys = {
     exportSimple: 'シンプルテキスト',
     exportMarkdown: 'Markdown',
     loadSample: 'サンプルデータ読込',
+    loadStory: 'ストーリー',
+    loadNestedGroup: 'ネストされたグループノード',
     confirmLoadSample: '現在のデータは失われます。サンプルデータを読み込みますか？',
     bulkStickyOperations: '付箋一括操作',
     showAllStickies: '全ての付箋を表示',

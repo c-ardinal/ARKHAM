@@ -38,6 +38,8 @@ export const en: TranslationKeys = {
     exportSimple: 'Simple Text',
     exportMarkdown: 'Markdown',
     loadSample: 'Load Sample Data',
+    loadStory: 'Story',
+    loadNestedGroup: 'Nested Group Nodes',
     confirmLoadSample: 'Current data will be lost. Are you sure you want to load sample data?',
     bulkStickyOperations: 'Bulk Sticky Operations',
     showAllStickies: 'Show All Stickies',

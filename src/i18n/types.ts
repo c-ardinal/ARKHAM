@@ -36,6 +36,8 @@ export type TranslationKeys = {
     exportSimple: string;
     exportMarkdown: string;
     loadSample: string;
+    loadStory: string;
+    loadNestedGroup: string;
     confirmLoadSample: string;
     bulkStickyOperations: string;
     showAllStickies: string;
