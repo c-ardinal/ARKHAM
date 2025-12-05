@@ -52,7 +52,6 @@ const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
       </div>
 
       <Handle type="target" position={Position.Top} className="!bg-yellow-500" />
-      <Handle type="source" position={Position.Bottom} className="!bg-yellow-500" />
     </div>
   );
 };
