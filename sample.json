@@ -4,20 +4,20 @@
       "id": "event-1764849422943",
       "type": "event",
       "position": {
-        "x": -238.856703621854,
-        "y": -351.97483582760304
+        "x": -245.85670362185397,
+        "y": -395.97483582760304
       },
       "data": {
         "label": "導入",
         "isStart": true,
         "description": "彗星のニュースで賑わっている今日このごろ、\nあなたは道を散歩していると何かが落ちているのを見つける。拾ってみる。"
       },
-      "width": 374,
-      "height": 89,
+      "width": 424,
+      "height": 109,
       "selected": false,
       "positionAbsolute": {
-        "x": -238.856703621854,
-        "y": -351.97483582760304
+        "x": -245.85670362185397,
+        "y": -395.97483582760304
       },
       "dragging": false
     },
@@ -25,21 +25,22 @@
       "id": "element-1764849446947",
       "type": "element",
       "position": {
-        "x": -232.1348457651352,
-        "y": -174.69421888051508
+        "x": -239.1348457651352,
+        "y": -218.69421888051508
       },
       "data": {
         "label": "謎の石を入手",
         "infoType": "item",
         "infoValue": "謎の石",
-        "description": "目星：\n　成功→星のような模様が書かれているが欠けていてよく分からない\n　失敗→何も分からない\n　ファンブル→冒涜的な声が聞こえて寒気がした。0/1d2のSANc。\n"
+        "description": "目星：\n　成功→星のような模様が書かれているが欠けていてよく分からない\n　失敗→何も分からない\n　ファンブル→冒涜的な声が聞こえて寒気がした。0/1d2のSANc。\n",
+        "quantity": "1"
       },
-      "width": 340,
-      "height": 129,
+      "width": 406,
+      "height": 194,
       "selected": false,
       "positionAbsolute": {
-        "x": -232.1348457651352,
-        "y": -174.69421888051508
+        "x": -239.1348457651352,
+        "y": -218.69421888051508
       },
       "dragging": false
     },
@@ -47,8 +48,8 @@
       "id": "branch-1764849598489",
       "type": "branch",
       "position": {
-        "x": -433.0672423203377,
-        "y": 97.63876647203742
+        "x": -375.11450713696337,
+        "y": 62.36318853433133
       },
       "data": {
         "label": "石を調べようとする",
@@ -69,32 +70,32 @@
           }
         ]
       },
-      "width": 163,
-      "height": 129,
+      "width": 203,
+      "height": 165,
       "selected": false,
       "dragging": false,
       "positionAbsolute": {
-        "x": -433.0672423203377,
-        "y": 97.63876647203742
+        "x": -375.11450713696337,
+        "y": 62.36318853433133
       }
     },
     {
       "id": "memo-1764849912394",
       "type": "memo",
       "position": {
-        "x": 191.59493923605407,
-        "y": -223.35234527740712
+        "x": 223.59493923605407,
+        "y": -211.35234527740712
       },
       "data": {
         "label": "本シナリオについて",
-        "description": "サンプルチャート用にでっちあげた適当シナリオです。\n著作権は本ツール開発者(c-ardinal)に帰属します。"
+        "description": "サンプルチャート用にでっちあげた超適当シナリオです。\n著作権は本ツール開発者(c-ardinal)に帰属します。"
       },
-      "width": 279,
-      "height": 100,
+      "width": 322,
+      "height": 106,
       "selected": false,
       "positionAbsolute": {
-        "x": 191.59493923605407,
-        "y": -223.35234527740712
+        "x": 223.59493923605407,
+        "y": -211.35234527740712
       },
       "dragging": false
     },
@@ -103,19 +104,19 @@
       "type": "branch",
       "position": {
         "x": 121.0393644218725,
-        "y": 1023.9694237590134
+        "y": 1423.9443376716063
       },
       "data": {
         "label": "道具や情報が出揃っているか確認",
         "branchType": "if_else",
         "conditionValue": "MP補助薬・退散の呪文・石の情報を入手済か"
       },
-      "width": 351,
-      "height": 92,
+      "width": 454,
+      "height": 125,
       "selected": false,
       "positionAbsolute": {
         "x": 121.0393644218725,
-        "y": 1023.9694237590134
+        "y": 1423.9443376716063
       },
       "dragging": false
     },
@@ -123,20 +124,20 @@
       "id": "branch-1764850983767",
       "type": "branch",
       "position": {
-        "x": 395.70213780564995,
-        "y": 1175.1599412179728
+        "x": 453.69850032297586,
+        "y": 1665.1292107608992
       },
       "data": {
         "label": "余命確認",
         "branchType": "if_else",
-        "conditionValue": "余命が0日以下か"
+        "conditionValue": "余命(現在値${余命の日数}日)が0日以下か"
       },
-      "width": 201,
-      "height": 92,
+      "width": 343,
+      "height": 125,
       "selected": false,
       "positionAbsolute": {
-        "x": 395.70213780564995,
-        "y": 1175.1599412179728
+        "x": 453.69850032297586,
+        "y": 1665.1292107608992
       },
       "dragging": false
     },
@@ -144,88 +145,375 @@
       "id": "jump-1764925066327",
       "type": "jump",
       "position": {
-        "x": 525.6562737930333,
-        "y": 1370.1590345949023
+        "x": 661.4340507503036,
+        "y": 1926.1241649334063
       },
       "data": {
         "label": "調査先の選択肢に戻る",
         "jumpTarget": "branch-1764849598489"
       },
-      "width": 192,
-      "height": 101,
+      "width": 227,
+      "height": 131,
       "selected": false,
       "dragging": false,
       "positionAbsolute": {
-        "x": 525.6562737930333,
-        "y": 1370.1590345949023
+        "x": 661.4340507503036,
+        "y": 1926.1241649334063
       }
     },
     {
-      "id": "event-1764851266531",
+      "id": "event-1764849814308",
       "type": "event",
       "position": {
-        "x": 29.047891540289925,
-        "y": 69.58431217625093
+        "x": 49.610933580249196,
+        "y": 113.3892582516599
       },
       "data": {
-        "label": "バッドエンド",
-        "description": "${割愛の共通文}"
+        "label": "宝石店を営む友人に見てもらう"
       },
-      "width": 150,
-      "height": 73,
+      "width": 299,
+      "height": 52,
       "selected": false,
-      "dragging": false,
       "positionAbsolute": {
-        "x": 555.9640863121479,
-        "y": 1861.8168746774168
+        "x": 198.05885462983093,
+        "y": 399.044983941995
       },
-      "parentNode": "group-1764925181787",
+      "dragging": false,
+      "parentNode": "group-1764851348375",
       "extent": "parent"
     },
     {
-      "id": "group-1764925181787",
-      "type": "group",
+      "id": "memo-1764850827845",
+      "type": "memo",
       "position": {
-        "x": 250.99350040925583,
-        "y": 1321.0221164207405
+        "x": 92.96844980457831,
+        "y": 442.2522426977765
       },
       "data": {
-        "label": "エンディング2",
+        "label": "${割愛の共通文}",
+        "description": "${割愛の共通文}"
+      },
+      "width": 180,
+      "height": 100,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 241.41637085416005,
+        "y": 727.9079683881116
+      },
+      "dragging": false,
+      "parentNode": "group-1764851348375",
+      "extent": "parent"
+    },
+    {
+      "id": "group-1764851348375",
+      "type": "group",
+      "position": {
+        "x": 148.44792104958174,
+        "y": 285.6557256903351
+      },
+      "data": {
+        "label": "宝石店でのイベント",
         "expanded": true,
-        "contentWidth": 81.1875,
-        "contentHeight": 16
+        "contentWidth": 140.484375,
+        "contentHeight": 20
       },
       "style": {
-        "width": 219.04789154028992,
-        "height": 182.58431217625093,
+        "width": 388.6109335802492,
+        "height": 1050.4253880955594,
         "zIndex": -1
       },
-      "width": 219,
-      "height": 183,
+      "width": 389,
+      "height": 1050,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 125.27540945165134,
+        "y": 285.6557256903351
+      },
+      "dragging": false
+    },
+    {
+      "id": "element-1764925632067",
+      "type": "element",
+      "position": {
+        "x": 39.99874569562962,
+        "y": 876.4253880955595
+      },
+      "data": {
+        "label": "友人から退魔の呪文を教えてもらう",
+        "infoType": "skill",
+        "infoValue": "退魔呪文",
+        "description": "詳細割愛",
+        "quantity": "1"
+      },
+      "width": 299,
+      "height": 134,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 188.44666674521136,
+        "y": 1162.0811137858946
+      },
+      "dragging": false,
+      "parentNode": "group-1764851348375",
+      "extent": "parent"
+    },
+    {
+      "id": "event-1764849815349",
+      "type": "event",
+      "position": {
+        "x": 43.031851152678996,
+        "y": 105.43305104496676
+      },
+      "data": {
+        "label": "地質学者の祖父に見てもらう"
+      },
+      "width": 285,
+      "height": 52,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -238.19659600864787,
+        "y": 397.5074416290182
+      },
+      "dragging": false,
+      "parentNode": "group-1764851374095",
+      "extent": "parent"
+    },
+    {
+      "id": "memo-1764850896155-7bdb6s4zo",
+      "type": "memo",
+      "position": {
+        "x": 88.08870025083206,
+        "y": 441.054736560077
+      },
+      "data": {
+        "label": "${割愛の共通文}",
+        "description": "${割愛の共通文}"
+      },
+      "width": 180,
+      "height": 100,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -193.1397469104948,
+        "y": 733.1291271441285
+      },
+      "dragging": false,
+      "parentNode": "group-1764851374095",
+      "extent": "parent"
+    },
+    {
+      "id": "group-1764851374095",
+      "type": "group",
+      "position": {
+        "x": -281.22844716132687,
+        "y": 292.07439058405146
+      },
+      "data": {
+        "label": "祖父宅でのイベント",
+        "expanded": true,
+        "contentWidth": 140.484375,
+        "contentHeight": 20
+      },
+      "style": {
+        "width": 395.11855130341155,
+        "height": 1041.5090831696289,
+        "zIndex": -1
+      },
+      "width": 395,
+      "height": 1042,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -281.22844716132687,
+        "y": 292.07439058405146
+      },
+      "dragging": false
+    },
+    {
+      "id": "element-1764925770469",
+      "type": "element",
+      "position": {
+        "x": 43.11855130341155,
+        "y": 867.509083169629
+      },
+      "data": {
+        "label": "祖父から青色の綺麗な液体薬を貰う",
+        "infoType": "item",
+        "description": "詳細割愛",
+        "infoValue": "MP補助薬",
+        "quantity": "1"
+      },
+      "width": 312,
+      "height": 134,
       "selected": false,
       "dragging": false,
       "positionAbsolute": {
-        "x": 250.99350040925583,
-        "y": 1321.0221164207405
-      }
+        "x": -238.10989585791532,
+        "y": 1159.5834737536804
+      },
+      "parentNode": "group-1764851374095",
+      "extent": "parent"
+    },
+    {
+      "id": "variable-1764850432623",
+      "type": "variable",
+      "position": {
+        "x": 438.93596183263014,
+        "y": 606.3553864190475
+      },
+      "data": {
+        "label": "余命を減らす",
+        "targetVariable": "余命の日数",
+        "variableValue": "${余命の日数}-1"
+      },
+      "width": 173,
+      "height": 89,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 994.3821268560934,
+        "y": 892.4376706537247
+      },
+      "dragging": false,
+      "hidden": false,
+      "parentNode": "group-1764851311181",
+      "extent": "parent"
+    },
+    {
+      "id": "event-1764849811414",
+      "type": "event",
+      "position": {
+        "x": 193.73584905184202,
+        "y": 113.9959862260149
+      },
+      "data": {
+        "label": "図書館で文献を漁る",
+        "description": ""
+      },
+      "width": 227,
+      "height": 52,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 749.1820140753052,
+        "y": 400.0782704606921
+      },
+      "dragging": false,
+      "parentNode": "group-1764851311181",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "branch-1764850376087",
+      "type": "branch",
+      "position": {
+        "x": 243.15274966574316,
+        "y": 288.0250712693844
+      },
+      "data": {
+        "label": "図書館ロール",
+        "branchType": "if_else",
+        "conditionValue": "成功?"
+      },
+      "width": 173,
+      "height": 125,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 798.5989146892064,
+        "y": 574.1073555040616
+      },
+      "dragging": false,
+      "parentNode": "group-1764851311181",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "element-1764850483251",
+      "type": "element",
+      "position": {
+        "x": 74.20334602906462,
+        "y": 879.7079658977054
+      },
+      "data": {
+        "label": "非常に似ている石の情報を見つける",
+        "infoType": "knowledge",
+        "description": "詳細割愛",
+        "infoValue": "石の情報",
+        "quantity": "1"
+      },
+      "width": 303,
+      "height": 134,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 629.6495110525278,
+        "y": 1165.7902501323827
+      },
+      "dragging": false,
+      "parentNode": "group-1764851311181",
+      "extent": "parent",
+      "hidden": false
+    },
+    {
+      "id": "group-1764851311181",
+      "type": "group",
+      "position": {
+        "x": 565.445537871278,
+        "y": 286.0822842346772
+      },
+      "data": {
+        "label": "図書館でのイベント",
+        "expanded": true,
+        "contentWidth": 140.484375,
+        "contentHeight": 20
+      },
+      "style": {
+        "width": 727.3214153119516,
+        "height": 1054.089355799332,
+        "zIndex": -1
+      },
+      "width": 727,
+      "height": 1054,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 565.445537871278,
+        "y": 286.0822842346772
+      },
+      "dragging": false
+    },
+    {
+      "id": "jump-1764924930235",
+      "type": "jump",
+      "position": {
+        "x": 460.32141531195157,
+        "y": 883.089355799332
+      },
+      "data": {
+        "label": "調査先の選択肢に戻る",
+        "jumpTarget": "branch-1764849598489"
+      },
+      "width": 227,
+      "height": 131,
+      "selected": false,
+      "dragging": false,
+      "positionAbsolute": {
+        "x": 1015.7675803354148,
+        "y": 1169.1716400340092
+      },
+      "parentNode": "group-1764851311181",
+      "extent": "parent"
     },
     {
       "id": "event-1764851833875",
       "type": "event",
       "position": {
-        "x": 23.779762936473958,
-        "y": 303.9296142376388
+        "x": 25.999623708688887,
+        "y": 383.9245970201573
       },
       "data": {
         "label": "目を覚ます",
         "description": "気がついたら病院のベッドの上。医師の話を聞く限り1週間寝ていたようだ。\n\n眠っていた間に色々あったようだ。\nあなたが気絶したあの日、彗星が地球にぶつかる軌道に入ったことが全世界で報じられた。\n\nしかし…${割愛の共通文}"
       },
-      "width": 460,
-      "height": 153,
+      "width": 524,
+      "height": 189,
       "selected": false,
       "positionAbsolute": {
-        "x": -177.30992336380842,
-        "y": 1585.8941803148145
+        "x": -341.2796393222757,
+        "y": 2271.6511702179546
       },
       "dragging": false,
       "parentNode": "group-1764925143643",
@@ -235,19 +523,19 @@
       "id": "event-1764852260167",
       "type": "event",
       "position": {
-        "x": 180.00996431073253,
-        "y": 509.2967337860591
+        "x": 216.22769276551787,
+        "y": 639.2885808076521
       },
       "data": {
         "label": "グッドエンド",
         "description": "お疲れ様でした"
       },
-      "width": 150,
-      "height": 73,
+      "width": 156,
+      "height": 89,
       "selected": false,
       "positionAbsolute": {
-        "x": -21.079721989549853,
-        "y": 1791.2612998632349
+        "x": -151.05157026544674,
+        "y": 2527.0151540054494
       },
       "dragging": false,
       "parentNode": "group-1764925143643",
@@ -257,20 +545,20 @@
       "id": "variable-1764851664755",
       "type": "variable",
       "position": {
-        "x": 177.49012235308305,
-        "y": 181.71727929164604
+        "x": 201.70860339049068,
+        "y": 227.71439439159394
       },
       "data": {
         "label": "余命が0になる",
         "targetVariable": "余命の日数",
         "variableValue": "0"
       },
-      "width": 150,
-      "height": 85,
+      "width": 170,
+      "height": 89,
       "selected": false,
       "positionAbsolute": {
-        "x": -197.46865902500338,
-        "y": 1434.7036628558544
+        "x": -165.57065964047393,
+        "y": 2115.440967589391
       },
       "dragging": false,
       "parentNode": "group-1764925143643",
@@ -280,15 +568,15 @@
       "id": "event-1764851699613",
       "type": "event",
       "position": {
-        "x": 149.7718608189405,
+        "x": 171.9904672867851,
         "y": 60.76486532447802
       },
       "data": {
         "label": "突然石が光る",
         "description": "石が輝き初め、脱力感に襲われる。"
       },
-      "width": 206,
-      "height": 73,
+      "width": 232,
+      "height": 89,
       "selected": false,
       "positionAbsolute": {
         "x": -225.18692055914593,
@@ -302,361 +590,77 @@
       "id": "group-1764925143643",
       "type": "group",
       "position": {
-        "x": -293.063917754483,
-        "y": 1319.7621954419155
+        "x": -367.2792630309646,
+        "y": 1887.7265731977973
       },
       "data": {
         "label": "エンディング1",
         "expanded": true,
-        "contentWidth": 79.359375,
-        "contentHeight": 16
+        "contentWidth": 107.359375,
+        "contentHeight": 20
       },
       "style": {
-        "width": 523.779762936474,
-        "height": 622.2967337860591,
+        "width": 589.9996237086889,
+        "height": 768.2885808076521,
         "zIndex": -1
       },
-      "width": 524,
-      "height": 622,
+      "width": 590,
+      "height": 768,
       "selected": false,
       "positionAbsolute": {
-        "x": -293.063917754483,
-        "y": 1319.7621954419155
+        "x": -345.06065656312,
+        "y": 1887.7265731977973
       },
       "dragging": false
     },
     {
-      "id": "event-1764849815349",
+      "id": "event-1764851266531",
       "type": "event",
       "position": {
-        "x": 46.81137736029035,
-        "y": 50
+        "x": 63.72234477273514,
+        "y": 69.58431217625093
       },
       "data": {
-        "label": "地質学者の祖父に見てもらう"
-      },
-      "width": 245,
-      "height": 48,
-      "selected": false,
-      "positionAbsolute": {
-        "x": -171.26230266544997,
-        "y": 514.9613483138477
-      },
-      "dragging": false,
-      "parentNode": "group-1764851374095",
-      "extent": "parent"
-    },
-    {
-      "id": "memo-1764850896155-7bdb6s4zo",
-      "type": "memo",
-      "position": {
-        "x": 80.67050706130846,
-        "y": 237.56947184756734
-      },
-      "data": {
-        "label": "${割愛の共通文}",
+        "label": "バッドエンド",
         "description": "${割愛の共通文}"
       },
-      "width": 180,
-      "height": 100,
+      "width": 157,
+      "height": 89,
       "selected": false,
-      "positionAbsolute": {
-        "x": -171.4210393926977,
-        "y": 577.798643257773
-      },
       "dragging": false,
-      "parentNode": "group-1764851374095",
+      "positionAbsolute": {
+        "x": 555.9640863121479,
+        "y": 1861.8168746774168
+      },
+      "parentNode": "group-1764925181787",
       "extent": "parent"
     },
     {
-      "id": "group-1764851374095",
+      "id": "group-1764925181787",
       "type": "group",
       "position": {
-        "x": -240.7522566851364,
-        "y": 287.31248582214664
+        "x": 296.7169740559241,
+        "y": 1894.9861178853116
       },
       "data": {
-        "label": "祖父宅でのイベント",
+        "label": "エンディング2",
         "expanded": true,
-        "contentWidth": 112.484375,
-        "contentHeight": 16
+        "contentWidth": 109.1875,
+        "contentHeight": 20
       },
       "style": {
-        "width": 346.1190530251597,
-        "height": 642.5310334961104,
+        "width": 260.72234477273514,
+        "height": 198.58431217625093,
         "zIndex": -1
-      },
-      "width": 346,
-      "height": 643,
-      "selected": false,
-      "positionAbsolute": {
-        "x": -240.7522566851364,
-        "y": 287.31248582214664
-      },
-      "dragging": false
-    },
-    {
-      "id": "element-1764925770469",
-      "type": "element",
-      "position": {
-        "x": 35.1190530251597,
-        "y": 517.5310334961104
-      },
-      "data": {
-        "label": "祖父から青色の綺麗な液体薬を貰う",
-        "infoType": "item",
-        "description": "詳細割愛",
-        "infoValue": "MP補助薬"
-      },
-      "width": 271,
-      "height": 85,
-      "selected": false,
-      "dragging": false,
-      "positionAbsolute": {
-        "x": -205.6332036599767,
-        "y": 804.843519318257
-      },
-      "parentNode": "group-1764851374095",
-      "extent": "parent"
-    },
-    {
-      "id": "event-1764849814308",
-      "type": "event",
-      "position": {
-        "x": 27.912532082196208,
-        "y": 55.43652306828557
-      },
-      "data": {
-        "label": "宝石店を営む友人に見てもらう"
-      },
-      "width": 259,
-      "height": 48,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 258.37075111376146,
-        "y": 390.22917141020577
-      },
-      "dragging": false,
-      "parentNode": "group-1764851348375",
-      "extent": "parent"
-    },
-    {
-      "id": "memo-1764850827845",
-      "type": "memo",
-      "position": {
-        "x": 77.0494490836997,
-        "y": 224.2659146154134
-      },
-      "data": {
-        "label": "${割愛の共通文}",
-        "description": "${割愛の共通文}"
-      },
-      "width": 180,
-      "height": 100,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 186.55525414809694,
-        "y": 562.8383258938076
-      },
-      "dragging": false,
-      "parentNode": "group-1764851348375",
-      "extent": "parent"
-    },
-    {
-      "id": "group-1764851348375",
-      "type": "group",
-      "position": {
-        "x": 125.27540945165134,
-        "y": 285.6557256903351
-      },
-      "data": {
-        "label": "宝石店でのイベント",
-        "expanded": true,
-        "contentWidth": 112.484375,
-        "contentHeight": 16
-      },
-      "style": {
-        "width": 331.0793686834399,
-        "height": 645.4477147133517,
-        "zIndex": -1
-      },
-      "width": 331,
-      "height": 645,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 125.27540945165134,
-        "y": 285.6557256903351
-      },
-      "dragging": false
-    },
-    {
-      "id": "element-1764925632067",
-      "type": "element",
-      "position": {
-        "x": 30.079368683439895,
-        "y": 520.4477147133517
-      },
-      "data": {
-        "label": "友人から退魔の呪文を教えてもらう",
-        "infoType": "skill",
-        "infoValue": "退魔呪文",
-        "description": "詳細割愛"
       },
       "width": 261,
-      "height": 85,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 155.35477813509124,
-        "y": 806.1034404036868
-      },
-      "dragging": false,
-      "parentNode": "group-1764851348375",
-      "extent": "parent"
-    },
-    {
-      "id": "variable-1764850432623",
-      "type": "variable",
-      "position": {
-        "x": 208.95038633288925,
-        "y": 260.37708588465455
-      },
-      "data": {
-        "label": "余命を減らす",
-        "targetVariable": "余命の日数",
-        "variableValue": "${余命の日数}-1"
-      },
-      "width": 160,
-      "height": 85,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 684.2795300002583,
-        "y": 546.4593701193318
-      },
-      "dragging": false,
-      "hidden": false,
-      "parentNode": "group-1764851311181",
-      "extent": "parent"
-    },
-    {
-      "id": "event-1764849811414",
-      "type": "event",
-      "position": {
-        "x": 125.7401136867013,
-        "y": 50
-      },
-      "data": {
-        "label": "図書館で文献を漁る",
-        "description": ""
-      },
-      "width": 187,
-      "height": 48,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 690.5236468506218,
-        "y": 399.04861826197833
-      },
-      "dragging": false,
-      "parentNode": "group-1764851311181",
-      "extent": "parent",
-      "hidden": false
-    },
-    {
-      "id": "branch-1764850376087",
-      "type": "branch",
-      "position": {
-        "x": 147.15877032672097,
-        "y": 118.03573285653232
-      },
-      "data": {
-        "label": "図書館ロール",
-        "branchType": "if_else",
-        "conditionValue": "成功?"
-      },
-      "width": 150,
-      "height": 92,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 622.48791399409,
-        "y": 459.5545448501286
-      },
-      "dragging": false,
-      "parentNode": "group-1764851311181",
-      "extent": "parent",
-      "hidden": false
-    },
-    {
-      "id": "element-1764850483251",
-      "type": "element",
-      "position": {
-        "x": 26.206356359553297,
-        "y": 523.7302925154977
-      },
-      "data": {
-        "label": "非常に似ている石の情報を見つける",
-        "infoType": "knowledge",
-        "description": "詳細割愛",
-        "infoValue": "とある小説に登場した石の情報"
-      },
-      "width": 264,
-      "height": 85,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 501.53550002692236,
-        "y": 809.8125767501749
-      },
-      "dragging": false,
-      "parentNode": "group-1764851311181",
-      "extent": "parent",
-      "hidden": false
-    },
-    {
-      "id": "group-1764851311181",
-      "type": "group",
-      "position": {
-        "x": 475.32914366736907,
-        "y": 286.0822842346772
-      },
-      "data": {
-        "label": "図書館でのイベント",
-        "expanded": true,
-        "contentWidth": 112.484375,
-        "contentHeight": 16
-      },
-      "style": {
-        "width": 442.33709411658083,
-        "height": 648.7302925154977,
-        "zIndex": -1
-      },
-      "width": 442,
-      "height": 649,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 475.32914366736907,
-        "y": 286.0822842346772
-      },
-      "dragging": false
-    },
-    {
-      "id": "jump-1764924930235",
-      "type": "jump",
-      "position": {
-        "x": 210.33709411658083,
-        "y": 391.1202116868426
-      },
-      "data": {
-        "label": "調査先の選択肢に戻る",
-        "jumpTarget": "branch-1764849598489"
-      },
-      "width": 192,
-      "height": 101,
+      "height": 199,
       "selected": false,
       "dragging": false,
       "positionAbsolute": {
-        "x": 685.6662377839499,
-        "y": 677.2024959215198
-      },
-      "parentNode": "group-1764851311181",
-      "extent": "parent"
+        "x": 296.7169740559241,
+        "y": 1894.9861178853116
+      }
     }
   ],
   "edges": [
@@ -672,7 +676,8 @@
       "sourceHandle": null,
       "target": "element-1764849446947",
       "targetHandle": null,
-      "id": "reactflow__edge-event-1764849422943-element-1764849446947"
+      "id": "reactflow__edge-event-1764849422943-element-1764849446947",
+      "selected": false
     },
     {
       "type": "default",
@@ -686,7 +691,8 @@
       "sourceHandle": null,
       "target": "branch-1764849598489",
       "targetHandle": null,
-      "id": "reactflow__edge-element-1764849446947-branch-1764849598489"
+      "id": "reactflow__edge-element-1764849446947-branch-1764849598489",
+      "selected": false
     },
     {
       "type": "default",
@@ -858,7 +864,8 @@
       "sourceHandle": null,
       "target": "variable-1764851664755",
       "targetHandle": null,
-      "id": "reactflow__edge-event-1764851699613-variable-1764851664755"
+      "id": "reactflow__edge-event-1764851699613-variable-1764851664755",
+      "selected": false
     },
     {
       "type": "default",
@@ -872,7 +879,8 @@
       "sourceHandle": null,
       "target": "event-1764851833875",
       "targetHandle": null,
-      "id": "reactflow__edge-variable-1764851664755-event-1764851833875"
+      "id": "reactflow__edge-variable-1764851664755-event-1764851833875",
+      "selected": false
     },
     {
       "type": "default",
@@ -886,7 +894,8 @@
       "sourceHandle": null,
       "target": "event-1764852260167",
       "targetHandle": null,
-      "id": "reactflow__edge-event-1764851833875-event-1764852260167"
+      "id": "reactflow__edge-event-1764851833875-event-1764852260167",
+      "selected": false
     },
     {
       "type": "default",
@@ -929,7 +938,8 @@
       "sourceHandle": null,
       "target": "branch-1764850923418",
       "targetHandle": null,
-      "id": "reactflow__edge-element-1764850483251-branch-1764850923418"
+      "id": "reactflow__edge-element-1764850483251-branch-1764850923418",
+      "selected": false
     },
     {
       "type": "default",
@@ -957,7 +967,8 @@
       "sourceHandle": null,
       "target": "branch-1764850923418",
       "targetHandle": null,
-      "id": "reactflow__edge-element-1764925632067-branch-1764850923418"
+      "id": "reactflow__edge-element-1764925632067-branch-1764850923418",
+      "selected": false
     },
     {
       "type": "default",
@@ -985,7 +996,8 @@
       "sourceHandle": null,
       "target": "branch-1764850923418",
       "targetHandle": null,
-      "id": "reactflow__edge-element-1764925770469-branch-1764850923418"
+      "id": "reactflow__edge-element-1764925770469-branch-1764850923418",
+      "selected": false
     }
   ],
   "gameState": {
@@ -996,7 +1008,7 @@
       "MP補助薬": 0
     },
     "knowledge": {
-      "とある小説に登場した石の情報": 0
+      "石の情報": 0
     },
     "skills": {
       "退魔呪文": 0
