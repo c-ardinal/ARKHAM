@@ -34,7 +34,7 @@ interface ScenarioState {
   duplicateNodes: (nodes: ScenarioNode[]) => string[]; // Returns new node IDs
   deleteNodes: (nodeIds: string[]) => void;
   setMode: (mode: 'edit' | 'play') => void;
-  setSelectedNode: (id: string | null) => void;
+  setSelectedNode: (id: string | string[] | null) => void;
   loadScenario: (data: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState }) => void;
   
   // Localization & Theme
@@ -253,7 +253,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // Deselect all existing nodes
       const updatedExistingNodes = state.nodes.map(n => ({ ...n, selected: false }));
       
-      set({ nodes: [...updatedExistingNodes, ...newNodes] });
+      set({ 
+          nodes: [...updatedExistingNodes, ...newNodes],
+          selectedNodeId: newIds.length > 0 ? newIds[newIds.length - 1] : state.selectedNodeId
+      });
       get().recalculateGameState();
       return newIds;
   },
@@ -290,14 +293,30 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       get().recalculateGameState();
   },
   setMode: (mode) => set({ mode }),
-  setSelectedNode: (id) => {
+  setSelectedNode: (idOrIds: string | string[] | null) => {
       const state = get();
+      let idsToSelect: Set<string>;
+      let primaryId: string | null = null;
+
+      if (Array.isArray(idOrIds)) {
+          idsToSelect = new Set(idOrIds);
+          if (idOrIds.length > 0) {
+              primaryId = idOrIds[idOrIds.length - 1];
+          }
+      } else if (idOrIds) {
+          idsToSelect = new Set([idOrIds]);
+          primaryId = idOrIds;
+      } else {
+          idsToSelect = new Set();
+      }
+
       const updatedNodes = state.nodes.map(n => ({
           ...n,
-          selected: n.id === id
+          selected: idsToSelect.has(n.id)
       }));
+      
       set({ 
-          selectedNodeId: id,
+          selectedNodeId: primaryId,
           nodes: updatedNodes
       });
   },

@@ -382,11 +382,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   }, [getNodes, pushHistory, screenToFlowPosition]);
 
   const onSelectionChange = useCallback(({ nodes }: { nodes: Node[] }) => {
-    if (nodes.length > 0) {
-      setSelectedNode(nodes[0].id);
-    } else {
-      setSelectedNode(null);
-    }
+    setSelectedNode(nodes.map(n => n.id));
   }, [setSelectedNode]);
 
   const lastClickTime = useRef<number>(0);
