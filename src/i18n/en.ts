@@ -146,4 +146,9 @@ export const en: TranslationKeys = {
     condition: 'Condition',
     cases: 'Cases',
   },
+  mobileBlocker: {
+    title: 'Please access from PC',
+    message: 'Sorry, this application is not currently compatible with smartphones.\nPlease access from a PC (Desktop or Laptop).',
+    recommendation: 'PC Browser Recommended',
+  },
 };

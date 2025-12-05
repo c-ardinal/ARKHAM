@@ -144,4 +144,9 @@ export type TranslationKeys = {
     condition: string;
     cases: string;
   };
+  mobileBlocker: {
+    title: string;
+    message: string;
+    recommendation: string;
+  };
 };

@@ -148,4 +148,9 @@ export const ja: TranslationKeys = {
     condition: '条件',
     cases: 'ケース一覧',
   },
+  mobileBlocker: {
+    title: 'PCからアクセスしてください',
+    message: '申し訳ありませんが、このアプリケーションは現在スマートフォンには対応していません。\nPC（デスクトップまたはノートPC）からアクセスしてご利用ください。',
+    recommendation: 'PCブラウザ推奨',
+  },
 };
