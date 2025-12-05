@@ -37,6 +37,19 @@ export type TranslationKeys = {
     exportMarkdown: string;
     loadSample: string;
     confirmLoadSample: string;
+    bulkStickyOperations: string;
+    showAllStickies: string;
+    hideAllStickies: string;
+    deleteAllStickies: string;
+    showAllFreeStickies: string;
+    hideAllFreeStickies: string;
+    deleteAllFreeStickies: string;
+    showAllNodeStickies: string;
+    hideAllNodeStickies: string;
+    deleteAllNodeStickies: string;
+    bulkRevealOperations: string;
+    revealAllNodes: string;
+    unrevealAllNodes: string;
   };
   nodes: {
     event: string;
@@ -147,6 +160,14 @@ export type TranslationKeys = {
     condition: string;
     cases: string;
     detachFromGroup: string;
+    addSticky: string;
+    addFreeSticky: string;
+    toggleStickies: string;
+    deleteStickies: string;
+    deleteSticky: string;
+    hideSticky: string;
+    showStickies: string; 
+    hideStickies: string;
   };
   mobileBlocker: {
     title: string;

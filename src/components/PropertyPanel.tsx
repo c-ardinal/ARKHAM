@@ -63,7 +63,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
               multiline
               value={selectedNode.data.description || ''}
               onChange={(val) => handleFieldChange('description', val)}
-              className={`${inputClass} min-h-[80px]`}
+              className={`${inputClass} ${selectedNode.type === 'sticky' ? 'min-h-[400px]' : 'min-h-[80px]'}`}
             />
           </div>
 
@@ -299,11 +299,11 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                       onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value })}
                       className={inputClass}
                   >
-                      {nodes.filter(n => n.id !== selectedNode.id).length === 0 && (
+                      {nodes.filter(n => n.id !== selectedNode.id && n.type !== 'sticky').length === 0 && (
                            <option value="" disabled>{t.properties.noNodesAvailable}</option>
                       )}
                       {nodes
-                          .filter(n => n.id !== selectedNode.id)
+                          .filter(n => n.id !== selectedNode.id && n.type !== 'sticky')
                           .map(n => (
                               <option key={n.id} value={n.id}>
                                   {substituteVariables(n.data.label, gameState.variables)} ({n.type})

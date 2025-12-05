@@ -4,7 +4,7 @@ import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 
-import { Flag } from 'lucide-react';
+import { Flag, StickyNote } from 'lucide-react';
 
 const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { gameState } = useScenarioStore();
@@ -16,6 +16,12 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
     <div className={`relative px-4 py-2 shadow-md hover:shadow-lg rounded-md border-2 min-w-[150px] transition-all ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
     } border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20`}>
+      {/* Sticky Note Connection Handle */}
+      {data.hasSticky && (
+          <div className="absolute -top-5 -right-5 w-7 h-7 bg-yellow-400 text-yellow-900 rounded-sm flex items-center justify-center shadow-md border border-yellow-600 rotate-6" title="Has Sticky Notes">
+            <StickyNote size={14} />
+          </div>
+      )}
       {data.revealed && (
           <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm z-10 border-2 border-background">
               <span className="text-white font-bold text-xs">✓</span>
@@ -44,6 +50,16 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       </div>
 
       <Handle type="source" position={Position.Bottom} className="w-16 !bg-orange-400 dark:!bg-orange-600" />
+      
+      {/* Sticky Note Connection Handle - Placed at end to avoid interfering with default handles */}
+      <Handle 
+          type="source" 
+          id="sticky-origin" 
+          position={Position.Right} 
+          className="!w-1 !h-1 !bg-transparent !border-none !min-w-0 !min-h-0" 
+          style={{ top: -6, right: -6, position: 'absolute' }}  
+          isConnectable={false} 
+      />
     </div>
   );
 };

@@ -69,6 +69,24 @@ interface ScenarioState {
   bringNodeToFront: (nodeId: string) => void;
   resolveGroupOverlaps: (nodeId: string) => void;
 
+  addSticky: (targetNodeId: string | undefined, position: { x: number, y: number }) => void;
+  toggleStickies: (parentNodeId: string) => void;
+  deleteStickies: (parentNodeId: string) => void;
+  hideSticky: (stickyId: string) => void;
+  
+  // Bulk Sticky Operations
+  // Bulk Sticky Operations
+  // setStickyUpdating removed
+  showAllStickies: () => void;
+  hideAllStickies: () => void;
+  deleteAllStickiesGlobal: () => void;
+  showAllFreeStickies: () => void;
+  hideAllFreeStickies: () => void;
+  deleteAllFreeStickies: () => void;
+  showAllNodeStickies: () => void;
+  hideAllNodeStickies: () => void;
+  deleteAllNodeStickies: () => void;
+
   // History
   past: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState }[];
   future: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState }[];
@@ -89,6 +107,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       },
       width: 400,
       height: 200,
+      draggable: true
     }
   ],
   edges: [],
@@ -102,10 +121,11 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     variables: {},
   },
   mode: 'edit',
+
   selectedNodeId: null,
   
   // Settings
-  language: 'ja', // Default to Japanese as per user preference
+  language: 'ja',
   setLanguage: (lang) => set({ language: lang }),
   theme: 'dark',
   setTheme: (theme) => set({ theme }),
@@ -168,26 +188,121 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   onNodesChange: (changes: NodeChange[]) => {
     const state = get();
     
-    // 1. Apply all changes
-    const nodesAfterChanges = applyNodeChanges(changes, state.nodes);
+    // Sticky Note Following Logic
+    const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
+    const stickyUpdates = new Map<string, {x: number, y: number}>();
     
-    // 2. Safety Check: Remove any node whose parent does not exist
-    // This effectively implements cascade deletion for groups and prevents crashes
-    const nodeIds = new Set(nodesAfterChanges.map(n => n.id));
-    const validNodes = nodesAfterChanges.filter(n => {
-        if (n.parentNode && !nodeIds.has(n.parentNode)) {
-            return false; // Remove orphan
+    // Helper to find all descendant IDs
+    const getDescendants = (parentId: string): string[] => {
+        const children = state.nodes.filter(n => n.parentNode === parentId);
+        let descendants: string[] = children.map(c => c.id);
+        children.forEach(c => {
+            descendants = [...descendants, ...getDescendants(c.id)];
+        });
+        return descendants;
+    };
+
+    changes.forEach(change => {
+        // Track movement of nodes that are not stickies themselves, but might be targets
+        if (change.type === 'position' && change.position && change.dragging) {
+            const oldNode = nodeMap.get(change.id);
+            if (oldNode && oldNode.type !== 'sticky') {
+                const dx = change.position.x - oldNode.position.x;
+                const dy = change.position.y - oldNode.position.y;
+                
+                if (dx !== 0 || dy !== 0) {
+                     // Determine all nodes affected by this move (self + descendants)
+                     const affectedNodeIds = [change.id, ...getDescendants(change.id)];
+                     
+                     // Find stickies attached to ANY of these nodes
+                     state.nodes.forEach(n => {
+                         if (n.type === 'sticky' && n.data.targetNodeId && affectedNodeIds.includes(n.data.targetNodeId)) {
+                            // Only move if not selected (to avoid double movement if both selected)
+                            if (!n.selected) {
+                                // CRITICAL CHECK: If sticky is a descendant of the moving node, it moves automatically.
+                                // Don't move it manually to avoid double movement.
+                                let isDescendant = false;
+                                let currentParent = n.parentNode;
+                                while(currentParent) {
+                                    if (currentParent === change.id) {
+                                        isDescendant = true;
+                                        break;
+                                    }
+                                    const pNode = nodeMap.get(currentParent);
+                                    currentParent = pNode ? pNode.parentNode : undefined;
+                                }
+                                if (isDescendant) return;
+
+                                stickyUpdates.set(n.id, { 
+                                    x: n.position.x + dx, 
+                                    y: n.position.y + dy 
+                                });
+                            }
+                         }
+                     });
+                }
+            }
+        }
+    });
+
+    // 1. Apply all changes
+    let nodesAfterChanges = applyNodeChanges(changes, state.nodes);
+    
+    // Apply sticky updates
+    if (stickyUpdates.size > 0) {
+        nodesAfterChanges = nodesAfterChanges.map(n => {
+            if (stickyUpdates.has(n.id)) {
+                return { ...n, position: stickyUpdates.get(n.id)! };
+            }
+            return n;
+        });
+    }
+    
+    // 2. Safety Check & Cascade Deletion
+    // Step A: Identify valid non-orphan nodes
+    // We do this by checking parent existence. Iterate until stable or just once?
+    // ReactFlow structure is usually flat list with parentNode pointers.
+    // If we filter once, we might miss grandchildren if order is wrong? 
+    // Actually, we should check against the *resulting* set of IDs.
+    
+    // First, map available IDs
+    let currentNodes = nodesAfterChanges;
+    let previousCount = -1;
+    
+    // Iteratively remove orphans until no more are removed (handles deep nesting)
+    while (currentNodes.length !== previousCount) {
+        previousCount = currentNodes.length;
+        const nodeIds = new Set(currentNodes.map(n => n.id));
+        currentNodes = currentNodes.filter(n => {
+            if (n.parentNode && !nodeIds.has(n.parentNode)) {
+                return false; // Remove orphan
+            }
+            return true;
+        });
+    }
+
+    // Step B: Remove Stickies connected to removed nodes
+    const validNodeIds = new Set(currentNodes.map(n => n.id));
+    currentNodes = currentNodes.filter(n => {
+        if (n.type === 'sticky' && n.data.targetNodeId) {
+            // If target node is not among the valid nodes, delete the sticky
+            if (!validNodeIds.has(n.data.targetNodeId)) {
+                return false;
+            }
         }
         return true;
     });
 
     // 3. Update group sizes for moved or resized nodes
+    // Using filtered 'currentNodes'
+    const finalNodeIds = new Set(currentNodes.map(n => n.id));
     changes.forEach(change => {
         if ((change.type === 'position' && change.position) || change.type === 'dimensions') {
-            const node = validNodes.find(n => n.id === change.id);
-            if (node && node.parentNode) {
-                // Trigger update for the parent group
-                // Use setTimeout to avoid conflicts during render cycle
+            // Only strictly valid checks
+             if (!finalNodeIds.has(change.id)) return;
+             
+             const node = currentNodes.find(n => n.id === change.id);
+             if (node && node.parentNode) {
                 setTimeout(() => {
                     get().updateGroupSize(node.parentNode!);
                 }, 0);
@@ -195,7 +310,11 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         }
     });
 
-    set({ nodes: validNodes });
+    // 4. Cleanup Edges connected to removed nodes
+    const finalNodeIdSet = new Set(currentNodes.map(n => n.id));
+    const cleanEdges = state.edges.filter(e => finalNodeIdSet.has(e.source) && finalNodeIdSet.has(e.target));
+
+    set({ nodes: currentNodes, edges: cleanEdges });
     get().recalculateGameState();
   },
   onEdgesChange: (changes: EdgeChange[]) => {
@@ -280,6 +399,11 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                   idsToDelete.add(node.id);
                   changed = true;
               }
+              // 3. Delete StickyNodes that target deleted nodes
+              if (node.type === 'sticky' && node.data.targetNodeId && idsToDelete.has(node.data.targetNodeId) && !idsToDelete.has(node.id)) {
+                  idsToDelete.add(node.id);
+                  changed = true;
+              }
           });
       }
       
@@ -292,7 +416,163 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       set({ nodes: remainingNodes, edges: remainingEdges });
       get().recalculateGameState();
   },
-  setMode: (mode) => set({ mode }),
+  setMode: (mode) => {
+      const state = get();
+      // Update draggable state: stickies are always draggable (or only in play/edit), others only in edit
+      // Spec: Sticky can be moved in play mode too.
+      // Other nodes: only in edit mode.
+      const updatedNodes = state.nodes.map(n => ({
+          ...n,
+          draggable: mode === 'edit' || n.type === 'sticky'
+      }));
+      set({ mode, nodes: updatedNodes });
+  },
+  
+  addSticky: (targetNodeId, position) => {
+      const state = get();
+      state.pushHistory();
+      const id = `sticky-${Date.now()}`;
+      
+      const newNode: ScenarioNode = {
+          id,
+          type: 'sticky',
+          position,
+          data: { 
+              label: 'Sticky Note', 
+              targetNodeId,
+          },
+          draggable: true, // Always draggable
+          width: 180,
+      };
+      
+      let newEdges = state.edges;
+      if (targetNodeId) {
+          // Create solid straight connection edge
+          const newEdge: ScenarioEdge = {
+              id: `edge-${id}`,
+              source: targetNodeId,
+              sourceHandle: 'sticky-origin',
+              target: id,
+              targetHandle: 'sticky-target',
+              type: 'straight',
+              style: { stroke: 'rgba(217, 119, 6, 0.5)', strokeWidth: 2 }, // Amber-600/50
+              markerEnd: { type: MarkerType.ArrowClosed, width: 0, height: 0, color: 'transparent' }, // Hide arrow
+              animated: false,
+          };
+          newEdges = [...newEdges, newEdge];
+      }
+      
+      set({ nodes: [...state.nodes, newNode], edges: newEdges });
+      get().recalculateGameState();
+  },
+
+  toggleStickies: (parentNodeId) => {
+      const state = get();
+      state.pushHistory();
+      
+      // Check current state of first sticky to toggle
+      const stickies = state.nodes.filter(n => n.type === 'sticky' && n.data.targetNodeId === parentNodeId);
+      if (stickies.length === 0) return;
+      
+      // If any is visible, hide all. If all hidden, show all.
+      const anyVisible = stickies.some(n => !n.hidden);
+      const newHiddenState = anyVisible; 
+      
+      const updatedNodes = state.nodes.map(n => {
+          if (n.type === 'sticky' && n.data.targetNodeId === parentNodeId) {
+              return { ...n, hidden: newHiddenState };
+          }
+          return n;
+      });
+      
+      set({ nodes: updatedNodes });
+  },
+
+  deleteStickies: (parentNodeId) => {
+      const state = get();
+      state.pushHistory(); // Assuming we want undo support
+      const stickies = state.nodes.filter(n => n.type === 'sticky' && n.data.targetNodeId === parentNodeId);
+      if (stickies.length > 0) {
+          get().deleteNodes(stickies.map(n => n.id));
+      }
+  },
+
+
+
+
+  showAllStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => n.type === 'sticky' ? { ...n, hidden: false } : n);
+      set({ nodes: updatedNodes });
+  },
+
+  hideAllStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => n.type === 'sticky' ? { ...n, hidden: true } : n);
+      set({ nodes: updatedNodes });
+  },
+
+  deleteAllStickiesGlobal: () => {
+      const state = get();
+      const stickies = state.nodes.filter(n => n.type === 'sticky');
+      if (stickies.length > 0) {
+          get().deleteNodes(stickies.map(n => n.id));
+      }
+  },
+
+  showAllFreeStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: false } : n);
+      set({ nodes: updatedNodes });
+  },
+  
+  hideAllFreeStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: true } : n);
+      set({ nodes: updatedNodes });
+  },
+  
+  deleteAllFreeStickies: () => {
+      const state = get();
+      const stickies = state.nodes.filter(n => n.type === 'sticky' && !n.data.targetNodeId);
+      if (stickies.length > 0) {
+          get().deleteNodes(stickies.map(n => n.id));
+      }
+  },
+
+  showAllNodeStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: false } : n);
+      set({ nodes: updatedNodes });
+  },
+  
+  hideAllNodeStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: true } : n);
+      set({ nodes: updatedNodes });
+  },
+  
+  deleteAllNodeStickies: () => {
+      const state = get();
+      const stickies = state.nodes.filter(n => n.type === 'sticky' && n.data.targetNodeId);
+      if (stickies.length > 0) {
+          get().deleteNodes(stickies.map(n => n.id));
+      }
+  },
+
+  hideSticky: (stickyId) => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => n.id === stickyId ? { ...n, hidden: true } : n);
+      set({ nodes: updatedNodes });
+  },
+
   setSelectedNode: (idOrIds: string | string[] | null) => {
       const state = get();
       let idsToSelect: Set<string>;
@@ -628,7 +908,23 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           }
       });
 
-      set({
+      // 3. Update sticky status on nodes
+      const stickyTargets = new Set<string>();
+      state.nodes.forEach(n => {
+          if (n.type === 'sticky' && n.data.targetNodeId && !n.hidden) {
+              stickyTargets.add(n.data.targetNodeId);
+          }
+      });
+      
+      const newNodes = state.nodes.map(n => {
+          const hasSticky = stickyTargets.has(n.id);
+          if (n.data.hasSticky !== hasSticky) {
+             return { ...n, data: { ...n.data, hasSticky } }; 
+          }
+          return n;
+      });
+      
+      const updates: Partial<ScenarioState> = {
           gameState: {
               ...state.gameState,
               inventory: newInventory,
@@ -636,7 +932,14 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               skills: newSkills,
               stats: newStats
           }
-      });
+      };
+      
+      const hasNodeChanges = newNodes.some((n, i) => n !== state.nodes[i]);
+      if (hasNodeChanges) {
+          updates.nodes = newNodes;
+      }
+
+      set(updates);
   },
 
   revealAll: () => {
@@ -1086,7 +1389,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
   groupNodes: (nodeIds: string[]) => {
       const state = get();
-      const nodesToGroup = state.nodes.filter(n => nodeIds.includes(n.id));
+      // Exclude sticky nodes from grouping
+      const nodesToGroup = state.nodes.filter(n => nodeIds.includes(n.id) && n.type !== 'sticky');
       if (nodesToGroup.length === 0) return;
 
       // Calculate bounding box
@@ -1206,7 +1510,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       let shiftY = 0;
 
       if (groupNode.data.expanded) {
-          const children = state.nodes.filter(n => n.parentNode === groupId);
+const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 'sticky');
           if (children.length > 0) {
               let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
               
@@ -1291,7 +1595,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           // Iterative Collision Resolution
           let currentNodes = [...updatedNodes];
           const queue: string[] = [groupId];
-          const MAX_ITERATIONS = 50;
+          const MAX_ITERATIONS = 500;
           let iterations = 0;
 
           // Helper to get absolute position
@@ -1350,6 +1654,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               // Find overlaps
               const overlaps = currentNodes.filter(n => {
                   if (n.id === pusherId) return false;
+                  if (n.type === 'sticky') return false;
                   
                   // Exclude descendants (they move with parent)
                   let p = n.parentNode;
@@ -1430,9 +1735,27 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                   }
 
                   if (dx !== 0 || dy !== 0) {
+                      // Determine affected nodes (pushee + descendants) to move their stickies
+                      const getDescendants = (parentId: string, allNodes: ScenarioNode[]): string[] => {
+                          const children = allNodes.filter(n => n.parentNode === parentId);
+                          let ids = children.map(c => c.id);
+                          children.forEach(c => {
+                              ids = [...ids, ...getDescendants(c.id, allNodes)];
+                          });
+                          return ids;
+                      };
+                      const affectedIds = new Set([n.id, ...getDescendants(n.id, currentNodes)]);
+
                       currentNodes = currentNodes.map(node => {
                           if (node.id === n.id) {
                               return {
+                                  ...node,
+                                  position: { x: node.position.x + dx, y: node.position.y + dy }
+                              };
+                          }
+                          // Move stickies attached to the pushed node OR its descendants
+                          if (node.type === 'sticky' && node.data.targetNodeId && affectedIds.has(node.data.targetNodeId)) {
+                               return {
                                   ...node,
                                   position: { x: node.position.x + dx, y: node.position.y + dy }
                               };
@@ -1515,7 +1838,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
       let currentNodes = [...state.nodes];
       const queue: string[] = [nodeId];
-      const MAX_ITERATIONS = 50;
+      const MAX_ITERATIONS = 500;
       let iterations = 0;
       let hasChanges = false;
 

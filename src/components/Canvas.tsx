@@ -19,6 +19,7 @@ import GroupNode from '../nodes/GroupNode';
 import MemoNode from '../nodes/MemoNode';
 import VariableNode from '../nodes/VariableNode';
 import JumpNode from '../nodes/JumpNode';
+import StickyNode from '../nodes/StickyNode';
 import type { NodeType, ScenarioNode, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
@@ -32,7 +33,31 @@ const nodeTypes = {
   memo: MemoNode,
   variable: VariableNode,
   jump: JumpNode,
+  sticky: StickyNode,
 };
+// ... ContextMenu definition (skipped for brevity as it is already correct in previous step's input, assuming it was applied partially? No, replace failed? The previous tool output said it applied changes but linter complained about missing imports. So ContextMenu code IS there, but imports are missing. I need to restore imports.)
+
+// ... (skipping ContextMenu re-definition, focusing on imports restoration and CanvasContent update)
+// Wait, I cannot skip ContextMenu definition if I am replacing a block that includes it or if I am replacing the whole file. 
+// The tool output says diff block start at line 12.
+// So imports were deleted. ContextMenu is there. 
+// I should just replace the Imports section first.
+// BUT I also need to update CanvasContent and remove nodesDraggable.
+// I will do it in one go if possible, or two.
+// Let's replace from imports to start of context menu.
+
+// Actually I will provide the whole file content for the imports and CanvasContent part.
+// But ContextMenu is large.
+// I will split. First restore imports.
+
+// Then update CanvasContent.
+
+// Step 1: Restore Imports.
+// Step 2: Update CanvasContent handlers and ReactFlow props.
+
+// Lint errors say EventNode not found.
+// So I will replace the top part.
+
 
 interface ContextMenuState {
   id: string;
@@ -42,6 +67,8 @@ interface ContextMenuState {
   data?: ScenarioNodeData;
   nodeType?: string;
   parentNode?: string;
+  hasSticky?: boolean;
+  stickiesHidden?: boolean;
 }
 
 const ContextMenu = ({ 
@@ -53,7 +80,11 @@ const ContextMenu = ({
   onCopyText,
   onToggleState,
   onUngroup,
-  onDetachFromGroup
+  onDetachFromGroup,
+  onAddSticky,
+  onToggleStickies,
+  onDeleteStickies,
+  onHideSticky,
 }: { 
   menu: ContextMenuState & { nodeType?: string; parentNode?: string }; 
   onClose: () => void;
@@ -65,6 +96,10 @@ const ContextMenu = ({
   onGroup?: () => void;
   onUngroup?: () => void;
   onDetachFromGroup?: () => void;
+  onAddSticky?: (targetId?: string) => void;
+  onToggleStickies?: (targetId: string) => void;
+  onDeleteStickies?: (targetId: string) => void;
+  onHideSticky?: (stickyId: string) => void;
   isRevealed?: boolean;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -88,86 +123,154 @@ const ContextMenu = ({
       style={{ top: menu.top, left: menu.left }} 
       className="fixed z-50 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[160px] flex flex-col text-sm text-popover-foreground"
     >
-      {mode === 'edit' && menu.type === 'node' && (
+      {/* Node Actions */}
+      {menu.type === 'node' && (
         <>
-          <button 
-            onClick={onDuplicate}
-            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-          >
-            {t.contextMenu.duplicate}
-          </button>
-          
-          <div className="relative group">
-              <button 
+            {/* Edit Mode Only Actions */}
+            {mode === 'edit' && menu.nodeType !== 'sticky' && (
+                <button 
+                  onClick={onDuplicate}
+                  className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                >
+                  {t.contextMenu.duplicate}
+                </button>
+            )}
+
+            {/* Common Actions (Copy, Toggle Reveal) */}
+            <div className="relative group">
+                <button 
                 className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full flex justify-between items-center"
-              >
+                >
                 {t.contextMenu.copyText} <span>▶</span>
-              </button>
-              <div className="absolute left-full top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] hidden group-hover:flex flex-col">
-                  <button onClick={() => onCopyText?.('all')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.all}</button>
-                  <button onClick={() => onCopyText?.('label')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.label}</button>
-                  <button onClick={() => onCopyText?.('description')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.description}</button>
-                  {['element', 'variable'].includes(menu.nodeType || '') && (
-                      <button onClick={() => onCopyText?.('value')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.value}</button>
-                  )}
-                  {menu.nodeType === 'branch' && (
-                      <>
-                          <button onClick={() => onCopyText?.('condition')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.condition}</button>
-                          <button onClick={() => onCopyText?.('cases')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.cases}</button>
-                      </>
-                  )}
-              </div>
-          </div>
+                </button>
+                <div className="absolute left-full top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] hidden group-hover:flex flex-col">
+                    <button onClick={() => onCopyText?.('all')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.all}</button>
+                    <button onClick={() => onCopyText?.('label')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.label}</button>
+                    <button onClick={() => onCopyText?.('description')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.description}</button>
+                    {['element', 'variable'].includes(menu.nodeType || '') && (
+                        <button onClick={() => onCopyText?.('value')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.value}</button>
+                    )}
+                    {menu.nodeType === 'branch' && (
+                        <>
+                            <button onClick={() => onCopyText?.('condition')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.condition}</button>
+                            <button onClick={() => onCopyText?.('cases')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.cases}</button>
+                        </>
+                    )}
+                </div>
+            </div>
 
-          <button 
-            onClick={onToggleState}
-            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-          >
-            {menu.data?.revealed ? t.contextMenu.markUnrevealed : t.contextMenu.markRevealed}
-          </button>
-          <div className="h-px bg-border my-1" />
-          
-          {menu.nodeType === 'group' && (
-              <button 
-                onClick={onUngroup}
-                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-              >
-                {t.contextMenu.ungroup}
-              </button>
-          )}
+            {/* Sticky don't have revealed state usually, but node sticky might if we want? Spec says "hide" for sticky, "mark revealed" for nodes. */}
+            {menu.nodeType !== 'sticky' && (
+                <button 
+                    onClick={onToggleState}
+                    className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                >
+                    {menu.data?.revealed ? t.contextMenu.markUnrevealed : t.contextMenu.markRevealed}
+                </button>
+            )}
 
-          {menu.parentNode && (
-              <button 
-                onClick={onDetachFromGroup}
-                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-              >
-                {t.contextMenu.detachFromGroup}
-              </button>
-          )}
-          
-          <div className="h-px bg-border my-1" />
+            {/* Sticky Actions: Hide (for attached stickies) */}
+            {menu.nodeType === 'sticky' && menu.data?.targetNodeId && (
+                <button 
+                  onClick={() => onHideSticky?.(menu.id)}
+                  className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                >
+                  {t.contextMenu.hideSticky}
+                </button>
+            )}
+
+            {/* Sticky Management on Parent Node - Available in Play Mode too! */}
+            {menu.nodeType !== 'sticky' && (
+                <>
+                    <div className="h-px bg-border my-1" />
+                    <button 
+                        onClick={() => onAddSticky?.(menu.id)}
+                        className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                    >
+                        {t.contextMenu.addSticky}
+                    </button>
+                    {menu.hasSticky && (
+                        <>
+                            <button 
+                                onClick={() => onToggleStickies?.(menu.id)}
+                                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                            >
+                                {menu.stickiesHidden ? t.contextMenu.showStickies : t.contextMenu.hideStickies}
+                            </button>
+                            <button 
+                                onClick={() => onDeleteStickies?.(menu.id)}
+                                className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
+                            >
+                                {t.contextMenu.deleteStickies}
+                            </button>
+                        </>
+                    )}
+                 </>
+            )}
+            
+            {/* Edit Mode Grouping/Deletion */}
+            {mode === 'edit' && menu.nodeType !== 'sticky' && (
+                <>
+                    <div className="h-px bg-border my-1" />
+                    
+                    {menu.nodeType === 'group' && (
+                        <button 
+                            onClick={onUngroup}
+                            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                        >
+                            {t.contextMenu.ungroup}
+                        </button>
+                    )}
+
+                    {menu.parentNode && (
+                        <button 
+                            onClick={onDetachFromGroup}
+                            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                        >
+                            {t.contextMenu.detachFromGroup}
+                        </button>
+                    )}
+                </>
+            )}
+            
+            {/* Delete Option: Always for Sticky, otherwise Edit mode only */}
+            {(mode === 'edit' || (menu.nodeType === 'sticky')) && (
+                <>
+                    <div className="h-px bg-border my-1" />
+                    <button 
+                        onClick={onDelete}
+                        className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
+                    >
+                        {menu.nodeType === 'sticky' ? t.contextMenu.deleteSticky : t.contextMenu.delete}
+                    </button>
+                </>
+            )}
         </>
       )}
 
-      {mode === 'edit' && menu.type === 'pane' && (
-          <button 
-            onClick={onReduplicate}
-            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-          >
-            {t.contextMenu.reduplicate}
-          </button>
-      )}
-      
-      {mode === 'play' && menu.type === 'node' && (
-          <button 
-            onClick={onToggleState}
-            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-          >
-            {menu.data?.revealed ? t.contextMenu.markUnrevealed : t.contextMenu.markRevealed}
-          </button>
+      {/* Pane Actions (Background) */}
+      {menu.type === 'pane' && (
+          <>
+            <button 
+                onClick={() => onAddSticky?.()}
+                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+            >
+                {t.contextMenu.addFreeSticky}
+            </button>
+            
+            {mode === 'edit' && (
+                <button 
+                    onClick={onReduplicate}
+                    className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                >
+                    {t.contextMenu.reduplicate}
+                </button>
+            )}
+          </>
       )}
 
-      {mode === 'edit' && (menu.type === 'node' || menu.type === 'edge') && (
+      {/* Edge Actions */}
+      {mode === 'edit' && menu.type === 'edge' && (
           <button 
             onClick={onDelete}
             className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
@@ -201,6 +304,10 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     gameState,
     selectedNodeId,
     bringNodeToFront,
+    addSticky,
+    toggleStickies,
+    deleteStickies,
+    hideSticky,
   } = useScenarioStore();
   const { 
       setEdges, 
@@ -216,6 +323,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [zoom, setZoomState] = useState(1);
+  // Removed local isUpdatingSticky
   const lastDuplicatedIds = useRef<string[]>([]);
 
   // Sync zoom state
@@ -236,6 +344,68 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     setMenu(null);
     onCanvasClick?.();
   }, [onCanvasClick]);
+
+  const handleAddSticky = useCallback((targetId?: string) => {
+      // Temporarily enable connections/handles to ensure correct edge rendering
+      // This is a workaround for Play Mode where handles are normally hidden
+      // Temporarily enable connections/handles to ensure correct edge rendering
+      // This is a workaround for Play Mode where handles are normally hidden
+      let pos = { x: 0, y: 0 };
+      if (targetId) {
+          const targetNode = getNodes().find(n => n.id === targetId);
+          if (targetNode) {
+            
+            // Calculate absolute position manually to handle nested groups
+            let absX = targetNode.position.x;
+            let absY = targetNode.position.y;
+            let parentId = targetNode.parentNode;
+            
+            while(parentId) {
+                const parent = getNodes().find(n => n.id === parentId);
+                if (parent) {
+                    absX += parent.position.x;
+                    absY += parent.position.y;
+                    parentId = parent.parentNode;
+                } else {
+                    break;
+                }
+            }
+
+            // Position relative to target: Top-Right
+            pos = { 
+                x: absX + (targetNode.width || 150) + 20, 
+                y: absY - 20 
+            };
+          }
+      } else if (menu) {
+          // Free mode: use mouse position from menu state
+          const { x, y } = screenToFlowPosition({ x: menu.left, y: menu.top });
+          pos = { x, y };
+      }
+      
+      addSticky(targetId, pos);
+      
+      setMenu(null);
+  }, [addSticky, getNodes, menu, screenToFlowPosition]);
+
+  const handleToggleStickies = useCallback((targetId: string) => {
+
+      // Temporarily enable handles to ensure edge is drawn correctly when appearing
+      toggleStickies(targetId);
+      setMenu(null);
+  }, [toggleStickies]);
+
+  const handleDeleteStickies = useCallback((targetId: string) => {
+      deleteStickies(targetId);
+      setMenu(null);
+  }, [deleteStickies]);
+
+  const handleHideSticky = useCallback((stickyId: string) => {
+
+      // Temporarily enable handles to ensure correct state update
+      hideSticky(stickyId);
+      setMenu(null);
+  }, [hideSticky]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -289,6 +459,9 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
       pushHistory(); // Push history on drag stop
 
       const allNodes = getNodes();
+      // Groups logic - prevent stickies from interacting with groups
+      if (node.type === 'sticky') return;
+
       const groups = allNodes.filter(n => n.type === 'group' && n.id !== node.id);
       
       // Calculate drop position in canvas coordinates using screenToFlowPosition
@@ -408,13 +581,16 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   }, [getNodes, pushHistory, screenToFlowPosition]);
 
   const onSelectionChange = useCallback(({ nodes }: { nodes: Node[] }) => {
-    setSelectedNode(nodes.map(n => n.id));
+    setSelectedNode(nodes.length > 0 ? nodes[0].id : null);
   }, [setSelectedNode]);
 
   const lastClickTime = useRef<number>(0);
   const lastClickNodeId = useRef<string | null>(null);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    // Explicitly set selection on click (needed for Play Mode where selection behavior might differ)
+    setSelectedNode(node.id);
+
     const currentTime = Date.now();
     const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 300;
     lastClickTime.current = currentTime;
@@ -448,6 +624,10 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
+      const stickies = getNodes().filter(n => n.type === 'sticky' && n.data.targetNodeId === node.id);
+      const hasSticky = stickies.length > 0;
+      const stickiesHidden = stickies.every(n => n.hidden);
+
       setMenu({
         id: node.id,
         type: 'node',
@@ -455,7 +635,9 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         left: event.clientX,
         data: node.data,
         nodeType: node.type, // Pass node type
-        parentNode: node.parentNode
+        parentNode: node.parentNode,
+        hasSticky,
+        stickiesHidden
       });
     },
     []
@@ -479,7 +661,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   const onPaneContextMenu = useCallback(
     (event: React.MouseEvent) => {
       event.preventDefault();
-      if (mode === 'play') return;
+      // Allow pane context menu in play mode for adding sticky notes
       setMenu({
         id: 'pane',
         type: 'pane',
@@ -712,18 +894,33 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   }, [mode, handleDelete, handleDuplicate, handleReduplicate, handleToggleState]);
 
   // Sort nodes so groups are rendered first (bottom)
-  const sortedNodes = [...nodes].sort((a, b) => {
-      if (a.type === 'group' && b.type !== 'group') return -1;
-      if (a.type !== 'group' && b.type === 'group') return 1;
-      return 0;
+  // Ensure correct z-index and render order
+  // Sticky Node (2000) > Sticky Edge (1000) > Target Node (0) > Group Node (-1)
+  const sortedNodes = nodes.map(node => {
+      if (node.type === 'sticky') {
+          return { ...node, zIndex: 1500 };
+      }
+      if (node.type === 'group') {
+          return { ...node, zIndex: -10 }; 
+      }
+      return node;
+  }).sort((a, b) => {
+      const getScore = (type: string) => {
+          if (type === 'group') return -1;
+          if (type === 'sticky') return 1;
+          return 0;
+      };
+      return getScore(a.type || '') - getScore(b.type || '');
   });
 
   return (
     <div className="flex-1 h-full relative bg-background" ref={reactFlowWrapper}>
+
       {mode === 'play' && (
           <style>{`
             .react-flow__handle {
-                display: none !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
             }
           `}</style>
       )}
@@ -745,7 +942,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         onEdgeContextMenu={onEdgeContextMenu}
         onPaneContextMenu={onPaneContextMenu}
         onPaneClick={onPaneClick}
-        nodesDraggable={mode === 'edit'}
+        nodesDraggable={true}
         nodesConnectable={mode === 'edit'}
         elementsSelectable={true}
         fitView
@@ -833,6 +1030,10 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
           onGroup={handleGroup}
           onUngroup={handleUngroup}
           onDetachFromGroup={handleDetachFromGroup}
+          onAddSticky={handleAddSticky}
+          onToggleStickies={handleToggleStickies}
+          onDeleteStickies={handleDeleteStickies}
+          onHideSticky={handleHideSticky}
         />
       )}
     </div>

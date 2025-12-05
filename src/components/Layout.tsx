@@ -5,7 +5,7 @@ import { Canvas } from './Canvas';
 import { ManualModal } from './ManualModal';
 import { AboutModal } from './AboutModal';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Play, Edit, Save, Upload, Languages, Book, Sun, Moon, Undo, Redo, Eye, EyeOff, ChevronDown, Info, Check, ChevronRight, Spline, Download } from 'lucide-react';
+import { Play, Edit, Save, Upload, Languages, Book, Sun, Moon, Undo, Redo, Eye, EyeOff, ChevronDown, Info, Check, ChevronRight, Spline, Download, StickyNote } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { generateScenarioText } from '../utils/exportUtils';
 import sampleData from '../../sample.json';
@@ -25,7 +25,7 @@ const MenuItem = ({ onClick, icon: Icon, label, danger = false, checked = false,
             onClick?.(e);
             onClose?.();
         }}
-        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors relative hover:bg-accent hover:text-accent-foreground ${danger ? 'text-destructive hover:text-destructive' : ''}`}
+        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors relative hover:bg-accent hover:text-accent-foreground whitespace-nowrap ${danger ? 'text-red-600 dark:text-red-400 font-medium hover:bg-red-100 dark:hover:bg-red-900/30' : ''}`}
     >
         {checked && <Check size={14} className="absolute left-2 text-primary" />}
         <div className={`flex items-center gap-2 ${checked ? 'ml-6' : ''}`}>
@@ -52,7 +52,7 @@ const SubMenu = ({ label, children, onClose, icon: Icon }: SubMenuProps) => {
             onMouseLeave={() => setIsOpen(false)}
         >
             <button 
-                className="w-full text-left px-4 py-2 text-sm flex items-center justify-between transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="w-full text-left px-4 py-2 text-sm flex items-center justify-between transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
             >
                 <div className="flex items-center gap-2">
                     {Icon && <Icon size={14} />}
@@ -61,7 +61,7 @@ const SubMenu = ({ label, children, onClose, icon: Icon }: SubMenuProps) => {
                 <ChevronRight size={12} />
             </button>
             {isOpen && (
-                <div className="absolute left-full top-0 w-48 rounded-md shadow-lg border border-border py-1 z-50 bg-popover text-popover-foreground">
+                <div className="absolute left-full top-0 w-max min-w-[14rem] rounded-md shadow-lg border border-border py-1 z-50 bg-popover text-popover-foreground">
                     {React.Children.map(children, child => 
                         React.isValidElement(child) 
                             ? React.cloneElement(child as React.ReactElement<{ onClose?: () => void }>, { onClose }) 
@@ -97,7 +97,7 @@ const MenuDropdown = ({ label, children, isOpen, onToggle, onClose }: { label: s
                 {label} <ChevronDown size={12} />
             </button>
             {isOpen && (
-                <div className="absolute top-full left-0 mt-1 w-56 rounded-md shadow-lg border border-border py-1 z-50 bg-popover text-popover-foreground">
+                <div className="absolute top-full left-0 mt-1 w-max min-w-[14rem] rounded-md shadow-lg border border-border py-1 z-50 bg-popover text-popover-foreground">
                     {React.Children.map(children, child => 
                         React.isValidElement(child) 
                             ? React.cloneElement(child as React.ReactElement<{ onClose?: () => void }>, { onClose }) 
@@ -147,7 +147,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose }: Confi
 };
 
 export const Layout = () => {
-  const { mode, setMode, nodes, edges, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, setEdgeType, edgeType } = useScenarioStore();
+  const { mode, setMode, nodes, edges, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, setEdgeType, edgeType, selectedNodeId } = useScenarioStore();
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -367,30 +367,110 @@ export const Layout = () => {
                     onToggle={() => setOpenMenuId(openMenuId === 'edit' ? null : 'edit')}
                     onClose={closeMenu}
                 >
-                    <MenuItem 
-                        onClick={() => {
-                            setConfirmModal({
-                                isOpen: true,
-                                title: t.common.revealAll,
-                                message: t.common.confirmRevealAll,
-                                onConfirm: () => useScenarioStore.getState().revealAll()
-                            });
-                        }} 
-                        icon={Eye} 
-                        label={t.common.revealAll} 
-                    />
-                    <MenuItem 
-                        onClick={() => {
-                            setConfirmModal({
-                                isOpen: true,
-                                title: t.common.unrevealAll,
-                                message: t.common.confirmUnrevealAll,
-                                onConfirm: () => useScenarioStore.getState().unrevealAll()
-                            });
-                        }} 
-                        icon={EyeOff} 
-                        label={t.common.unrevealAll} 
-                    />
+                    <div className="my-1 border-t border-border" />
+                    <SubMenu label={t.menu.bulkStickyOperations} icon={StickyNote}>
+                        <MenuItem 
+                            onClick={() => {
+                                useScenarioStore.getState().showAllStickies();
+                            }} 
+                            label={t.menu.showAllStickies} 
+                        />
+                        <MenuItem 
+                            onClick={() => {
+                                useScenarioStore.getState().hideAllStickies();
+                            }} 
+                            label={t.menu.hideAllStickies} 
+                        />
+                        <MenuItem 
+                            onClick={() => {
+                                setConfirmModal({
+                                    isOpen: true,
+                                    title: t.menu.deleteAllStickies,
+                                    message: t.menu.deleteAllStickies + '?',
+                                    onConfirm: () => useScenarioStore.getState().deleteAllStickiesGlobal()
+                                });
+                            }} 
+                            label={t.menu.deleteAllStickies} 
+                            danger 
+                        />
+                        <div className="my-1 border-t border-border" />
+                        <MenuItem 
+                            onClick={() => {
+                                useScenarioStore.getState().showAllFreeStickies();
+                            }} 
+                            label={t.menu.showAllFreeStickies} 
+                        />
+                        <MenuItem 
+                            onClick={() => {
+                                useScenarioStore.getState().hideAllFreeStickies();
+                            }} 
+                            label={t.menu.hideAllFreeStickies} 
+                        />
+                        <MenuItem 
+                            onClick={() => {
+                                setConfirmModal({
+                                    isOpen: true,
+                                    title: t.menu.deleteAllFreeStickies,
+                                    message: t.menu.deleteAllFreeStickies + '?',
+                                    onConfirm: () => useScenarioStore.getState().deleteAllFreeStickies()
+                                });
+                            }} 
+                            label={t.menu.deleteAllFreeStickies} 
+                            danger 
+                        />
+                        <div className="my-1 border-t border-border" />
+                        <MenuItem 
+                            onClick={() => {
+                                useScenarioStore.getState().showAllNodeStickies();
+                            }} 
+                            label={t.menu.showAllNodeStickies} 
+                        />
+                        <MenuItem 
+                            onClick={() => {
+                                useScenarioStore.getState().hideAllNodeStickies();
+                            }} 
+                            label={t.menu.hideAllNodeStickies} 
+                        />
+                        <MenuItem 
+                            onClick={() => {
+                                setConfirmModal({
+                                    isOpen: true,
+                                    title: t.menu.deleteAllNodeStickies,
+                                    message: t.menu.deleteAllNodeStickies + '?',
+                                    onConfirm: () => useScenarioStore.getState().deleteAllNodeStickies()
+                                });
+                            }} 
+                            label={t.menu.deleteAllNodeStickies} 
+                            danger 
+                        />
+                    </SubMenu>
+
+                    <SubMenu label={t.menu.bulkRevealOperations} icon={Eye}>
+                        <MenuItem 
+                            onClick={() => {
+                                setConfirmModal({
+                                    isOpen: true,
+                                    title: t.common.revealAll,
+                                    message: t.common.confirmRevealAll,
+                                    onConfirm: () => useScenarioStore.getState().revealAll()
+                                });
+                            }} 
+                            icon={Eye} 
+                            label={t.common.revealAll} 
+                        />
+                        <MenuItem 
+                            onClick={() => {
+                                setConfirmModal({
+                                    isOpen: true,
+                                    title: t.common.unrevealAll,
+                                    message: t.common.confirmUnrevealAll,
+                                    onConfirm: () => useScenarioStore.getState().unrevealAll()
+                                });
+                            }} 
+                            icon={EyeOff} 
+                            label={t.common.unrevealAll} 
+                        />
+                    </SubMenu>
                 </MenuDropdown>
 
                 <MenuDropdown 
@@ -462,7 +542,7 @@ export const Layout = () => {
             />
         )}
         <Canvas onCanvasClick={closeMenu} />
-        {mode === 'edit' && (
+        {(mode === 'edit' || (mode === 'play' && nodes.find(n => n.id === selectedNodeId)?.type === 'sticky')) && (
             <>
                 <div 
                     className="w-1 cursor-col-resize hover:bg-primary transition-colors bg-border"

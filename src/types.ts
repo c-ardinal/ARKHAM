@@ -1,6 +1,6 @@
 import type { Node, Edge } from 'reactflow';
 
-export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable' | 'jump';
+export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable' | 'jump' | 'sticky';
 
 export interface ScenarioNodeData {
   label: string;
@@ -30,6 +30,10 @@ export interface ScenarioNodeData {
 
   // For Jump nodes
   jumpTarget?: string;
+
+  // For Sticky nodes
+  targetNodeId?: string; // If attached to a node
+  hasSticky?: boolean; // If this node has an attached sticky
 
   // State
   revealed?: boolean;
