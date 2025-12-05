@@ -1,7 +1,9 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { Plus, Minus, Maximize } from 'lucide-react';
 import ReactFlow, { 
   Background, 
   Controls, 
+  ControlButton,
   ReactFlowProvider,
   useReactFlow,
   type Node,
@@ -200,11 +202,35 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     selectedNodeId,
     bringNodeToFront,
   } = useScenarioStore();
-  const { setEdges, getNodes, screenToFlowPosition, setCenter, getZoom } = useReactFlow();
+  const { 
+      setEdges, 
+      getNodes, 
+      screenToFlowPosition, 
+      setCenter, 
+      getZoom,
+      fitView,
+      setViewport,
+      getViewport
+  } = useReactFlow();
   const { t } = useTranslation();
   
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
+  const [zoom, setZoomState] = useState(1);
   const lastDuplicatedIds = useRef<string[]>([]);
+
+  // Sync zoom state
+  useEffect(() => {
+      const interval = setInterval(() => {
+          setZoomState(getZoom());
+      }, 100);
+      return () => clearInterval(interval);
+  }, [getZoom]);
+
+  const setZoom = (newZoom: number) => {
+      const { x, y } = getViewport();
+      setViewport({ x, y, zoom: newZoom });
+      setZoomState(newZoom);
+  };
 
   const onPaneClick = useCallback(() => {
     setMenu(null);
@@ -737,7 +763,53 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         }}
       >
         <Background color="hsl(var(--muted-foreground) / 0.2)" gap={16} />
-        <Controls className="bg-card border-border fill-foreground" /> 
+
+        <Controls 
+            className="bg-card border-border fill-foreground flex flex-col items-center gap-0.5 p-1 w-auto shadow-sm !overflow-visible rounded-full group" 
+            showZoom={false} 
+            showFitView={false} 
+            showInteractive={false}
+        >
+            <ControlButton onClick={() => setZoom(Math.min(2, zoom + 0.05))} title="Zoom In (+5%)" className="!bg-transparent !border-none hover:!bg-accent hover:!text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                <Plus size={14} />
+            </ControlButton>
+            
+            <div className="relative flex items-center justify-center h-44 w-full my-0">
+                <input 
+                    type="range" 
+                    min="0.1" 
+                    max="2" 
+                    step="0.05" 
+                    value={zoom} 
+                    onChange={(e) => setZoom(parseFloat(e.target.value))}
+                    onWheel={(e) => {
+                        const delta = e.deltaY > 0 ? -0.01 : 0.01;
+                        const newZoom = Math.min(2, Math.max(0.1, zoom + delta));
+                        setZoom(newZoom);
+                    }}
+                    className="w-44 h-1.5 bg-secondary dark:bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90"
+                />
+                
+                <div 
+                    className="absolute left-full ml-4 px-2 py-1 bg-popover text-popover-foreground text-xs font-mono rounded shadow-md border border-border whitespace-nowrap pointer-events-none z-50 hidden group-hover:flex items-center"
+                    style={{ 
+                        bottom: `calc(50% - 80px + ${((zoom - 0.1) / 1.9) * 160}px)`,
+                        transform: 'translateY(50%)'
+                    }}
+                >
+                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-popover border-l-0"></div>
+                    {Math.round(zoom * 100)}%
+                </div>
+            </div>
+
+            <ControlButton onClick={() => setZoom(Math.max(0.1, zoom - 0.05))} title="Zoom Out (-5%)" className="!bg-transparent !border-none hover:!bg-accent hover:!text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                <Minus size={14} />
+            </ControlButton>
+            
+            <ControlButton onClick={() => fitView()} title="Fit View" className="!bg-transparent !border-none hover:!bg-accent hover:!text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                <Maximize size={14} />
+            </ControlButton>
+        </Controls> 
         <style>{`
             .react-flow__edge.selected .react-flow__edge-path {
                 stroke: hsl(var(--primary));

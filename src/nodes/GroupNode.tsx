@@ -27,12 +27,12 @@ const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
 
   return (
     <div 
-    className={`relative w-full h-full border-2 rounded-lg transition-all flex flex-col shadow-md hover:shadow-lg ${
+    className={`relative w-full h-full border-2 rounded-xl transition-all flex flex-col shadow-xl hover:shadow-2xl ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
-    } border-border ${
+    } border-border/60 ${
       !data.expanded 
-        ? 'min-w-[150px] min-h-[50px] border-dashed bg-muted' 
-        : '!border-solid bg-muted'
+        ? 'min-w-[150px] min-h-[50px] border-dashed bg-muted/80' 
+        : '!border-solid bg-muted/30 backdrop-blur-sm'
     }`}
     style={{ minWidth: 'fit-content', minHeight: 'fit-content' }}
     >
@@ -44,7 +44,7 @@ const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
       
       <div 
         ref={contentRef}
-        className="px-2 py-1 m-2 rounded text-xs font-bold flex flex-col gap-1 bg-card text-card-foreground shadow-sm border border-border whitespace-nowrap w-fit"
+        className="px-3 py-2 m-2 rounded-md text-xs font-bold flex flex-col gap-1 bg-card/90 text-card-foreground shadow-lg border border-border/50 whitespace-nowrap w-fit backdrop-blur-md"
       >
         <div className="flex items-center gap-2">
             <button 
