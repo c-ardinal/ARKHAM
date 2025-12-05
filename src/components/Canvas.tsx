@@ -232,10 +232,16 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     [project, addNode, mode, t, gameState]
   );
 
-  const onNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
+  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
       pushHistory(); // Push history on drag stop
 
       const groups = getNodes().filter(n => n.type === 'group' && n.id !== node.id);
+      
+      // Calculate drop position in canvas coordinates
+      const dropPosition = project({
+          x: event.clientX - (reactFlowWrapper.current?.getBoundingClientRect().left ?? 0),
+          y: event.clientY - (reactFlowWrapper.current?.getBoundingClientRect().top ?? 0),
+      });
       
       const nodeRect = {
           x: node.positionAbsolute?.x ?? node.position.x,
@@ -252,11 +258,12 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
               height: g.height || 300
           };
           
+          // Check if mouse cursor (drop position) is inside group
           return (
-              nodeRect.x >= gRect.x &&
-              nodeRect.x + nodeRect.width <= gRect.x + gRect.width &&
-              nodeRect.y >= gRect.y &&
-              nodeRect.y + nodeRect.height <= gRect.y + gRect.height
+              dropPosition.x >= gRect.x &&
+              dropPosition.x <= gRect.x + gRect.width &&
+              dropPosition.y >= gRect.y &&
+              dropPosition.y <= gRect.y + gRect.height
           );
       });
 
@@ -267,6 +274,13 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
               const relY = nodeRect.y - (intersectingGroup.positionAbsolute?.y ?? intersectingGroup.position.y);
               
               useScenarioStore.getState().setNodeParent(node.id, intersectingGroup.id, { x: relX, y: relY });
+              
+              // Update group size to fit the new node
+              // We use setTimeout to ensure the state update has processed if there are any batched updates,
+              // although direct store access is usually immediate.
+              setTimeout(() => {
+                  useScenarioStore.getState().updateGroupSize(intersectingGroup.id);
+              }, 10);
           }
       } else {
           if (node.parentNode) {
