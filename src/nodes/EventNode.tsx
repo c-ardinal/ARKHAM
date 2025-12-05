@@ -4,7 +4,7 @@ import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 
-import { Zap } from 'lucide-react';
+import { Flag } from 'lucide-react';
 
 const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { gameState } = useScenarioStore();
@@ -26,7 +26,7 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       <div className="flex flex-col">
         <div className="flex items-center">
           <div className="rounded-full p-2 mr-2 bg-orange-100 text-orange-600 dark:bg-orange-800 dark:text-orange-300 shrink-0">
-            <Zap size={16} />
+            <Flag size={16} />
           </div>
           <div className="flex items-center">
             {data.isStart && <span className="mr-2 text-yellow-500">★</span>}
