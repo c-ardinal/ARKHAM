@@ -4,6 +4,8 @@ import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 
+import { Zap } from 'lucide-react';
+
 const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { gameState } = useScenarioStore();
   
@@ -22,15 +24,21 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       {!data.isStart && <Handle type="target" position={Position.Top} className="w-16 !bg-orange-400 dark:!bg-orange-600" />}
       
       <div className="flex flex-col">
-        <div className="flex items-center justify-between text-lg font-bold text-orange-900 dark:text-orange-100">
+        <div className="flex items-center">
+          <div className="rounded-full p-2 mr-2 bg-orange-100 text-orange-600 dark:bg-orange-800 dark:text-orange-300 shrink-0">
+            <Zap size={16} />
+          </div>
           <div className="flex items-center">
             {data.isStart && <span className="mr-2 text-yellow-500">★</span>}
-            {label}
+            <div className="text-lg font-bold text-orange-900 dark:text-orange-100">{label}</div>
           </div>
         </div>
+        
         {description && (
-            <div className="text-xs text-orange-800 dark:text-orange-200/70 mt-1 border-t border-orange-200 dark:border-orange-800 pt-1 whitespace-pre-wrap font-medium">
-                {description}
+            <div className="mt-2 pt-2 border-t border-orange-200 dark:border-orange-800">
+                <div className="text-sm opacity-80 text-orange-800 dark:text-orange-200/70 whitespace-pre-wrap">
+                    {description}
+                </div>
             </div>
         )}
       </div>

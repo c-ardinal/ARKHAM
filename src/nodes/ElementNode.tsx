@@ -1,12 +1,13 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import { BookOpen, Package, Zap, Activity, PlusCircle, MinusCircle } from 'lucide-react';
+import { BookOpen, Package, Zap, Activity } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 
 const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { gameState } = useScenarioStore();
+  const description = data.description;
   
   const getIcon = () => {
     switch (data.infoType) {
@@ -18,11 +19,6 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
     }
   };
 
-  const getActionIcon = () => {
-      if (data.actionType === 'consume') return <MinusCircle size={14} className="text-destructive" />;
-      return <PlusCircle size={14} className="text-green-500" />;
-  };
-  
   return (
     <div className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] relative transition-all duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
@@ -38,30 +34,38 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       )}
       <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-blue-400" />
       
-      <div className="flex items-center">
-        <div className="rounded-full p-2 mr-2 bg-blue-100 text-blue-600 dark:bg-blue-800 dark:text-blue-300">
-          {getIcon()}
-        </div>
-        <div className="flex-1">
-          <div className="text-xs font-bold flex items-center gap-1">
-              {substituteVariables(data.label, gameState.variables)}
-              <span title={data.actionType === 'consume' ? 'Consume/Discard' : 'Obtain'}>
-                  {getActionIcon()}
-              </span>
+      <div className="flex flex-col">
+        <div className="flex items-center">
+          <div className="rounded-full p-2 mr-2 bg-blue-100 text-blue-600 dark:bg-blue-800 dark:text-blue-300 shrink-0">
+            {getIcon()}
           </div>
-          <div className="text-[10px] opacity-80 whitespace-pre-wrap">{substituteVariables(data.description || '', gameState.variables)}</div>
+          <div className="text-base font-bold flex items-center gap-1 text-blue-900 dark:text-blue-100">
+              {substituteVariables(data.label, gameState.variables)}
+          </div>
         </div>
-      </div>
-      
-      <div className="mt-2 pt-2 border-t flex justify-between items-center border-blue-200 dark:border-blue-800">
-        <div className="text-xs font-mono font-semibold truncate flex-1 mr-2" title={data.infoValue}>
-          {substituteVariables(data.infoValue || 'No Name', gameState.variables)}
-        </div>
-        {data.quantity !== undefined && (
-            <div className="text-xs font-mono px-1.5 py-0.5 rounded bg-blue-200 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                x{data.quantity}
+        
+        {description && (
+            <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                <div className="text-sm opacity-80 whitespace-pre-wrap text-blue-900 dark:text-blue-100">
+                    {substituteVariables(data.description || '', gameState.variables)}
+                </div>
             </div>
         )}
+        
+        <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+            <div className={`text-sm font-mono font-semibold p-1 rounded flex justify-center items-center ${
+                data.actionType === 'consume' 
+                    ? 'bg-red-100 text-red-900 dark:bg-red-900/50 dark:text-red-100' 
+                    : 'bg-green-100 text-green-900 dark:bg-green-900/50 dark:text-green-100'
+            }`} title={data.infoValue}>
+              <span className="truncate max-w-[100px]">
+                  {substituteVariables(data.infoValue || 'No Name', gameState.variables)}
+              </span>
+              <span className="font-bold ml-1 shrink-0 opacity-80">
+                  x{data.quantity !== undefined ? data.quantity : 1}
+              </span>
+            </div>
+        </div>
       </div>
 
       <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-blue-400" />

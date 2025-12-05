@@ -22,9 +22,9 @@ const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       )}
       <div className="flex items-center mb-2">
         <StickyNote size={16} className="mr-2 opacity-70" />
-        <div className="font-bold text-sm">{substituteVariables(data.label, gameState.variables)}</div>
+        <div className="font-bold text-base">{substituteVariables(data.label, gameState.variables)}</div>
       </div>
-      <div className="text-xs whitespace-pre-wrap opacity-90 leading-relaxed">
+      <div className="text-sm whitespace-pre-wrap opacity-90 leading-relaxed">
         {substituteVariables(data.description || '', gameState.variables)}
       </div>
       <Handle type="target" position={Position.Top} className="!bg-slate-400" />

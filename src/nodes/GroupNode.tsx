@@ -2,7 +2,7 @@ import { memo, useRef, useEffect } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { GroupNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Minus, ArrowDownFromLine } from 'lucide-react';
+import { Minus, ArrowDownFromLine, Folder } from 'lucide-react';
 import { substituteVariables } from '../utils/textUtils';
 
 const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
@@ -56,6 +56,9 @@ const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
             >
                 {data.expanded ? <Minus size={12} /> : <ArrowDownFromLine size={12} />}
             </button>
+            <div className="rounded-full p-1 bg-muted text-muted-foreground">
+                <Folder size={12} />
+            </div>
             {substituteVariables(data.label, gameState.variables)}
         </div>
         {data.description && (

@@ -243,6 +243,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
             branchType: type === 'branch' ? 'if_else' : undefined,
             expanded: type === 'group' ? true : undefined, // GroupNode initial expand
             targetVariable: (type === 'variable' && Object.keys(gameState.variables).length > 0) ? Object.keys(gameState.variables)[0] : undefined,
+            quantity: type === 'element' ? 1 : undefined,
         },
         style: type === 'group' ? { width: 300, height: 300, zIndex: -1 } : undefined,
       };

@@ -5,6 +5,8 @@ import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 
 
+import { GitBranch } from 'lucide-react';
+
 const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
   const { gameState } = useScenarioStore();
   
@@ -24,28 +26,39 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
       <Handle type="target" position={Position.Top} className="w-16 !bg-purple-400 dark:!bg-purple-500" />
       
       <div className="flex flex-col">
-        <div className="flex items-center justify-between text-sm font-bold text-purple-900 dark:text-purple-100">
-            <div className="text-center flex-1">{label}</div>
+        <div className="flex items-center">
+          <div className="rounded-full p-2 mr-2 bg-purple-100 text-purple-600 dark:bg-purple-800 dark:text-purple-300 shrink-0">
+            <GitBranch size={16} />
+          </div>
+          <div className="text-base font-bold text-purple-900 dark:text-purple-100">
+              {label}
+          </div>
         </div>
-        <div className="text-xs text-purple-900 dark:text-purple-300 mt-1 text-center font-mono bg-purple-100 dark:bg-purple-800 rounded px-1 font-bold">
-            {data.branchType} {conditionValue && `(${conditionValue})`}
-        </div>
+
         {description && (
-            <div className="text-xs text-purple-900 dark:text-purple-300/70 mt-1 border-t border-purple-200 dark:border-purple-800 pt-1 whitespace-pre-wrap font-medium">
-                {description}
+            <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-800">
+                <div className="text-sm opacity-80 text-purple-900 dark:text-purple-300/70 whitespace-pre-wrap">
+                    {description}
+                </div>
             </div>
         )}
+
+        <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-800">
+            <div className="text-base text-purple-900 dark:text-purple-300 font-mono bg-purple-100 dark:bg-purple-800 rounded px-1 font-bold w-fit mx-auto">
+                {data.branchType} {conditionValue && `(${conditionValue})`}
+            </div>
+        </div>
       </div>
 
       {data.branchType === 'if_else' && (
         <div className="flex justify-between mt-2 gap-4">
             <div className="relative">
                 <Handle type="source" position={Position.Bottom} id="true" className="!bg-green-500 !left-4" />
-                <span className="text-[10px] text-green-700 dark:text-green-400 font-bold">True</span>
+                <span className="text-xs text-green-700 dark:text-green-400 font-bold">True</span>
             </div>
             <div className="relative">
                 <Handle type="source" position={Position.Bottom} id="false" className="!bg-red-500 !left-auto !right-4" />
-                <span className="text-[10px] text-red-700 dark:text-red-400 font-bold">False</span>
+                <span className="text-xs text-red-700 dark:text-red-400 font-bold">False</span>
             </div>
         </div>
       )}
@@ -54,7 +67,7 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
           <div className="flex flex-col mt-2 gap-2">
               {data.branches.map((branch) => (
                   <div key={branch.id} className="relative flex items-center justify-end">
-                      <span className="text-[10px] text-purple-900 dark:text-purple-200 mr-2 font-bold">{substituteVariables(branch.label, gameState.variables)}</span>
+                      <span className="text-xs text-purple-900 dark:text-purple-200 mr-2 font-bold">{substituteVariables(branch.label, gameState.variables)}</span>
                       <Handle 
                         type="source" 
                         position={Position.Right} 
