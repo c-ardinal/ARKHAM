@@ -20,9 +20,12 @@ import MemoNode from '../nodes/MemoNode';
 import VariableNode from '../nodes/VariableNode';
 import JumpNode from '../nodes/JumpNode';
 import StickyNode from '../nodes/StickyNode';
+import CharacterNode from '../nodes/CharacterNode';
+import ResourceNode from '../nodes/ResourceNode';
 import type { NodeType, ScenarioNode, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
+import { NodeInfoModal } from './NodeInfoModal';
 
 const nodeTypes = {
   event: EventNode,
@@ -34,29 +37,10 @@ const nodeTypes = {
   variable: VariableNode,
   jump: JumpNode,
   sticky: StickyNode,
+  character: CharacterNode,
+  resource: ResourceNode,
 };
-// ... ContextMenu definition (skipped for brevity as it is already correct in previous step's input, assuming it was applied partially? No, replace failed? The previous tool output said it applied changes but linter complained about missing imports. So ContextMenu code IS there, but imports are missing. I need to restore imports.)
 
-// ... (skipping ContextMenu re-definition, focusing on imports restoration and CanvasContent update)
-// Wait, I cannot skip ContextMenu definition if I am replacing a block that includes it or if I am replacing the whole file. 
-// The tool output says diff block start at line 12.
-// So imports were deleted. ContextMenu is there. 
-// I should just replace the Imports section first.
-// BUT I also need to update CanvasContent and remove nodesDraggable.
-// I will do it in one go if possible, or two.
-// Let's replace from imports to start of context menu.
-
-// Actually I will provide the whole file content for the imports and CanvasContent part.
-// But ContextMenu is large.
-// I will split. First restore imports.
-
-// Then update CanvasContent.
-
-// Step 1: Restore Imports.
-// Step 2: Update CanvasContent handlers and ReactFlow props.
-
-// Lint errors say EventNode not found.
-// So I will replace the top part.
 
 
 interface ContextMenuState {
@@ -324,6 +308,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [zoom, setZoomState] = useState(1);
+  const [infoModalData, setInfoModalData] = useState<string | null>(null);
   // Removed local isUpdatingSticky
   const lastDuplicatedIds = useRef<string[]>([]);
 
@@ -420,6 +405,8 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
       if (mode === 'play') return;
 
       const type = event.dataTransfer.getData('application/reactflow') as NodeType;
+      const referenceId = event.dataTransfer.getData('application/reactflow/referenceId');
+
       if (typeof type === 'undefined' || !type) {
         return;
       }
@@ -434,7 +421,8 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         type,
         position,
         data: { 
-            label: `${t.nodes.new} ${type}`,
+            label: `${type === 'character' || type === 'resource' ? '' : t.nodes.new + ' ' + type}`,
+            referenceId: referenceId || undefined,
             // Set defaults
             infoType: (type === 'element') ? 'knowledge' : undefined,
             branchType: type === 'branch' ? 'if_else' : undefined,
@@ -461,7 +449,8 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
 
       const allNodes = getNodes();
       // Groups logic - prevent stickies from interacting with groups
-      if (node.type === 'sticky') return;
+      // Groups logic - prevent stickies and reference nodes from interacting with groups
+      if (node.type === 'sticky' || node.type === 'character' || node.type === 'resource') return;
 
       const groups = allNodes.filter(n => n.type === 'group' && n.id !== node.id);
       
@@ -592,6 +581,13 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     // Explicitly set selection on click (needed for Play Mode where selection behavior might differ)
     setSelectedNode(node.id);
 
+    if (mode === 'play') {
+         if ((node.type === 'character' || node.type === 'resource') && node.data.referenceId) {
+             setInfoModalData(node.data.referenceId);
+         }
+         return;
+    }
+
     const currentTime = Date.now();
     const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 300;
     lastClickTime.current = currentTime;
@@ -620,7 +616,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     if (node.type === 'group') {
         bringNodeToFront(node.id);
     }
-  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode]);
+  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode, mode]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -789,7 +785,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   }, [menu, getNodes, toggleNodeState, selectedNodeId]);
 
   const handleGroup = useCallback(() => {
-      const selectedNodes = getNodes().filter(n => n.selected);
+      const selectedNodes = getNodes().filter(n => n.selected && n.type !== 'character' && n.type !== 'resource' && n.type !== 'sticky');
       if (selectedNodes.length === 0 && menu?.type === 'node') {
           groupNodes([menu.id]);
       } else {
@@ -1008,6 +1004,10 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
                 <Maximize size={14} />
             </ControlButton>
         </Controls> 
+        <NodeInfoModal 
+            referenceId={infoModalData} 
+            onClose={() => setInfoModalData(null)} 
+        />
         <style>{`
             .react-flow__edge.selected .react-flow__edge-path {
                 stroke: hsl(var(--primary));

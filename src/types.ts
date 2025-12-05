@@ -1,6 +1,6 @@
 import type { Node, Edge } from 'reactflow';
 
-export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable' | 'jump' | 'sticky';
+export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable' | 'jump' | 'sticky' | 'character' | 'resource';
 
 export interface ScenarioNodeData {
   label: string;
@@ -27,13 +27,16 @@ export interface ScenarioNodeData {
   targetVariable?: string;
   variableValue?: string;
   previousValue?: any; // To restore value when un-revealed
-
+  
   // For Jump nodes
   jumpTarget?: string;
 
   // For Sticky nodes
   targetNodeId?: string; // If attached to a node
   hasSticky?: boolean; // If this node has an attached sticky
+
+  // For Reference nodes (Character/Resource)
+  referenceId?: string;
 
   // State
   revealed?: boolean;
@@ -74,3 +77,30 @@ export interface GameState {
   stats: Record<string, number>;
   variables: Record<string, Variable>;
 }
+
+export type CharacterType = 'Person' | 'Participant' | 'Monster' | 'Other';
+
+export interface CharacterData {
+  id: string;
+  type: CharacterType;
+  name: string;
+  reading?: string;
+  description?: string;
+  abilities?: string;
+  skills?: string;
+  note?: string;
+}
+
+export type ResourceType = 'Item' | 'Equipment' | 'Knowledge' | 'Skill' | 'Status';
+
+export interface ResourceData {
+  id: string;
+  type: ResourceType;
+  name: string;
+  reading?: string;
+  description?: string;
+  cost?: string;
+  effect?: string;
+  note?: string;
+}
+

@@ -5,6 +5,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { Plus, Trash2, Edit2, Save, X, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
 import type { VariableType } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
+import { Variable as VariableIcon } from 'lucide-react';
 
 export const VariableList = () => {
   const { gameState, addVariable, updateVariable, deleteVariable, updateVariableMetadata, mode } = useScenarioStore();
@@ -187,12 +188,15 @@ export const VariableList = () => {
           background-color: hsl(var(--muted-foreground) / 0.8);
         }
       `}</style>
-      <div className="flex items-center justify-between mb-2 shrink-0">
-        <h3 className="text-sm font-medium text-foreground">{t.variables.title}</h3>
+      <div className="flex items-center justify-between mb-2 px-2 pt-2 shrink-0">
+        <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+            <VariableIcon size={16} />
+            {t.variables.title}
+        </h3>
         {mode === 'edit' && (
             <button 
             onClick={() => setIsAdding(true)}
-            className="p-1 hover:bg-accent hover:text-accent-foreground rounded text-primary"
+            className="p-1 hover:bg-muted rounded text-primary hover:text-primary/80"
             title={t.variables.add}
             >
             <Plus size={16} />
@@ -200,7 +204,7 @@ export const VariableList = () => {
         )}
       </div>
 
-      <div className="flex gap-1 mb-2 shrink-0">
+      <div className="flex gap-1 mb-2 px-2 shrink-0">
           <button onClick={() => toggleSort('created')} className={`p-1 rounded text-xs flex items-center gap-1 ${sortBy === 'created' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`} title="Sort by Created">
               Created {sortBy === 'created' && (sortOrder === 'asc' ? <ArrowDownAZ size={12} /> : <ArrowUpAZ size={12} />)}
           </button>
@@ -213,7 +217,7 @@ export const VariableList = () => {
       </div>
 
       {isAdding && mode === 'edit' && (
-        <div className="p-2 rounded mb-4 space-y-2 border shrink-0 bg-card border-border">
+        <div className="p-2 rounded mb-4 mx-2 space-y-2 border shrink-0 bg-card border-border">
           <div className="relative">
               <input
                 type="text"
@@ -268,7 +272,7 @@ export const VariableList = () => {
         </div>
       )}
 
-      <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar pr-1">
+      <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar px-2 pb-2">
         {Object.values(gameState.variables).length === 0 && !isAdding && (
             <div className="text-xs text-muted-foreground italic text-center py-4">{t.variables.noVariables}</div>
         )}

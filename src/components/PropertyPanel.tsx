@@ -9,11 +9,184 @@ interface PropertyPanelProps {
 }
 
 export const PropertyPanel = ({ width }: PropertyPanelProps) => {
-  const { nodes, selectedNodeId, updateNodeData, gameState } = useScenarioStore();
+  const { 
+      nodes, selectedNodeId, updateNodeData, gameState,
+      characters, resources, updateCharacter, updateResource
+  } = useScenarioStore();
   const { t } = useTranslation();
   
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  // Resolve selected item
+  let selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const selectedCharacter = !selectedNode 
+      ? characters.find(c => c.id === selectedNodeId)
+      : (selectedNode.type === 'character' ? characters.find(c => c.id === selectedNode.data.referenceId) : null);
+  const selectedResource = !selectedNode
+      ? resources.find(r => r.id === selectedNodeId)
+      : (selectedNode.type === 'resource' ? resources.find(r => r.id === selectedNode.data.referenceId) : null);
 
+  const inputClass = "w-full border rounded px-3 py-2 focus:outline-none focus:border-primary bg-background border-input text-foreground";
+  const labelClass = "block text-sm font-medium mb-1 text-foreground";
+
+  // --- Character Editing ---
+  if (selectedCharacter) {
+       const handleChange = (name: string, value: string) => {
+           updateCharacter(selectedCharacter.id, { [name]: value });
+       };
+
+       return (
+            <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+                <div className="p-4 border-b border-border">
+                    <h2 className="text-lg font-semibold text-card-foreground">{t.characters?.title || 'Characters'}</h2>
+                    <div className="text-xs mt-1 text-muted-foreground">ID: {selectedCharacter.id}</div>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto space-y-4">
+                    <div>
+                        <label className={labelClass}>{t.characters?.name || 'Name'}</label>
+                        <input
+                            value={selectedCharacter.name}
+                            onChange={(e) => handleChange('name', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t.characters?.reading || 'Reading'}</label>
+                        <input
+                            value={selectedCharacter.reading || ''}
+                            onChange={(e) => handleChange('reading', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t.characters?.type || 'Type'}</label>
+                         <select
+                            value={selectedCharacter.type}
+                            onChange={(e) => handleChange('type', e.target.value)}
+                            className={inputClass}
+                        >
+                            {Object.entries((t.characters?.types as any) || {}).map(([key, label]) => (
+                                <option key={key} value={key}>{label as string}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t.characters?.description || 'Description'}</label>
+                         <VariableSuggestInput
+                            multiline
+                            value={selectedCharacter.description || ''}
+                            onChange={(val) => handleChange('description', val)}
+                            className={`${inputClass} min-h-[80px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t.characters?.abilities || 'Abilities'}</label>
+                        <textarea
+                            value={selectedCharacter.abilities || ''}
+                            onChange={(e) => handleChange('abilities', e.target.value)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t.characters?.skills || 'Skills'}</label>
+                        <textarea
+                            value={selectedCharacter.skills || ''}
+                            onChange={(e) => handleChange('skills', e.target.value)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t.characters?.note || 'Note'}</label>
+                        <textarea
+                            value={selectedCharacter.note || ''}
+                            onChange={(e) => handleChange('note', e.target.value)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                </div>
+            </aside>
+       );
+  }
+
+  // --- Resource Editing ---
+  if (selectedResource) {
+       const handleChange = (name: string, value: string) => {
+           updateResource(selectedResource.id, { [name]: value });
+       };
+
+       return (
+            <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+                <div className="p-4 border-b border-border">
+                    <h2 className="text-lg font-semibold text-card-foreground">{t.resources?.title || 'Resources'}</h2>
+                    <div className="text-xs mt-1 text-muted-foreground">ID: {selectedResource.id}</div>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto space-y-4">
+                    <div>
+                        <label className={labelClass}>{t.resources?.name || 'Name'}</label>
+                        <input
+                            value={selectedResource.name}
+                            onChange={(e) => handleChange('name', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t.resources?.reading || 'Reading'}</label>
+                        <input
+                            value={selectedResource.reading || ''}
+                            onChange={(e) => handleChange('reading', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t.resources?.type || 'Type'}</label>
+                         <select
+                            value={selectedResource.type}
+                            onChange={(e) => handleChange('type', e.target.value)}
+                            className={inputClass}
+                        >
+                            {Object.entries((t.resources?.types as any) || {}).map(([key, label]) => (
+                                <option key={key} value={key}>{label as string}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t.resources?.description || 'Description'}</label>
+                         <VariableSuggestInput
+                            multiline
+                            value={selectedResource.description || ''}
+                            onChange={(val) => handleChange('description', val)}
+                            className={`${inputClass} min-h-[80px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t.resources?.cost || 'Cost'}</label>
+                        <input
+                            value={selectedResource.cost || ''}
+                            onChange={(e) => handleChange('cost', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t.resources?.effect || 'Effect'}</label>
+                        <VariableSuggestInput
+                            multiline
+                            value={selectedResource.effect || ''}
+                            onChange={(val) => handleChange('effect', val)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t.resources?.note || 'Note'}</label>
+                        <textarea
+                            value={selectedResource.note || ''}
+                            onChange={(e) => handleChange('note', e.target.value)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                </div>
+            </aside>
+       );
+  }
+
+  // --- Standard Node Editing ---
   if (!selectedNode) {
     return (
       <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
@@ -35,9 +208,6 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
   const handleFieldChange = (name: string, value: string) => {
     updateNodeData(selectedNode.id, { [name]: value });
   };
-
-  const inputClass = "w-full border rounded px-3 py-2 focus:outline-none focus:border-primary bg-background border-input text-foreground";
-  const labelClass = "block text-sm font-medium mb-1 text-foreground";
 
   return (
     <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
@@ -109,7 +279,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                                 .filter(n => 
                                     (n.type === 'element' || n.type === 'information') && 
                                     n.data.infoType === (selectedNode.data.infoType || 'knowledge') &&
-                                    n.data.actionType !== 'consume' // Only show items that are obtained elsewhere
+                                    n.data.actionType !== 'consume' 
                                 )
                                 .map(n => n.data.infoValue)
                                 .filter(Boolean)
@@ -299,11 +469,11 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                       onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value })}
                       className={inputClass}
                   >
-                      {nodes.filter(n => n.id !== selectedNode.id && n.type !== 'sticky').length === 0 && (
+                      {nodes.filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource').length === 0 && (
                            <option value="" disabled>{t.properties.noNodesAvailable}</option>
                       )}
                       {nodes
-                          .filter(n => n.id !== selectedNode.id && n.type !== 'sticky')
+                          .filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource')
                           .map(n => (
                               <option key={n.id} value={n.id}>
                                   {substituteVariables(n.data.label, gameState.variables)} ({n.type})

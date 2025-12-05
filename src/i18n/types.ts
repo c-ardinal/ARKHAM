@@ -115,6 +115,43 @@ export type TranslationKeys = {
     string: string;
     noVariables: string;
   };
+  characters: {
+    title: string;
+    add: string;
+    name: string;
+    reading: string;
+    description: string;
+    abilities: string;
+    skills: string;
+    note: string;
+    type: string;
+    types: {
+      Person: string;
+      Participant: string;
+      Monster: string;
+      Other: string;
+    };
+    noCharacters: string;
+  };
+  resources: {
+    title: string;
+    add: string;
+    name: string;
+    reading: string;
+    description: string;
+    cost: string;
+    effect: string;
+    note: string;
+    type: string;
+    types: {
+      Item: string;
+      Equipment: string;
+      Knowledge: string;
+      Skill: string;
+      Status: string;
+    };
+    noResources: string;
+  };
   manual: {
     title: string;
     introduction: string;

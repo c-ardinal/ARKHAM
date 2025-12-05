@@ -14,7 +14,7 @@ import type {
   OnEdgesChange,
   OnConnect,
 } from 'reactflow';
-import type { ScenarioNode, ScenarioEdge, GameState } from '../types';
+import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 
 interface ScenarioState {
@@ -35,7 +35,7 @@ interface ScenarioState {
   deleteNodes: (nodeIds: string[]) => void;
   setMode: (mode: 'edit' | 'play') => void;
   setSelectedNode: (id: string | string[] | null) => void;
-  loadScenario: (data: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState }) => void;
+  loadScenario: (data: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState, characters?: CharacterData[], resources?: ResourceData[] }) => void;
   
   // Localization & Theme
   language: 'en' | 'ja';
@@ -53,6 +53,18 @@ interface ScenarioState {
   updateVariableMetadata: (oldName: string, newName: string, newType: 'boolean' | 'number' | 'string') => void;
   batchRenameVariables: (renames: Record<string, string>) => void;
   deleteVariable: (name: string) => void;
+
+  // Characters
+  characters: CharacterData[];
+  addCharacter: (char: CharacterData) => void;
+  updateCharacter: (id: string, char: Partial<CharacterData>) => void;
+  deleteCharacter: (id: string) => void;
+
+  // Resources
+  resources: ResourceData[];
+  addResource: (res: ResourceData) => void;
+  updateResource: (id: string, res: Partial<ResourceData>) => void;
+  deleteResource: (id: string) => void;
 
   // Game Logic
   resetGame: () => void;
@@ -121,6 +133,46 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     variables: {},
   },
   mode: 'edit',
+  characters: [],
+  resources: [],
+
+  addCharacter: (char) => set((state) => ({ characters: [...state.characters, char] })),
+  updateCharacter: (id, char) => set((state) => ({
+      characters: state.characters.map((c) => (c.id === id ? { ...c, ...char } : c))
+  })),
+  deleteCharacter: (id) => set((state) => {
+      const nodesToDelete = state.nodes.filter(n => n.type === 'character' && n.data.referenceId === id).map(n => n.id);
+      let newNodes = state.nodes;
+      let newEdges = state.edges;
+      if (nodesToDelete.length > 0) {
+           newNodes = state.nodes.filter(n => !nodesToDelete.includes(n.id));
+           newEdges = state.edges.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target));
+      }
+      return {
+          characters: state.characters.filter((c) => c.id !== id),
+          nodes: newNodes,
+          edges: newEdges
+      };
+  }),
+
+  addResource: (res) => set((state) => ({ resources: [...state.resources, res] })),
+  updateResource: (id, res) => set((state) => ({
+      resources: state.resources.map((r) => (r.id === id ? { ...r, ...res } : r))
+  })),
+  deleteResource: (id) => set((state) => {
+       const nodesToDelete = state.nodes.filter(n => n.type === 'resource' && n.data.referenceId === id).map(n => n.id);
+       let newNodes = state.nodes;
+       let newEdges = state.edges;
+       if (nodesToDelete.length > 0) {
+           newNodes = state.nodes.filter(n => !nodesToDelete.includes(n.id));
+           newEdges = state.edges.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target));
+       }
+      return {
+          resources: state.resources.filter((r) => r.id !== id),
+          nodes: newNodes,
+          edges: newEdges
+      };
+  }),
 
   selectedNodeId: null,
   
@@ -416,6 +468,26 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       set({ nodes: remainingNodes, edges: remainingEdges });
       get().recalculateGameState();
   },
+  loadScenario: (data) => {
+       const { nodes, edges, gameState, characters, resources } = data;
+       set({ 
+           nodes: nodes || [], 
+           edges: edges || [], 
+           gameState: gameState || {
+              currentNodes: [],
+              revealedNodes: [],
+              inventory: {},
+              knowledge: {},
+              skills: {},
+              stats: {},
+              variables: {},
+           },
+           characters: characters || [],
+           resources: resources || [],
+           past: [], 
+           future: [] 
+       });
+  },
   setMode: (mode) => {
       const state = get();
       // Update draggable state: stickies are always draggable (or only in play/edit), others only in edit
@@ -600,7 +672,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           nodes: updatedNodes
       });
   },
-  loadScenario: (data) => set({ nodes: data.nodes, edges: data.edges, gameState: data.gameState }),
+
 
 
 
