@@ -66,6 +66,8 @@ interface ScenarioState {
   ungroupNodes: (groupId: string) => void;
   setNodeParent: (nodeId: string, parentId: string | undefined, position: { x: number, y: number }) => void;
   updateGroupSize: (groupId: string, contentSize?: { width: number, height: number }) => void;
+  bringNodeToFront: (nodeId: string) => void;
+  resolveGroupOverlaps: (nodeId: string) => void;
 
   // History
   past: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState }[];
@@ -179,33 +181,16 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         return true;
     });
 
-    // 3. Update group sizes for moved nodes
+    // 3. Update group sizes for moved or resized nodes
     changes.forEach(change => {
-        if (change.type === 'position' && change.position) {
+        if ((change.type === 'position' && change.position) || change.type === 'dimensions') {
             const node = validNodes.find(n => n.id === change.id);
             if (node && node.parentNode) {
-                const parentId = node.parentNode;
-                const parent = validNodes.find(p => p.id === parentId);
-                if (parent && parent.type === 'group' && parent.data.expanded) {
-                     const children = validNodes.filter(n => n.parentNode === parentId);
-                     if (children.length > 0) {
-                         let maxX = 0, maxY = 0;
-                         children.forEach(c => {
-                             const cW = c.width || 150;
-                             const cH = c.height || 50;
-                             maxX = Math.max(maxX, c.position.x + cW);
-                             maxY = Math.max(maxY, c.position.y + cH);
-                         });
-                         
-                         const padding = 40;
-                         const newWidth = Math.max(300, maxX + padding);
-                         const newHeight = Math.max(300, maxY + padding);
-                         
-                         if (parent.style?.width !== newWidth || parent.style?.height !== newHeight) {
-                             parent.style = { ...parent.style, width: newWidth, height: newHeight };
-                         }
-                     }
-                }
+                // Trigger update for the parent group
+                // Use setTimeout to avoid conflicts during render cycle
+                setTimeout(() => {
+                    get().updateGroupSize(node.parentNode!);
+                }, 0);
             }
         }
     });
@@ -276,11 +261,24 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       get().pushHistory();
       const state = get();
       
+      // Recursively find all descendants to ensure we don't leave orphans
+      const idsToDelete = new Set(nodeIds);
+      let changed = true;
+      while (changed) {
+          changed = false;
+          state.nodes.forEach(node => {
+              if (node.parentNode && idsToDelete.has(node.parentNode) && !idsToDelete.has(node.id)) {
+                  idsToDelete.add(node.id);
+                  changed = true;
+              }
+          });
+      }
+      
       // Filter out nodes
-      const remainingNodes = state.nodes.filter(n => !nodeIds.includes(n.id));
+      const remainingNodes = state.nodes.filter(n => !idsToDelete.has(n.id));
       
       // Filter out edges connected to deleted nodes
-      const remainingEdges = state.edges.filter(e => !nodeIds.includes(e.source) && !nodeIds.includes(e.target));
+      const remainingEdges = state.edges.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target));
 
       set({ nodes: remainingNodes, edges: remainingEdges });
       get().recalculateGameState();
@@ -704,79 +702,84 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     const state = get();
     state.pushHistory();
 
-    const node = state.nodes.find((n) => n.id === nodeId);
-    if (!node) return;
+    const targetNode = state.nodes.find((n) => n.id === nodeId);
+    if (!targetNode) return;
 
-    // Toggle 'revealed' state
-    const isRevealed = !node.data.revealed;
-    let updatedNodeData = { ...node.data, revealed: isRevealed };
+    const isRevealed = !targetNode.data.revealed;
     let newGameState = { ...state.gameState };
-    
-    // Logic for VariableNode
-    if (node.type === 'variable') {
-        const targetVar = node.data.targetVariable;
-        const valueExpr = node.data.variableValue;
-        
-        if (targetVar && state.gameState.variables[targetVar]) {
-            const currentVar = state.gameState.variables[targetVar];
+    let newVariables = { ...newGameState.variables };
+
+    // Helper to find all descendants
+    const getDescendants = (parentId: string, nodes: ScenarioNode[]): string[] => {
+        let descendants: string[] = [];
+        const children = nodes.filter(n => n.parentNode === parentId);
+        children.forEach(child => {
+            descendants.push(child.id);
+            descendants = [...descendants, ...getDescendants(child.id, nodes)];
+        });
+        return descendants;
+    };
+
+    const descendants = getDescendants(nodeId, state.nodes);
+    const nodesToUpdate = [targetNode.id, ...descendants];
+
+    const updatedNodes = state.nodes.map(node => {
+        if (!nodesToUpdate.includes(node.id)) return node;
+
+        // Skip if state is already matching (to avoid double execution of side effects)
+        if (node.data.revealed === isRevealed) return node;
+
+        let updatedData = { ...node.data, revealed: isRevealed };
+
+        // Logic for VariableNode
+        if (node.type === 'variable') {
+            const targetVar = node.data.targetVariable;
+            const valueExpr = node.data.variableValue;
             
-            if (isRevealed) {
-                // Apply: Save previous value and assign new
-                updatedNodeData.previousValue = currentVar.value;
+            if (targetVar && newVariables[targetVar]) {
+                const currentVar = newVariables[targetVar];
                 
-                let newValue: any = valueExpr;
-                
-                // Use evaluateFormula for robust substitution and calculation
-                if (typeof valueExpr === 'string') {
-                    // Use current state variables
-                    const resolvedValue = evaluateFormula(valueExpr, state.gameState.variables);
+                if (isRevealed) {
+                    // Apply: Save previous value and assign new
+                    updatedData.previousValue = currentVar.value;
                     
-                    if (currentVar.type === 'number') {
-                        const num = Number(resolvedValue);
-                        if (!isNaN(num)) newValue = num;
-                    } else if (currentVar.type === 'boolean') {
-                        newValue = String(resolvedValue) === 'true';
+                    let newValue: any = valueExpr;
+                    
+                    if (typeof valueExpr === 'string') {
+                        // Use current state variables (accumulated changes)
+                        const resolvedValue = evaluateFormula(valueExpr, newVariables);
+                        
+                        if (currentVar.type === 'number') {
+                            const num = Number(resolvedValue);
+                            if (!isNaN(num)) newValue = num;
+                        } else if (currentVar.type === 'boolean') {
+                            newValue = String(resolvedValue) === 'true';
+                        } else {
+                            newValue = String(resolvedValue);
+                        }
                     } else {
-                        newValue = String(resolvedValue);
+                        newValue = valueExpr;
                     }
+                    
+                    newVariables[targetVar] = { ...currentVar, value: newValue };
                 } else {
-                    newValue = valueExpr;
-                }
-                
-                newGameState.variables = {
-                    ...newGameState.variables,
-                    [targetVar]: { ...currentVar, value: newValue }
-                };
-            } else {
-                // Revert: Restore previous value
-                if (updatedNodeData.previousValue !== undefined) {
-                    newGameState.variables = {
-                        ...newGameState.variables,
-                        [targetVar]: { ...currentVar, value: updatedNodeData.previousValue }
-                    };
-                    updatedNodeData.previousValue = undefined;
+                    // Revert: Restore previous value
+                    if (updatedData.previousValue !== undefined) {
+                        newVariables[targetVar] = { ...currentVar, value: updatedData.previousValue };
+                        updatedData.previousValue = undefined;
+                    }
                 }
             }
         }
-    }
+        
+        return { ...node, data: updatedData };
+    });
 
-    let updatedNodes = state.nodes.map((n) => 
-        n.id === nodeId ? { ...n, data: updatedNodeData } : n
-    );
-
-    // If GroupNode, toggle children as well
-    if (node.type === 'group') {
-        updatedNodes = updatedNodes.map(n => {
-            if (n.parentNode === nodeId) {
-                return { ...n, data: { ...n.data, revealed: isRevealed } };
-            }
-            return n;
-        });
-    }
-
-    set({ nodes: updatedNodes, gameState: newGameState });
+    set({ 
+        nodes: updatedNodes, 
+        gameState: { ...newGameState, variables: newVariables } 
+    });
     
-    // Recalculate game state for ElementNodes
     get().recalculateGameState();
   },
 
@@ -839,105 +842,204 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           updatedEdges = updatedEdges.filter(e => !e.data?.isVirtual);
       }
 
-      // Calculate new size
-      let newWidth = 300;
-      let newHeight = 300;
-      const padding = 40;
+      let updatedNodes = [...state.nodes];
+      const nodeMap = new Map(updatedNodes.map(n => [n.id, { ...n }]));
 
-      if (!willCollapse) {
-          // Expanding: Calculate size based on children
-          const children = state.nodes.filter(n => n.parentNode === nodeId);
-          if (children.length > 0) {
-              let maxX = -Infinity, maxY = -Infinity;
-              children.forEach(c => {
-                  const cW = c.width || 150;
-                  const cH = c.height || 50;
-                  maxX = Math.max(maxX, c.position.x + cW);
-                  maxY = Math.max(maxY, c.position.y + cH);
-              });
-              newWidth = Math.max(newWidth, maxX + padding);
-              newHeight = Math.max(newHeight, maxY + padding);
-          }
-          
-          // Also consider content size if available
-          if (node.data.contentWidth && node.data.contentHeight) {
-             newWidth = Math.max(newWidth, node.data.contentWidth + padding);
-             newHeight = Math.max(newHeight, node.data.contentHeight + padding);
-          }
-      } else {
-          // Collapsing: Use content size + small padding
-          if (node.data.contentWidth && node.data.contentHeight) {
-              newWidth = node.data.contentWidth + 20;
-              newHeight = node.data.contentHeight + 20;
-          } else {
-              newWidth = 150;
-              newHeight = 50;
-          }
-      }
-      
-      // Ensure minimums
-      newWidth = Math.max(newWidth, 150);
-      newHeight = Math.max(newHeight, 50);
-
-      let updatedNodes = state.nodes.map(n => {
-          if (n.id === nodeId) {
-              const { backgroundColor, ...restStyle } = n.style || {};
-              return { 
-                  ...n, 
-                  data: { ...n.data, expanded: !isExpanded },
-                  style: { 
-                      ...restStyle, 
-                      width: newWidth,
-                      height: newHeight,
-                      zIndex: -1
+      if (willCollapse) {
+          // Collapsing
+          // Recursive function to hide all descendants
+          const hideDescendants = (parentId: string) => {
+              updatedNodes.forEach(n => {
+                  if (n.parentNode === parentId) {
+                      const node = nodeMap.get(n.id);
+                      if (node) {
+                          node.hidden = true;
+                          if (node.type === 'group') {
+                              hideDescendants(node.id);
+                          }
+                      }
                   }
+              });
+          };
+
+          const targetNode = nodeMap.get(nodeId);
+          if (targetNode) {
+              const { backgroundColor, ...restStyle } = targetNode.style || {};
+              // Calculate collapsed size
+              let w = 150, h = 50;
+              if (targetNode.data.contentWidth) w = targetNode.data.contentWidth + 20;
+              if (targetNode.data.contentHeight) h = targetNode.data.contentHeight + 20;
+              
+              targetNode.data = { ...targetNode.data, expanded: false };
+              targetNode.style = { 
+                  ...restStyle, 
+                  width: w,
+                  height: h,
+                  zIndex: -1
               };
+              
+              hideDescendants(nodeId);
           }
-          if (n.parentNode === nodeId) {
-              return { ...n, hidden: isExpanded }; 
+          updatedNodes = Array.from(nodeMap.values());
+      } else {
+          // Expanding
+          // 2. Set the target node to expanded first
+          const targetNode = nodeMap.get(nodeId);
+          if (targetNode) {
+              targetNode.data = { ...targetNode.data, expanded: true };
           }
-          return n;
-      });
+
+          // 3. Recursive function to calculate size and restore visibility
+          const updateSize = (nId: string): { w: number, h: number } => {
+              const n = nodeMap.get(nId);
+              if (!n) return { w: 0, h: 0 };
+              
+              if (n.type !== 'group') {
+                  return { 
+                      w: (n.style?.width as number) ?? n.width ?? 150,
+                      h: (n.style?.height as number) ?? n.height ?? 50
+                  };
+              }
+              
+              // It is a group
+              if (!n.data.expanded) {
+                  // Collapsed size logic
+                  let w = 150, h = 50;
+                  if (n.data.contentWidth) w = n.data.contentWidth + 20;
+                  if (n.data.contentHeight) h = n.data.contentHeight + 20;
+                  
+                  n.style = { ...n.style, width: w, height: h };
+                  return { w, h };
+              }
+              
+              // Expanded group
+              const children = Array.from(nodeMap.values()).filter(child => child.parentNode === nId);
+              
+              if (children.length > 0) {
+                  let maxX = 0, maxY = 0;
+                  children.forEach(child => {
+                      child.hidden = false; // Restore visibility for children of expanded group
+                      const size = updateSize(child.id); // Recurse
+                      maxX = Math.max(maxX, child.position.x + size.w);
+                      maxY = Math.max(maxY, child.position.y + size.h);
+                  });
+                  
+                  const padding = 40;
+                  // Match updateGroupSize logic: Math.max(150 + padding, childrenWidth)
+                  const newW = Math.max(190, maxX + padding);
+                  const newH = Math.max(90, maxY + padding);
+                  
+                  n.style = { ...n.style, width: newW, height: newH, zIndex: -1 };
+                  return { w: newW, h: newH };
+              } else {
+                  // Empty expanded group
+                  const newW = 300, newH = 300;
+                  n.style = { ...n.style, width: newW, height: newH, zIndex: -1 };
+                  return { w: newW, h: newH };
+              }
+          };
+          
+          // 4. Trigger update from the target node
+          updateSize(nodeId);
+          
+          updatedNodes = Array.from(nodeMap.values());
+      }
 
       // Overlap prevention when expanding
       if (!willCollapse) {
-          // Group position
-          const groupX = node.position.x;
-          const groupY = node.position.y;
-          
-          // Find nodes that are NOT children of this group and overlap with the expanded area
-          const overlappingNodes = state.nodes.filter(n => {
-              if (n.id === nodeId) return false;
-              if (n.parentNode === nodeId) return false; // Children are fine
-              
-              const nX = n.position.x;
-              const nY = n.position.y;
-              const nW = n.width || 150;
-              const nH = n.height || 50;
-              
-              return (
-                  groupX < nX + nW &&
-                  groupX + newWidth > nX &&
-                  groupY < nY + nH &&
-                  groupY + newHeight > nY
-              );
-          });
-          
-          if (overlappingNodes.length > 0) {
-              const shiftY = newHeight; // Shift by the new height
-              
-              updatedNodes = updatedNodes.map(n => {
-                  if (overlappingNodes.some(on => on.id === n.id)) {
-                      return {
-                          ...n,
-                          position: {
-                              ...n.position,
-                              y: n.position.y + shiftY
-                          }
-                      };
+          // Get the new size of the expanded group from the updated nodes
+          const expandedGroup = updatedNodes.find(n => n.id === nodeId);
+          const newWidth = Number(expandedGroup?.style?.width) || 300;
+          const newHeight = Number(expandedGroup?.style?.height) || 300;
+
+          // Helper to get absolute position
+          const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
+              let x = n.position.x;
+              let y = n.position.y;
+              let current = n;
+              while(current.parentNode) {
+                  const parent = allNodes.find(p => p.id === current.parentNode);
+                  if(parent) {
+                      x += parent.position.x;
+                      y += parent.position.y;
+                      current = parent;
+                  } else {
+                      break;
                   }
-                  return n;
+              }
+              return { x, y };
+          };
+
+          // Group absolute position
+          // Note: We use the current node's position. 
+          // If the group itself has a parent, we need its absolute position.
+          const groupNode = state.nodes.find(n => n.id === nodeId);
+          if (groupNode) {
+              const groupAbs = getAbsPos(groupNode, state.nodes);
+              
+              // Find nodes that are NOT descendants of this group and overlap with the expanded area
+              const overlappingNodes = state.nodes.filter(n => {
+                  if (n.id === nodeId) return false;
+                  
+                  // Check if n is a descendant of nodeId
+                  let p = n.parentNode;
+                  let isDescendant = false;
+                  while(p) {
+                      if (p === nodeId) {
+                          isDescendant = true;
+                          break;
+                      }
+                      const parent = state.nodes.find(pn => pn.id === p);
+                      p = parent ? parent.parentNode : undefined;
+                  }
+                  if (isDescendant) return false;
+
+                  // Check if n is an ancestor of nodeId (Prevent moving parent group)
+                  let currentParent = groupNode.parentNode;
+                  let isAncestor = false;
+                  while(currentParent) {
+                      if (currentParent === n.id) {
+                          isAncestor = true;
+                          break;
+                      }
+                      const parent = state.nodes.find(pn => pn.id === currentParent);
+                      currentParent = parent ? parent.parentNode : undefined;
+                  }
+                  if (isAncestor) return false;
+                  
+                  const nAbs = getAbsPos(n, state.nodes);
+                  const nW = n.width || 150;
+                  const nH = n.height || 50;
+                  
+                  return (
+                      groupAbs.x < nAbs.x + nW &&
+                      groupAbs.x + newWidth > nAbs.x &&
+                      groupAbs.y < nAbs.y + nH &&
+                      groupAbs.y + newHeight > nAbs.y
+                  );
               });
+              
+              // Filter out nodes whose parents are also moving to avoid double shifting
+              const rootsToMove = overlappingNodes.filter(n => {
+                  return !n.parentNode || !overlappingNodes.some(on => on.id === n.parentNode);
+              });
+              
+              if (rootsToMove.length > 0) {
+                  const shiftY = newHeight; // Shift by the new height
+                  
+                  updatedNodes = updatedNodes.map(n => {
+                      if (rootsToMove.some(rt => rt.id === n.id)) {
+                          return {
+                              ...n,
+                              position: {
+                                  ...n.position,
+                                  y: n.position.y + shiftY
+                              }
+                          };
+                      }
+                      return n;
+                  });
+              }
           }
       }
 
@@ -1006,17 +1108,15 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       if (!groupNode) return;
 
       const groupPos = groupNode.position;
-      
-      // Find children
-      // const children = state.nodes.filter(n => n.parentNode === groupId);
+      const newParentId = groupNode.parentNode;
       
       // Update children to remove parent and adjust position
       const updatedNodes = state.nodes.map(n => {
           if (n.parentNode === groupId) {
               return {
                   ...n,
-                  parentNode: undefined,
-                  extent: undefined,
+                  parentNode: newParentId,
+                  extent: newParentId ? 'parent' as 'parent' : undefined,
                   position: {
                       x: n.position.x + groupPos.x,
                       y: n.position.y + groupPos.y
@@ -1053,9 +1153,6 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // Update content size in data if provided
       let currentContentSize = contentSize;
       if (contentSize) {
-          // Only update data if changed to avoid unnecessary writes? 
-          // Actually we can just use the passed value for calculation and update data if needed.
-          // Let's update data if it's different so we persist it.
           if (groupNode.data.contentWidth !== contentSize.width || groupNode.data.contentHeight !== contentSize.height) {
              // We will update the node in the final set call
           }
@@ -1069,6 +1166,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       let newWidth = currentContentSize?.width || 150;
       let newHeight = currentContentSize?.height || 50;
       const padding = 40;
+      
+      let shiftX = 0;
+      let shiftY = 0;
 
       if (groupNode.data.expanded) {
           const children = state.nodes.filter(n => n.parentNode === groupId);
@@ -1078,14 +1178,27 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               children.forEach(n => {
                   const nX = n.position.x;
                   const nY = n.position.y;
-                  const nW = n.width || 150;
-                  const nH = n.height || 50;
+                  const nW = (n.style?.width as number) ?? n.width ?? 150;
+                  const nH = (n.style?.height as number) ?? n.height ?? 50;
                   
                   minX = Math.min(minX, nX);
                   minY = Math.min(minY, nY);
                   maxX = Math.max(maxX, nX + nW);
                   maxY = Math.max(maxY, nY + nH);
               });
+
+              // Check for negative expansion (children moving left/up out of group)
+              // We add padding to ensure they are not right on the edge
+              if (minX < 20) {
+                  shiftX = 20 - minX;
+              }
+              if (minY < 50) { // More padding on top for header
+                  shiftY = 50 - minY;
+              }
+              
+              // Apply shift to max calculation
+              maxX += shiftX;
+              maxY += shiftY;
 
               const childrenWidth = maxX + padding;
               const childrenHeight = maxY + padding;
@@ -1094,13 +1207,12 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               newHeight = Math.max(newHeight + padding, childrenHeight);
           } else {
               // No children, just content + padding
-              // Ensure minimum size of 300x300 for empty groups
               newWidth = Math.max(newWidth + padding, 300);
               newHeight = Math.max(newHeight + padding, 300);
           }
       } else {
           // Collapsed: Content size + padding
-           newWidth += 20; // Smaller padding for collapsed
+           newWidth += 20;
            newHeight += 20;
       }
 
@@ -1111,11 +1223,198 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // Check if update is needed
       const styleChanged = groupNode.style?.width !== newWidth || groupNode.style?.height !== newHeight;
       const dataChanged = contentSize && (groupNode.data.contentWidth !== contentSize.width || groupNode.data.contentHeight !== contentSize.height);
+      const positionChanged = shiftX > 0 || shiftY > 0;
 
-      if (styleChanged || dataChanged) {
-          const updatedNodes = state.nodes.map(n => {
+      if (styleChanged || dataChanged || positionChanged) {
+          let updatedNodes = [...state.nodes];
+          
+          // Apply shifts if needed
+          if (positionChanged) {
+              updatedNodes = updatedNodes.map(n => {
+                  if (n.id === groupId) {
+                      return {
+                          ...n,
+                          position: {
+                              x: n.position.x - shiftX,
+                              y: n.position.y - shiftY
+                          }
+                      };
+                  }
+                  if (n.parentNode === groupId) {
+                      return {
+                          ...n,
+                          position: {
+                              x: n.position.x + shiftX,
+                              y: n.position.y + shiftY
+                          }
+                      };
+                  }
+                  return n;
+              });
+          }
+          
+          // Iterative Collision Resolution
+          let currentNodes = [...updatedNodes];
+          const queue: string[] = [groupId];
+          const MAX_ITERATIONS = 50;
+          let iterations = 0;
+
+          // Helper to get absolute position
+          const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
+              // Always calculate from relative positions because positionAbsolute might be stale
+              // during this simulation update loop.
+              let x = n.position.x;
+              let y = n.position.y;
+              let current = n;
+              while(current.parentNode) {
+                  const parent = allNodes.find(p => p.id === current.parentNode);
+                  if(parent) {
+                      x += parent.position.x;
+                      y += parent.position.y;
+                      current = parent;
+                  } else {
+                      break;
+                  }
+              }
+              return { x, y };
+          };
+
+          // Helper to check rect overlap
+          const checkRectOverlap = (r1: any, r2: any) => {
+              return (
+                  r1.x < r2.x + r2.width &&
+                  r1.x + r1.width > r2.x &&
+                  r1.y < r2.y + r2.height &&
+                  r1.y + r1.height > r2.y
+              );
+          };
+
+          while (queue.length > 0 && iterations < MAX_ITERATIONS) {
+              iterations++;
+              const pusherId = queue.shift()!;
+              // Allow re-visiting if pushed again? No, to prevent loops, maybe limit per node?
+              // But a node might need to move multiple times if pushed by different sources.
+              // Let's just rely on MAX_ITERATIONS for safety.
+              
+              const pusher = currentNodes.find(n => n.id === pusherId);
+              if (!pusher) continue;
+
+              const pusherAbs = getAbsPos(pusher, currentNodes);
+              let pusherW = (pusher.style?.width as number) || pusher.width || 150;
+              let pusherH = (pusher.style?.height as number) || pusher.height || 50;
+              
+              // Special case for the GroupNode being resized: use new dimensions
+              if (pusherId === groupId) {
+                  pusherW = newWidth;
+                  pusherH = newHeight;
+              }
+
+              const pusherRect = { x: pusherAbs.x, y: pusherAbs.y, width: pusherW, height: pusherH };
+              const pusherCenter = { x: pusherRect.x + pusherRect.width / 2, y: pusherRect.y + pusherRect.height / 2 };
+
+              // Find overlaps
+              const overlaps = currentNodes.filter(n => {
+                  if (n.id === pusherId) return false;
+                  
+                  // Exclude descendants (they move with parent)
+                  let p = n.parentNode;
+                  while(p) {
+                      if (p === pusherId) return false;
+                      const parent = currentNodes.find(pn => pn.id === p);
+                      p = parent ? parent.parentNode : undefined;
+                  }
+
+                  // Exclude ancestors (parent groups don't move for children)
+                  let currentParent = pusher.parentNode;
+                  while(currentParent) {
+                      if (currentParent === n.id) return false;
+                      const parent = currentNodes.find(pn => pn.id === currentParent);
+                      currentParent = parent ? parent.parentNode : undefined;
+                  }
+
+                  const nAbs = getAbsPos(n, currentNodes);
+                  const nW = (n.style?.width as number) || n.width || 150;
+                  const nH = (n.style?.height as number) || n.height || 50;
+                  
+                  return checkRectOverlap(pusherRect, { x: nAbs.x, y: nAbs.y, width: nW, height: nH });
+              });
+
+              overlaps.forEach(n => {
+                  const nAbs = getAbsPos(n, currentNodes);
+                  const nW = (n.style?.width as number) || n.width || 150;
+                  const nH = (n.style?.height as number) || n.height || 50;
+                  const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
+
+                  let dx = 0;
+                  let dy = 0;
+
+                  // Determine shift direction based on center relative position
+                  // Prefer shifting Down or Right
+                  const diffX = nCenter.x - pusherCenter.x;
+                  const diffY = nCenter.y - pusherCenter.y;
+
+                  // Calculate minimum shift needed
+                  const overlapX = (pusherRect.width / 2 + nW / 2) - Math.abs(diffX);
+                  const overlapY = (pusherRect.height / 2 + nH / 2) - Math.abs(diffY);
+
+                  if (overlapX > 0 && overlapY > 0) {
+                       // Shift in the direction of least overlap, favoring Down/Right
+                       if (overlapY < overlapX) {
+                           // Shift Y
+                           if (diffY > 0) { // Below
+                               dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+                           } else {
+                               // Above - normally we don't shift up for expansion, but if overlap exists...
+                               // Ignore for now to prevent weird jumps, or shift down anyway?
+                               // Let's only shift if it was "originally" below or if we are forced.
+                               // For expansion, we usually only push out.
+                               if (pusherId === groupId) {
+                                   // If it's the expanding group, strictly push away
+                                   dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+                               }
+                           }
+                       } else {
+                           // Shift X
+                           if (diffX > 0) { // Right
+                               dx = (pusherRect.x + pusherRect.width + 20) - nAbs.x;
+                           } else {
+                               // Left
+                               if (pusherId === groupId) {
+                                   dx = (pusherRect.x + pusherRect.width + 20) - nAbs.x;
+                               }
+                           }
+                       }
+                  }
+                  
+                  // Force check: if originally below/right logic from previous step is preferred?
+                  // The previous logic used "original position". Here we use dynamic.
+                  // Let's stick to "Push Down or Right" if ambiguous.
+                  if (dx === 0 && dy === 0) {
+                      // Fallback if centers are aligned or something
+                      dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+                  }
+
+                  if (dx !== 0 || dy !== 0) {
+                      currentNodes = currentNodes.map(node => {
+                          if (node.id === n.id) {
+                              return {
+                                  ...node,
+                                  position: { x: node.position.x + dx, y: node.position.y + dy }
+                              };
+                          }
+                          return node;
+                      });
+                      if (!queue.includes(n.id)) {
+                          queue.push(n.id);
+                      }
+                  }
+              });
+          }
+          
+          updatedNodes = currentNodes;
+
+          updatedNodes = updatedNodes.map(n => {
               if (n.id === groupId) {
-                  // Explicitly remove backgroundColor to fix issue with persisting styles
                   const { backgroundColor, ...restStyle } = n.style || {};
                   return {
                       ...n,
@@ -1126,6 +1425,186 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               return n;
           });
           set({ nodes: updatedNodes });
+
+          // Recursively update parent group size
+          if (groupNode.parentNode) {
+              get().updateGroupSize(groupNode.parentNode);
+          }
+      }
+  },
+  
+  bringNodeToFront: (nodeId: string) => {
+      const state = get();
+      
+      // 1. Identify all nodes to move (target + descendants)
+      const nodesToMove = new Set<string>();
+      const queue = [nodeId];
+      
+      while(queue.length > 0) {
+          const id = queue.shift()!;
+          if (!nodesToMove.has(id)) {
+              nodesToMove.add(id);
+              // Find children
+              const children = state.nodes.filter(n => n.parentNode === id);
+              children.forEach(c => queue.push(c.id));
+          }
+      }
+      
+      // 2. Split nodes into "stay" and "move"
+      // We preserve the relative order of the moving nodes to maintain existing parent-child layering
+      const remainingNodes: ScenarioNode[] = [];
+      const movingNodes: ScenarioNode[] = [];
+      
+      state.nodes.forEach(n => {
+          if (nodesToMove.has(n.id)) {
+              movingNodes.push(n);
+          } else {
+              remainingNodes.push(n);
+          }
+      });
+      
+      // Optimization: Check if already at front
+      const len = movingNodes.length;
+      const lastNodes = state.nodes.slice(-len);
+      const isAlreadyAtFront = lastNodes.length === len && lastNodes.every((n, i) => n.id === movingNodes[i].id);
+      
+      if (isAlreadyAtFront) return;
+
+      set({ nodes: [...remainingNodes, ...movingNodes] });
+  },
+
+  resolveGroupOverlaps: (nodeId: string) => {
+      const state = get();
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (!node || node.type !== 'group') return;
+
+      let currentNodes = [...state.nodes];
+      const queue: string[] = [nodeId];
+      const MAX_ITERATIONS = 50;
+      let iterations = 0;
+      let hasChanges = false;
+
+      // Helper to get absolute position
+      const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
+          // Always calculate from relative positions
+          let x = n.position.x;
+          let y = n.position.y;
+          let current = n;
+          while(current.parentNode) {
+              const parent = allNodes.find(p => p.id === current.parentNode);
+              if(parent) {
+                  x += parent.position.x;
+                  y += parent.position.y;
+                  current = parent;
+              } else {
+                  break;
+              }
+          }
+          return { x, y };
+      };
+
+      // Helper to check rect overlap
+      const checkRectOverlap = (r1: any, r2: any) => {
+          return (
+              r1.x < r2.x + r2.width &&
+              r1.x + r1.width > r2.x &&
+              r1.y < r2.y + r2.height &&
+              r1.y + r1.height > r2.y
+          );
+      };
+
+      while (queue.length > 0 && iterations < MAX_ITERATIONS) {
+          iterations++;
+          const pusherId = queue.shift()!;
+          const pusher = currentNodes.find(n => n.id === pusherId);
+          if (!pusher) continue;
+
+          const pusherAbs = getAbsPos(pusher, currentNodes);
+          const pusherW = (pusher.style?.width as number) || pusher.width || 150;
+          const pusherH = (pusher.style?.height as number) || pusher.height || 50;
+          
+          const pusherRect = { x: pusherAbs.x, y: pusherAbs.y, width: pusherW, height: pusherH };
+          const pusherCenter = { x: pusherRect.x + pusherRect.width / 2, y: pusherRect.y + pusherRect.height / 2 };
+
+          // Find overlaps with SIBLING GROUPS only
+          const overlaps = currentNodes.filter(n => {
+              if (n.id === pusherId) return false;
+              if (n.type !== 'group') return false; 
+              if (n.parentNode !== pusher.parentNode) return false;
+
+              const nAbs = getAbsPos(n, currentNodes);
+              const nW = (n.style?.width as number) || n.width || 150;
+              const nH = (n.style?.height as number) || n.height || 50;
+              
+              return checkRectOverlap(pusherRect, { x: nAbs.x, y: nAbs.y, width: nW, height: nH });
+          });
+
+          overlaps.forEach(n => {
+              const nAbs = getAbsPos(n, currentNodes);
+              const nW = (n.style?.width as number) || n.width || 150;
+              const nH = (n.style?.height as number) || n.height || 50;
+              const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
+
+              let dx = 0;
+              let dy = 0;
+
+              // Determine shift direction
+              const diffX = nCenter.x - pusherCenter.x;
+              const diffY = nCenter.y - pusherCenter.y;
+
+              const overlapX = (pusherRect.width / 2 + nW / 2) - Math.abs(diffX);
+              const overlapY = (pusherRect.height / 2 + nH / 2) - Math.abs(diffY);
+
+              if (overlapX > 0 && overlapY > 0) {
+                   if (overlapY < overlapX) {
+                       // Shift Y
+                       if (diffY > 0) { // Below
+                           dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+                       } else {
+                           // Above - force push down if pusher is the original mover?
+                           // Or push up? Let's push away.
+                           dy = -((nAbs.y + nH) - (pusherRect.y - 20));
+                       }
+                   } else {
+                       // Shift X
+                       if (diffX > 0) { // Right
+                           dx = (pusherRect.x + pusherRect.width + 20) - nAbs.x;
+                       } else {
+                           // Left
+                           dx = -((nAbs.x + nW) - (pusherRect.x - 20));
+                       }
+                   }
+              }
+              
+              // Fallback
+              if (dx === 0 && dy === 0) {
+                  dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+              }
+
+              if (dx !== 0 || dy !== 0) {
+                  currentNodes = currentNodes.map(node => {
+                      if (node.id === n.id) {
+                          return {
+                              ...node,
+                              position: { x: node.position.x + dx, y: node.position.y + dy }
+                          };
+                      }
+                      return node;
+                  });
+                  if (!queue.includes(n.id)) {
+                      queue.push(n.id);
+                  }
+                  hasChanges = true;
+              }
+          });
+      }
+
+      if (hasChanges) {
+          set({ nodes: currentNodes });
+          // If we moved things inside a group, update parent size
+          if (node.parentNode) {
+              get().updateGroupSize(node.parentNode);
+          }
       }
   }
 }));

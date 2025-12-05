@@ -184,8 +184,9 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     edgeType,
     gameState,
     selectedNodeId,
+    bringNodeToFront,
   } = useScenarioStore();
-  const { project, setEdges, getNodes } = useReactFlow();
+  const { setEdges, getNodes, screenToFlowPosition } = useReactFlow();
   const { t } = useTranslation();
   
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
@@ -207,9 +208,9 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         return;
       }
 
-      const position = project({
-        x: event.clientX - (reactFlowWrapper.current?.getBoundingClientRect().left ?? 0),
-        y: event.clientY - (reactFlowWrapper.current?.getBoundingClientRect().top ?? 0),
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
       });
 
       const newNode: ScenarioNode = {
@@ -229,18 +230,25 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
 
       addNode(newNode);
     },
-    [project, addNode, mode, t, gameState]
+    [screenToFlowPosition, addNode, mode, t, gameState]
   );
+
+  const onNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
+      if (node.type === 'group') {
+          bringNodeToFront(node.id);
+      }
+  }, [bringNodeToFront]);
 
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
       pushHistory(); // Push history on drag stop
 
-      const groups = getNodes().filter(n => n.type === 'group' && n.id !== node.id);
+      const allNodes = getNodes();
+      const groups = allNodes.filter(n => n.type === 'group' && n.id !== node.id);
       
-      // Calculate drop position in canvas coordinates
-      const dropPosition = project({
-          x: event.clientX - (reactFlowWrapper.current?.getBoundingClientRect().left ?? 0),
-          y: event.clientY - (reactFlowWrapper.current?.getBoundingClientRect().top ?? 0),
+      // Calculate drop position in canvas coordinates using screenToFlowPosition
+      const dropPosition = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
       });
       
       const nodeRect = {
@@ -249,11 +257,31 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
           width: node.width || 200,
           height: node.height || 100
       };
+
+      // Helper to get absolute position even if positionAbsolute is missing
+      const getAbsolutePosition = (n: Node) => {
+          if (n.positionAbsolute) return n.positionAbsolute;
+          let x = n.position.x;
+          let y = n.position.y;
+          let parentId = n.parentNode;
+          while (parentId) {
+              const parent = allNodes.find(p => p.id === parentId);
+              if (parent) {
+                  x += parent.position.x;
+                  y += parent.position.y;
+                  parentId = parent.parentNode;
+              } else {
+                  break;
+              }
+          }
+          return { x, y };
+      };
       
-      const intersectingGroup = groups.find(g => {
+      const intersectingGroups = groups.filter(g => {
+          const pos = getAbsolutePosition(g);
           const gRect = {
-              x: g.positionAbsolute?.x ?? g.position.x,
-              y: g.positionAbsolute?.y ?? g.position.y,
+              x: pos.x,
+              y: pos.y,
               width: g.width || 300,
               height: g.height || 300
           };
@@ -267,28 +295,71 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
           );
       });
 
+      // Sort by area (ascending) to find the innermost group
+      intersectingGroups.sort((a, b) => {
+          const aArea = (a.width || 300) * (a.height || 300);
+          const bArea = (b.width || 300) * (b.height || 300);
+          return aArea - bArea;
+      });
+
+      const intersectingGroup = intersectingGroups[0];
+
       if (intersectingGroup) {
+          // Check for circular reference: ensure intersectingGroup is not a descendant of node
+          let isDescendant = false;
+          let current: Node | undefined = intersectingGroup;
+          
+          while (current && current.parentNode) {
+              if (current.parentNode === node.id) {
+                  isDescendant = true;
+                  break;
+              }
+              current = allNodes.find(n => n.id === current?.parentNode);
+          }
+          
+          if (isDescendant) {
+              return; // Prevent circular reference
+          }
+
           if (node.parentNode !== intersectingGroup.id) {
+              const groupPos = getAbsolutePosition(intersectingGroup);
               // Reparent to this group
-              const relX = nodeRect.x - (intersectingGroup.positionAbsolute?.x ?? intersectingGroup.position.x);
-              const relY = nodeRect.y - (intersectingGroup.positionAbsolute?.y ?? intersectingGroup.position.y);
+              // Calculate relative position based on absolute positions
+              const relX = nodeRect.x - groupPos.x;
+              const relY = nodeRect.y - groupPos.y;
               
               useScenarioStore.getState().setNodeParent(node.id, intersectingGroup.id, { x: relX, y: relY });
               
               // Update group size to fit the new node
-              // We use setTimeout to ensure the state update has processed if there are any batched updates,
-              // although direct store access is usually immediate.
               setTimeout(() => {
                   useScenarioStore.getState().updateGroupSize(intersectingGroup.id);
+                  // Resolve overlaps for the moved node within the new group
+                  if (node.type === 'group') {
+                      useScenarioStore.getState().resolveGroupOverlaps(node.id);
+                  }
               }, 10);
+          } else {
+              // Same parent (already in this group), just moving
+              if (node.type === 'group') {
+                  setTimeout(() => {
+                      useScenarioStore.getState().resolveGroupOverlaps(node.id);
+                  }, 10);
+              }
           }
       } else {
           if (node.parentNode) {
               // Ungroup
               useScenarioStore.getState().setNodeParent(node.id, undefined, { x: nodeRect.x, y: nodeRect.y });
           }
+          
+          // Resolve overlaps for root or ungrouped node
+          if (node.type === 'group') {
+              setTimeout(() => {
+                  useScenarioStore.getState().resolveGroupOverlaps(node.id);
+              }, 10);
+          }
       }
-  }, [getNodes, pushHistory]);
+  }, [getNodes, pushHistory, screenToFlowPosition]);
 
   const onSelectionChange = useCallback(({ nodes }: { nodes: Node[] }) => {
     if (nodes.length > 0) {
@@ -298,11 +369,14 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     }
   }, [setSelectedNode]);
 
-  const onNodeClick = useCallback(() => {
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     if (mode === 'play') {
       setSelectedNode(null); // Ensure no node is selected in play mode
     }
-  }, [mode, setSelectedNode]);
+    if (node.type === 'group') {
+        bringNodeToFront(node.id);
+    }
+  }, [mode, setSelectedNode, bringNodeToFront]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -540,6 +614,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         nodeTypes={nodeTypes}
         onDragOver={onDragOver}
         onDrop={onDrop}
+        onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
         onSelectionChange={onSelectionChange}
         onNodeClick={onNodeClick}
