@@ -148,7 +148,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose }: Confi
 };
 
 export const Layout = () => {
-  const { mode, setMode, nodes, edges, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, setEdgeType, edgeType, selectedNodeId } = useScenarioStore();
+  const { mode, setMode, nodes, edges, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, setEdgeType, edgeType, selectedNodeId, characters, resources } = useScenarioStore();
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -169,7 +169,10 @@ export const Layout = () => {
     const data = {
       nodes,
       edges,
-      gameState
+      gameState,
+      characters,
+      resources,
+      edgeType
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

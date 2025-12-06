@@ -401,8 +401,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
   onConnect: (connection: Connection) => {
     get().pushHistory();
+    const { edgeType } = get();
     set({
-      edges: addEdge({ ...connection, markerEnd: { type: MarkerType.ArrowClosed } }, get().edges),
+      edges: addEdge({ ...connection, type: edgeType, markerEnd: { type: MarkerType.ArrowClosed } }, get().edges),
     });
   },
   onReconnect: (oldEdge: ScenarioEdge, newConnection: Connection) => {
@@ -494,7 +495,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       get().recalculateGameState();
   },
   loadScenario: (data) => {
-       const { nodes, edges, gameState, characters, resources } = data;
+       const { nodes, edges, gameState, characters, resources, edgeType } = data as any; // Type assertion to allow new props
        set({ 
            nodes: nodes || [], 
            edges: edges || [], 
@@ -510,6 +511,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
            },
            characters: characters || [],
            resources: resources || [],
+           edgeType: edgeType || 'default',
            past: [], 
            future: [] 
        });
