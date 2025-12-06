@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './Sidebar';
 import { PropertyPanel } from './PropertyPanel';
 import { Canvas } from './Canvas';
@@ -237,42 +237,48 @@ export const Layout = () => {
     }
   };
 
-  const [sidebarWidth, setSidebarWidth] = useState(256);
+
   const [propertyPanelWidth, setPropertyPanelWidth] = useState(320);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isResizingProperty, setIsResizingProperty] = useState(false);
+
+  // const sidebarRef = useRef<HTMLElement>(null); // No longer needed for resizing, but Sidebar has forwardRef. We can just omit passing ref if not needed, or keep it if we want to query it later.
+  // Actually, we don't need the ref in Layout anymore for resizing.
+  
+  const propertyPanelRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (isResizingSidebar) {
-        setSidebarWidth(Math.max(200, Math.min(600, e.clientX)));
-      }
-      if (isResizingProperty) {
-        setPropertyPanelWidth(Math.max(250, Math.min(600, window.innerWidth - e.clientX)));
+      if (isResizingProperty && propertyPanelRef.current) {
+        const newWidth = Math.max(250, Math.min(600, window.innerWidth - e.clientX));
+        propertyPanelRef.current.style.width = `${newWidth}px`;
       }
     };
 
-    const handleMouseUp = () => {
-      setIsResizingSidebar(false);
-      setIsResizingProperty(false);
-      document.body.style.cursor = 'default';
+    const handleMouseUp = (e: MouseEvent) => {
+        if (isResizingProperty) {
+            setIsResizingProperty(false);
+            setPropertyPanelWidth(Math.max(250, Math.min(600, window.innerWidth - e.clientX)));
+        }
+        document.body.style.cursor = 'default';
     };
 
-    if (isResizingSidebar || isResizingProperty) {
+    if (isResizingProperty) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none'; // Prevent text selection
     }
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'default';
+      document.body.style.userSelect = ''; 
     };
-  }, [isResizingSidebar, isResizingProperty]);
+  }, [isResizingProperty]);
 
-  const closeMenu = () => setOpenMenuId(null);
+  const closeMenu = useCallback(() => setOpenMenuId(null), []);
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-background text-foreground">
@@ -554,13 +560,7 @@ export const Layout = () => {
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar width={sidebarWidth} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
-        {isSidebarOpen && (
-            <div 
-                className="w-1 cursor-col-resize hover:bg-primary transition-colors bg-border"
-                onMouseDown={() => setIsResizingSidebar(true)}
-            />
-        )}
+        <Sidebar width={300} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
         <Canvas onCanvasClick={closeMenu} />
         {(mode === 'edit' || (mode === 'play' && nodes.find(n => n.id === selectedNodeId)?.type === 'sticky')) && (
             <>
@@ -568,7 +568,7 @@ export const Layout = () => {
                     className="w-1 cursor-col-resize hover:bg-primary transition-colors bg-border"
                     onMouseDown={() => setIsResizingProperty(true)}
                 />
-                <PropertyPanel width={propertyPanelWidth} />
+                <PropertyPanel ref={propertyPanelRef} width={propertyPanelWidth} />
             </>
         )}
       </div>

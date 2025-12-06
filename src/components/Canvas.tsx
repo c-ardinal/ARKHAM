@@ -329,7 +329,8 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   const onPaneClick = useCallback(() => {
     setMenu(null);
     onCanvasClick?.();
-  }, [onCanvasClick]);
+    setSelectedNode(null);
+  }, [onCanvasClick, setSelectedNode]);
 
   const handleAddSticky = useCallback((targetId?: string) => {
       // Temporarily enable connections/handles to ensure correct edge rendering
@@ -1042,10 +1043,10 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   );
 };
 
-export const Canvas = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
+export const Canvas = React.memo(({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   return (
     <ReactFlowProvider>
       <CanvasContent onCanvasClick={onCanvasClick} />
     </ReactFlowProvider>
   );
-};
+});

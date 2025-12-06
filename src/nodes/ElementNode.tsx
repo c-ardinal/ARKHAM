@@ -17,7 +17,7 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   };
 
   return (
-    <div className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] relative transition-all duration-200
+    <div className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] max-w-[60ch] relative transition-all duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       border-blue-200 dark:border-blue-800
       bg-blue-50 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100
