@@ -1,7 +1,9 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { Plus, Minus, Maximize } from 'lucide-react';
 import ReactFlow, { 
   Background, 
   Controls, 
+  ControlButton,
   ReactFlowProvider,
   useReactFlow,
   type Node,
@@ -16,9 +18,14 @@ import BranchNode from '../nodes/BranchNode';
 import GroupNode from '../nodes/GroupNode';
 import MemoNode from '../nodes/MemoNode';
 import VariableNode from '../nodes/VariableNode';
+import JumpNode from '../nodes/JumpNode';
+import StickyNode from '../nodes/StickyNode';
+import CharacterNode from '../nodes/CharacterNode';
+import ResourceNode from '../nodes/ResourceNode';
 import type { NodeType, ScenarioNode, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
+import { NodeInfoModal } from './NodeInfoModal';
 
 const nodeTypes = {
   event: EventNode,
@@ -28,7 +35,13 @@ const nodeTypes = {
   group: GroupNode,
   memo: MemoNode,
   variable: VariableNode,
+  jump: JumpNode,
+  sticky: StickyNode,
+  character: CharacterNode,
+  resource: ResourceNode,
 };
+
+
 
 interface ContextMenuState {
   id: string;
@@ -37,6 +50,9 @@ interface ContextMenuState {
   left: number;
   data?: ScenarioNodeData;
   nodeType?: string;
+  parentNode?: string;
+  hasSticky?: boolean;
+  stickiesHidden?: boolean;
 }
 
 const ContextMenu = ({ 
@@ -47,9 +63,14 @@ const ContextMenu = ({
   onReduplicate,
   onCopyText,
   onToggleState,
-  onUngroup
+  onUngroup,
+  onDetachFromGroup,
+  onAddSticky,
+  onToggleStickies,
+  onDeleteStickies,
+  onHideSticky,
 }: { 
-  menu: ContextMenuState & { nodeType?: string }; 
+  menu: ContextMenuState & { nodeType?: string; parentNode?: string }; 
   onClose: () => void;
   onDelete: () => void;
   onDuplicate?: () => void;
@@ -58,6 +79,11 @@ const ContextMenu = ({
   onToggleState?: () => void;
   onGroup?: () => void;
   onUngroup?: () => void;
+  onDetachFromGroup?: () => void;
+  onAddSticky?: (targetId?: string) => void;
+  onToggleStickies?: (targetId: string) => void;
+  onDeleteStickies?: (targetId: string) => void;
+  onHideSticky?: (stickyId: string) => void;
   isRevealed?: boolean;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -81,82 +107,160 @@ const ContextMenu = ({
       style={{ top: menu.top, left: menu.left }} 
       className="fixed z-50 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[160px] flex flex-col text-sm text-popover-foreground"
     >
-      {mode === 'edit' && menu.type === 'node' && (
+      {/* Node Actions */}
+      {menu.type === 'node' && (
         <>
-          <button 
-            onClick={onDuplicate}
-            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-          >
-            {t.contextMenu.duplicate}
-          </button>
-          
-          <div className="relative group">
-              <button 
-                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full flex justify-between items-center"
-              >
-                {t.contextMenu.copyText} <span>▶</span>
-              </button>
-              <div className="absolute left-full top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] hidden group-hover:flex flex-col">
-                  <button onClick={() => onCopyText?.('all')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.all}</button>
-                  <button onClick={() => onCopyText?.('label')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.label}</button>
-                  <button onClick={() => onCopyText?.('description')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.description}</button>
-                  {['element', 'variable'].includes(menu.nodeType || '') && (
-                      <button onClick={() => onCopyText?.('value')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.value}</button>
-                  )}
-                  {menu.nodeType === 'branch' && (
-                      <>
-                          <button onClick={() => onCopyText?.('condition')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.condition}</button>
-                          <button onClick={() => onCopyText?.('cases')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.cases}</button>
-                      </>
-                  )}
-              </div>
-          </div>
+            {/* Edit Mode Only Actions */}
+            {mode === 'edit' && menu.nodeType !== 'sticky' && (
+                <button 
+                  onClick={onDuplicate}
+                  className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                >
+                  {t('contextMenu.duplicate')}
+                </button>
+            )}
 
-          <button 
-            onClick={onToggleState}
-            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-          >
-            {menu.data?.revealed ? t.contextMenu.markUnrevealed : t.contextMenu.markRevealed}
-          </button>
-          <div className="h-px bg-border my-1" />
-          
-          {menu.nodeType === 'group' && (
-              <button 
-                onClick={onUngroup}
-                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-              >
-                {t.contextMenu.ungroup}
-              </button>
-          )}
-          
-          <div className="h-px bg-border my-1" />
+            {/* Common Actions (Copy, Toggle Reveal) */}
+            <div className="relative group">
+                <button 
+                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full flex justify-between items-center"
+                >
+                {t('contextMenu.copyText')} <span>▶</span>
+                </button>
+                <div className="absolute left-full top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] hidden group-hover:flex flex-col">
+                    <button onClick={() => onCopyText?.('all')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.all')}</button>
+                    <button onClick={() => onCopyText?.('label')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.label')}</button>
+                    <button onClick={() => onCopyText?.('description')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.description')}</button>
+                    {['element', 'variable'].includes(menu.nodeType || '') && (
+                        <button onClick={() => onCopyText?.('value')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.value')}</button>
+                    )}
+                    {menu.nodeType === 'branch' && (
+                        <>
+                            <button onClick={() => onCopyText?.('condition')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.condition')}</button>
+                            <button onClick={() => onCopyText?.('cases')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.cases')}</button>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Sticky don't have revealed state usually, but node sticky might if we want? Spec says "hide" for sticky, "mark revealed" for nodes. */}
+            {menu.nodeType !== 'sticky' && (
+                <button 
+                    onClick={onToggleState}
+                    className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                >
+                    {menu.data?.revealed ? t('contextMenu.markUnrevealed') : t('contextMenu.markRevealed')}
+                </button>
+            )}
+
+            {/* Sticky Actions: Hide (for attached stickies) */}
+            {menu.nodeType === 'sticky' && menu.data?.targetNodeId && (
+                <button 
+                  onClick={() => onHideSticky?.(menu.id)}
+                  className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                >
+                  {t('contextMenu.hideSticky')}
+                </button>
+            )}
+
+            {/* Sticky Management on Parent Node - Available in Play Mode too! */}
+            {menu.nodeType !== 'sticky' && (
+                <>
+                    <div className="h-px bg-border my-1" />
+                    <button 
+                        onClick={() => onAddSticky?.(menu.id)}
+                        className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                    >
+                        {t('contextMenu.addSticky')}
+                    </button>
+                    {menu.hasSticky && (
+                        <>
+                            <button 
+                                onClick={() => onToggleStickies?.(menu.id)}
+                                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                            >
+                                {menu.stickiesHidden ? t('contextMenu.showStickies') : t('contextMenu.hideStickies')}
+                            </button>
+                            <button 
+                                onClick={() => onDeleteStickies?.(menu.id)}
+                                className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
+                            >
+                                {t('contextMenu.deleteStickies')}
+                            </button>
+                        </>
+                    )}
+                 </>
+            )}
+            
+            {/* Edit Mode Grouping/Deletion */}
+            {mode === 'edit' && menu.nodeType !== 'sticky' && (
+                <>
+                    {menu.nodeType === 'group' && (
+                      <>
+                        <div className="h-px bg-border my-1" />
+                        <button 
+                            onClick={onUngroup}
+                            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                        >
+                            {t('contextMenu.ungroup')}
+                        </button>
+                      </>
+                    )}
+
+                    {menu.parentNode && (
+                        <button 
+                            onClick={onDetachFromGroup}
+                            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                        >
+                            {t('contextMenu.detachFromGroup')}
+                        </button>
+                    )}
+                </>
+            )}
+            
+            {/* Delete Option: Always for Sticky, otherwise Edit mode only */}
+            {(mode === 'edit' || (menu.nodeType === 'sticky')) && (
+                <>
+                    <div className="h-px bg-border my-1" />
+                    <button 
+                        onClick={onDelete}
+                        className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
+                    >
+                        {menu.nodeType === 'sticky' ? t('contextMenu.deleteSticky') : t('contextMenu.delete')}
+                    </button>
+                </>
+            )}
         </>
       )}
 
-      {mode === 'edit' && menu.type === 'pane' && (
-          <button 
-            onClick={onReduplicate}
-            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-          >
-            {t.contextMenu.reduplicate}
-          </button>
-      )}
-      
-      {mode === 'play' && menu.type === 'node' && (
-          <button 
-            onClick={onToggleState}
-            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-          >
-            {menu.data?.revealed ? t.contextMenu.markUnrevealed : t.contextMenu.markRevealed}
-          </button>
+      {/* Pane Actions (Background) */}
+      {menu.type === 'pane' && (
+          <>
+            <button 
+                onClick={() => onAddSticky?.()}
+                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+            >
+                {t('contextMenu.addFreeSticky')}
+            </button>
+            
+            {mode === 'edit' && (
+                <button 
+                    onClick={onReduplicate}
+                    className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
+                >
+                    {t('contextMenu.reduplicate')}
+                </button>
+            )}
+          </>
       )}
 
-      {mode === 'edit' && (menu.type === 'node' || menu.type === 'edge') && (
+      {/* Edge Actions */}
+      {mode === 'edit' && menu.type === 'edge' && (
           <button 
             onClick={onDelete}
             className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
           >
-            {t.contextMenu.delete}
+            {t('contextMenu.delete')}
           </button>
       )}
     </div>
@@ -184,12 +288,110 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     edgeType,
     gameState,
     selectedNodeId,
+    bringNodeToFront,
+    addSticky,
+    toggleStickies,
+    deleteStickies,
+    hideSticky,
   } = useScenarioStore();
-  const { project, setEdges, getNodes } = useReactFlow();
+  const { 
+      setEdges, 
+      getNodes, 
+      screenToFlowPosition, 
+      setCenter, 
+      getZoom,
+      fitView,
+      setViewport,
+      getViewport
+  } = useReactFlow();
   const { t } = useTranslation();
   
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
+  const [zoom, setZoomState] = useState(1);
+  const [infoModalData, setInfoModalData] = useState<string | null>(null);
+  // Removed local isUpdatingSticky
   const lastDuplicatedIds = useRef<string[]>([]);
+
+  // Sync zoom state
+  useEffect(() => {
+      const interval = setInterval(() => {
+          setZoomState(getZoom());
+      }, 100);
+      return () => clearInterval(interval);
+  }, [getZoom]);
+
+  const setZoom = (newZoom: number) => {
+      const { x, y } = getViewport();
+      setViewport({ x, y, zoom: newZoom });
+      setZoomState(newZoom);
+  };
+
+  const onPaneClick = useCallback(() => {
+    setMenu(null);
+    onCanvasClick?.();
+  }, [onCanvasClick]);
+
+  const handleAddSticky = useCallback((targetId?: string) => {
+      // Temporarily enable connections/handles to ensure correct edge rendering
+      // This is a workaround for Play Mode where handles are normally hidden
+      // Temporarily enable connections/handles to ensure correct edge rendering
+      // This is a workaround for Play Mode where handles are normally hidden
+      let pos = { x: 0, y: 0 };
+      if (targetId) {
+          const targetNode = getNodes().find(n => n.id === targetId);
+          if (targetNode) {
+            
+            // Calculate absolute position manually to handle nested groups
+            let absX = targetNode.position.x;
+            let absY = targetNode.position.y;
+            let parentId = targetNode.parentNode;
+            
+            while(parentId) {
+                const parent = getNodes().find(n => n.id === parentId);
+                if (parent) {
+                    absX += parent.position.x;
+                    absY += parent.position.y;
+                    parentId = parent.parentNode;
+                } else {
+                    break;
+                }
+            }
+
+            // Position relative to target: Top-Right
+            pos = { 
+                x: absX + (targetNode.width || 150) + 20, 
+                y: absY - 20 
+            };
+          }
+      } else if (menu) {
+          // Free mode: use mouse position from menu state
+          const { x, y } = screenToFlowPosition({ x: menu.left, y: menu.top });
+          pos = { x, y };
+      }
+      
+      addSticky(targetId, pos);
+      
+      setMenu(null);
+  }, [addSticky, getNodes, menu, screenToFlowPosition]);
+
+  const handleToggleStickies = useCallback((targetId: string) => {
+
+      // Temporarily enable handles to ensure edge is drawn correctly when appearing
+      toggleStickies(targetId);
+      setMenu(null);
+  }, [toggleStickies]);
+
+  const handleDeleteStickies = useCallback((targetId: string) => {
+      deleteStickies(targetId);
+      setMenu(null);
+  }, [deleteStickies]);
+
+  const handleHideSticky = useCallback((stickyId: string) => {
+
+      // Temporarily enable handles to ensure correct state update
+      hideSticky(stickyId);
+      setMenu(null);
+  }, [hideSticky]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -203,13 +405,15 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
       if (mode === 'play') return;
 
       const type = event.dataTransfer.getData('application/reactflow') as NodeType;
+      const referenceId = event.dataTransfer.getData('application/reactflow/referenceId');
+
       if (typeof type === 'undefined' || !type) {
         return;
       }
 
-      const position = project({
-        x: event.clientX - (reactFlowWrapper.current?.getBoundingClientRect().left ?? 0),
-        y: event.clientY - (reactFlowWrapper.current?.getBoundingClientRect().top ?? 0),
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
       });
 
       const newNode: ScenarioNode = {
@@ -217,25 +421,45 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         type,
         position,
         data: { 
-            label: `${t.nodes.new} ${type}`,
+            label: `${type === 'character' || type === 'resource' ? '' : t('nodes.new') + ' ' + type}`,
+            referenceId: referenceId || undefined,
             // Set defaults
             infoType: (type === 'element') ? 'knowledge' : undefined,
             branchType: type === 'branch' ? 'if_else' : undefined,
             expanded: type === 'group' ? true : undefined, // GroupNode initial expand
             targetVariable: (type === 'variable' && Object.keys(gameState.variables).length > 0) ? Object.keys(gameState.variables)[0] : undefined,
+            quantity: type === 'element' ? 1 : undefined,
         },
         style: type === 'group' ? { width: 300, height: 300, zIndex: -1 } : undefined,
       };
 
       addNode(newNode);
     },
-    [project, addNode, mode, t, gameState]
+    [screenToFlowPosition, addNode, mode, t, gameState]
   );
 
-  const onNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
+  const onNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
+      if (node.type === 'group') {
+          bringNodeToFront(node.id);
+      }
+  }, [bringNodeToFront]);
+
+  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+      if (!node) return;
       pushHistory(); // Push history on drag stop
 
-      const groups = getNodes().filter(n => n.type === 'group' && n.id !== node.id);
+      const allNodes = getNodes();
+      // Groups logic - prevent stickies from interacting with groups
+      // Groups logic - prevent stickies and reference nodes from interacting with groups
+      if (node.type === 'sticky' || node.type === 'character' || node.type === 'resource') return;
+
+      const groups = allNodes.filter(n => n.type === 'group' && n.id !== node.id);
+      
+      // Calculate drop position in canvas coordinates using screenToFlowPosition
+      const dropPosition = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+      });
       
       const nodeRect = {
           x: node.positionAbsolute?.x ?? node.position.x,
@@ -243,63 +467,175 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
           width: node.width || 200,
           height: node.height || 100
       };
+
+      // Helper to get absolute position even if positionAbsolute is missing
+      const getAbsolutePosition = (n: Node) => {
+          if (n.positionAbsolute) return n.positionAbsolute;
+          let x = n.position.x;
+          let y = n.position.y;
+          let parentId = n.parentNode;
+          while (parentId) {
+              const parent = allNodes.find(p => p.id === parentId);
+              if (parent) {
+                  x += parent.position.x;
+                  y += parent.position.y;
+                  parentId = parent.parentNode;
+              } else {
+                  break;
+              }
+          }
+          return { x, y };
+      };
       
-      const intersectingGroup = groups.find(g => {
+      const intersectingGroups = groups.filter(g => {
+          const pos = getAbsolutePosition(g);
           const gRect = {
-              x: g.positionAbsolute?.x ?? g.position.x,
-              y: g.positionAbsolute?.y ?? g.position.y,
+              x: pos.x,
+              y: pos.y,
               width: g.width || 300,
               height: g.height || 300
           };
           
+          // Check if mouse cursor (drop position) is inside group
           return (
-              nodeRect.x >= gRect.x &&
-              nodeRect.x + nodeRect.width <= gRect.x + gRect.width &&
-              nodeRect.y >= gRect.y &&
-              nodeRect.y + nodeRect.height <= gRect.y + gRect.height
+              dropPosition.x >= gRect.x &&
+              dropPosition.x <= gRect.x + gRect.width &&
+              dropPosition.y >= gRect.y &&
+              dropPosition.y <= gRect.y + gRect.height
           );
       });
 
+      // Sort by area (ascending) to find the innermost group
+      intersectingGroups.sort((a, b) => {
+          const aArea = (a.width || 300) * (a.height || 300);
+          const bArea = (b.width || 300) * (b.height || 300);
+          return aArea - bArea;
+      });
+
+      const intersectingGroup = intersectingGroups[0];
+
       if (intersectingGroup) {
+          // Check for circular reference: ensure intersectingGroup is not a descendant of node
+          let isDescendant = false;
+          let current: Node | undefined = intersectingGroup;
+          
+          while (current && current.parentNode) {
+              if (current.parentNode === node.id) {
+                  isDescendant = true;
+                  break;
+              }
+              current = allNodes.find(n => n.id === current?.parentNode);
+          }
+          
+          if (isDescendant) {
+              return; // Prevent circular reference
+          }
+
           if (node.parentNode !== intersectingGroup.id) {
+              const groupPos = getAbsolutePosition(intersectingGroup);
               // Reparent to this group
-              const relX = nodeRect.x - (intersectingGroup.positionAbsolute?.x ?? intersectingGroup.position.x);
-              const relY = nodeRect.y - (intersectingGroup.positionAbsolute?.y ?? intersectingGroup.position.y);
+              // Calculate relative position based on absolute positions
+              const relX = nodeRect.x - groupPos.x;
+              const relY = nodeRect.y - groupPos.y;
               
               useScenarioStore.getState().setNodeParent(node.id, intersectingGroup.id, { x: relX, y: relY });
+              
+              // Update group size to fit the new node
+              setTimeout(() => {
+                  useScenarioStore.getState().updateGroupSize(intersectingGroup.id);
+                  // Resolve overlaps for the moved node within the new group
+                  if (node.type === 'group') {
+                      useScenarioStore.getState().resolveGroupOverlaps(node.id);
+                  }
+              }, 10);
+          } else {
+              // Same parent (already in this group), just moving
+              if (node.type === 'group') {
+                  setTimeout(() => {
+                      useScenarioStore.getState().resolveGroupOverlaps(node.id);
+                  }, 10);
+              }
           }
       } else {
           if (node.parentNode) {
               // Ungroup
               useScenarioStore.getState().setNodeParent(node.id, undefined, { x: nodeRect.x, y: nodeRect.y });
           }
+          
+          // Resolve overlaps for root or ungrouped node
+          if (node.type === 'group') {
+              setTimeout(() => {
+                  useScenarioStore.getState().resolveGroupOverlaps(node.id);
+              }, 10);
+          }
       }
-  }, [getNodes, pushHistory]);
+  }, [getNodes, pushHistory, screenToFlowPosition]);
 
   const onSelectionChange = useCallback(({ nodes }: { nodes: Node[] }) => {
-    if (nodes.length > 0) {
-      setSelectedNode(nodes[0].id);
-    } else {
-      setSelectedNode(null);
-    }
+    setSelectedNode(nodes.length > 0 ? nodes[0].id : null);
   }, [setSelectedNode]);
 
-  const onNodeClick = useCallback(() => {
+  const lastClickTime = useRef<number>(0);
+  const lastClickNodeId = useRef<string | null>(null);
+
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    // Explicitly set selection on click (needed for Play Mode where selection behavior might differ)
+    setSelectedNode(node.id);
+
     if (mode === 'play') {
-      setSelectedNode(null); // Ensure no node is selected in play mode
+         if ((node.type === 'character' || node.type === 'resource') && node.data.referenceId) {
+             setInfoModalData(node.data.referenceId);
+         }
+         return;
     }
-  }, [mode, setSelectedNode]);
+
+    const currentTime = Date.now();
+    const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 300;
+    lastClickTime.current = currentTime;
+    lastClickNodeId.current = node.id;
+
+    if (isDoubleClick && node.type === 'jump' && node.data.jumpTarget) {
+        const targetId = node.data.jumpTarget;
+        
+        // Use setTimeout to ensure state updates and rendering settle before moving view
+        setTimeout(() => {
+            const targetNode = getNodes().find(n => n.id === targetId);
+            
+            if (targetNode) {
+                const { x, y } = targetNode.position;
+                const width = targetNode.width || 150;
+                const height = targetNode.height || 50;
+                
+                const currentZoom = getZoom();
+                setCenter(x + width / 2, y + height / 2, { zoom: currentZoom, duration: 800 });
+                
+                setSelectedNode(targetId);
+            }
+        }, 50);
+    }
+
+    if (node.type === 'group') {
+        bringNodeToFront(node.id);
+    }
+  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode, mode]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
+      const stickies = getNodes().filter(n => n.type === 'sticky' && n.data.targetNodeId === node.id);
+      const hasSticky = stickies.length > 0;
+      const stickiesHidden = stickies.every(n => n.hidden);
+
       setMenu({
         id: node.id,
         type: 'node',
         top: event.clientY,
         left: event.clientX,
         data: node.data,
-        nodeType: node.type // Pass node type
+        nodeType: node.type, // Pass node type
+        parentNode: node.parentNode,
+        hasSticky,
+        stickiesHidden
       });
     },
     []
@@ -323,7 +659,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   const onPaneContextMenu = useCallback(
     (event: React.MouseEvent) => {
       event.preventDefault();
-      if (mode === 'play') return;
+      // Allow pane context menu in play mode for adding sticky notes
       setMenu({
         id: 'pane',
         type: 'pane',
@@ -334,10 +670,54 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     [mode]
   );
 
-  const onPaneClick = useCallback(() => {
-    setMenu(null);
-    onCanvasClick?.();
-  }, [onCanvasClick]);
+
+
+  const handleDetachFromGroup = useCallback(() => {
+      if (!menu?.id) return;
+      
+      const node = getNodes().find(n => n.id === menu.id);
+      if (node && node.parentNode) {
+          // Find the top-level parent group
+          let topParent = getNodes().find(n => n.id === node.parentNode);
+          let currentParentId = topParent?.parentNode;
+          
+          while (currentParentId) {
+              const parent = getNodes().find(n => n.id === currentParentId);
+              if (parent) {
+                  topParent = parent;
+                  currentParentId = parent.parentNode;
+              } else {
+                  break;
+              }
+          }
+
+          if (topParent) {
+              // Calculate node's current absolute Y
+              let absY = node.position.y;
+              let pId: string | undefined = node.parentNode;
+              while(pId) {
+                  const p = getNodes().find(n => n.id === pId);
+                  if (p) {
+                      absY += p.position.y;
+                      pId = p.parentNode;
+                  } else {
+                      break;
+                  }
+              }
+
+              // Top parent is at root, so its position is absolute
+              const topParentX = topParent.position.x;
+              const topParentWidth = topParent.width || 150;
+
+              // New Position: Right of the top parent with some margin
+              const newX = topParentX + topParentWidth + 50;
+              const newY = absY;
+
+              useScenarioStore.getState().setNodeParent(node.id, undefined, { x: newX, y: newY });
+          }
+      }
+      setMenu(null);
+  }, [menu, getNodes]);
 
   const handleDelete = useCallback(() => {
     const selectedNodes = getNodes().filter(n => n.selected);
@@ -406,7 +786,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   }, [menu, getNodes, toggleNodeState, selectedNodeId]);
 
   const handleGroup = useCallback(() => {
-      const selectedNodes = getNodes().filter(n => n.selected);
+      const selectedNodes = getNodes().filter(n => n.selected && n.type !== 'character' && n.type !== 'resource' && n.type !== 'sticky');
       if (selectedNodes.length === 0 && menu?.type === 'node') {
           groupNodes([menu.id]);
       } else {
@@ -477,7 +857,18 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   // Keyboard Shortcuts
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-          if (mode === 'play') return;
+          // Prevent page reload on Ctrl+R
+          if (e.ctrlKey && e.key === 'r') {
+              e.preventDefault();
+          }
+
+          if (mode === 'play') {
+              // Only allow Ctrl+R in play mode
+              if (e.ctrlKey && e.key === 'r') {
+                  handleToggleState();
+              }
+              return;
+          }
           
           // Ignore if input/textarea is focused
           if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return;
@@ -491,7 +882,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
               e.preventDefault();
               handleReduplicate();
           } else if (e.ctrlKey && e.key === 'r') {
-              e.preventDefault();
+              // Handled above, but just in case logic flows here
               handleToggleState();
           }
       };
@@ -501,18 +892,33 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   }, [mode, handleDelete, handleDuplicate, handleReduplicate, handleToggleState]);
 
   // Sort nodes so groups are rendered first (bottom)
-  const sortedNodes = [...nodes].sort((a, b) => {
-      if (a.type === 'group' && b.type !== 'group') return -1;
-      if (a.type !== 'group' && b.type === 'group') return 1;
-      return 0;
+  // Ensure correct z-index and render order
+  // Sticky Node (2000) > Sticky Edge (1000) > Target Node (0) > Group Node (-1)
+  const sortedNodes = nodes.map(node => {
+      if (node.type === 'sticky') {
+          return { ...node, zIndex: 1500 };
+      }
+      if (node.type === 'group') {
+          return { ...node, zIndex: -10 }; 
+      }
+      return node;
+  }).sort((a, b) => {
+      const getScore = (type: string) => {
+          if (type === 'group') return -1;
+          if (type === 'sticky') return 1;
+          return 0;
+      };
+      return getScore(a.type || '') - getScore(b.type || '');
   });
 
   return (
     <div className="flex-1 h-full relative bg-background" ref={reactFlowWrapper}>
+
       {mode === 'play' && (
           <style>{`
             .react-flow__handle {
-                display: none !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
             }
           `}</style>
       )}
@@ -526,6 +932,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         nodeTypes={nodeTypes}
         onDragOver={onDragOver}
         onDrop={onDrop}
+        onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
         onSelectionChange={onSelectionChange}
         onNodeClick={onNodeClick}
@@ -533,9 +940,9 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         onEdgeContextMenu={onEdgeContextMenu}
         onPaneContextMenu={onPaneContextMenu}
         onPaneClick={onPaneClick}
-        nodesDraggable={mode === 'edit'}
+        nodesDraggable={true}
         nodesConnectable={mode === 'edit'}
-        elementsSelectable={mode === 'edit'}
+        elementsSelectable={true}
         fitView
         selectionKeyCode="Control"
         deleteKeyCode={null} // Disable default delete to handle it manually
@@ -551,7 +958,57 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         }}
       >
         <Background color="hsl(var(--muted-foreground) / 0.2)" gap={16} />
-        <Controls className="bg-card border-border fill-foreground" /> 
+
+        <Controls 
+            className="bg-card border-border fill-foreground flex flex-col items-center gap-0.5 p-1 w-auto shadow-sm !overflow-visible rounded-full group" 
+            showZoom={false} 
+            showFitView={false} 
+            showInteractive={false}
+        >
+            <ControlButton onClick={() => setZoom(Math.min(2, zoom + 0.05))} title="Zoom In (+5%)" className="!bg-transparent !border-none hover:!bg-accent hover:!text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                <Plus size={14} />
+            </ControlButton>
+            
+            <div className="relative flex items-center justify-center h-44 w-full my-0">
+                <input 
+                    type="range" 
+                    min="0.1" 
+                    max="2" 
+                    step="0.05" 
+                    value={zoom} 
+                    onChange={(e) => setZoom(parseFloat(e.target.value))}
+                    onWheel={(e) => {
+                        const delta = e.deltaY > 0 ? -0.01 : 0.01;
+                        const newZoom = Math.min(2, Math.max(0.1, zoom + delta));
+                        setZoom(newZoom);
+                    }}
+                    className="w-44 h-1.5 bg-secondary dark:bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90"
+                />
+                
+                <div 
+                    className="absolute left-full ml-4 px-2 py-1 bg-popover text-popover-foreground text-xs font-mono rounded shadow-md border border-border whitespace-nowrap pointer-events-none z-50 hidden group-hover:flex items-center"
+                    style={{ 
+                        bottom: `calc(50% - 80px + ${((zoom - 0.1) / 1.9) * 160}px)`,
+                        transform: 'translateY(50%)'
+                    }}
+                >
+                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-popover border-l-0"></div>
+                    {Math.round(zoom * 100)}%
+                </div>
+            </div>
+
+            <ControlButton onClick={() => setZoom(Math.max(0.1, zoom - 0.05))} title="Zoom Out (-5%)" className="!bg-transparent !border-none hover:!bg-accent hover:!text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                <Minus size={14} />
+            </ControlButton>
+            
+            <ControlButton onClick={() => fitView()} title="Fit View" className="!bg-transparent !border-none hover:!bg-accent hover:!text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                <Maximize size={14} />
+            </ControlButton>
+        </Controls> 
+        <NodeInfoModal 
+            referenceId={infoModalData} 
+            onClose={() => setInfoModalData(null)} 
+        />
         <style>{`
             .react-flow__edge.selected .react-flow__edge-path {
                 stroke: hsl(var(--primary));
@@ -574,6 +1031,11 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
           onToggleState={handleToggleState}
           onGroup={handleGroup}
           onUngroup={handleUngroup}
+          onDetachFromGroup={handleDetachFromGroup}
+          onAddSticky={handleAddSticky}
+          onToggleStickies={handleToggleStickies}
+          onDeleteStickies={handleDeleteStickies}
+          onHideSticky={handleHideSticky}
         />
       )}
     </div>

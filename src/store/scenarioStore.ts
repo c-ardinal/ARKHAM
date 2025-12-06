@@ -14,7 +14,7 @@ import type {
   OnEdgesChange,
   OnConnect,
 } from 'reactflow';
-import type { ScenarioNode, ScenarioEdge, GameState } from '../types';
+import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 
 interface ScenarioState {
@@ -34,8 +34,8 @@ interface ScenarioState {
   duplicateNodes: (nodes: ScenarioNode[]) => string[]; // Returns new node IDs
   deleteNodes: (nodeIds: string[]) => void;
   setMode: (mode: 'edit' | 'play') => void;
-  setSelectedNode: (id: string | null) => void;
-  loadScenario: (data: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState }) => void;
+  setSelectedNode: (id: string | string[] | null) => void;
+  loadScenario: (data: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState, characters?: CharacterData[], resources?: ResourceData[] }) => void;
   
   // Localization & Theme
   language: 'en' | 'ja';
@@ -54,6 +54,18 @@ interface ScenarioState {
   batchRenameVariables: (renames: Record<string, string>) => void;
   deleteVariable: (name: string) => void;
 
+  // Characters
+  characters: CharacterData[];
+  addCharacter: (char: CharacterData) => void;
+  updateCharacter: (id: string, char: Partial<CharacterData>) => void;
+  deleteCharacter: (id: string) => void;
+
+  // Resources
+  resources: ResourceData[];
+  addResource: (res: ResourceData) => void;
+  updateResource: (id: string, res: Partial<ResourceData>) => void;
+  deleteResource: (id: string) => void;
+
   // Game Logic
   resetGame: () => void;
   recalculateGameState: () => void;
@@ -66,6 +78,26 @@ interface ScenarioState {
   ungroupNodes: (groupId: string) => void;
   setNodeParent: (nodeId: string, parentId: string | undefined, position: { x: number, y: number }) => void;
   updateGroupSize: (groupId: string, contentSize?: { width: number, height: number }) => void;
+  bringNodeToFront: (nodeId: string) => void;
+  resolveGroupOverlaps: (nodeId: string) => void;
+
+  addSticky: (targetNodeId: string | undefined, position: { x: number, y: number }) => void;
+  toggleStickies: (parentNodeId: string) => void;
+  deleteStickies: (parentNodeId: string) => void;
+  hideSticky: (stickyId: string) => void;
+  
+  // Bulk Sticky Operations
+  // Bulk Sticky Operations
+  // setStickyUpdating removed
+  showAllStickies: () => void;
+  hideAllStickies: () => void;
+  deleteAllStickiesGlobal: () => void;
+  showAllFreeStickies: () => void;
+  hideAllFreeStickies: () => void;
+  deleteAllFreeStickies: () => void;
+  showAllNodeStickies: () => void;
+  hideAllNodeStickies: () => void;
+  deleteAllNodeStickies: () => void;
 
   // History
   past: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState }[];
@@ -87,6 +119,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       },
       width: 400,
       height: 200,
+      draggable: true
     }
   ],
   edges: [],
@@ -94,16 +127,82 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     currentNodes: [],
     revealedNodes: [],
     inventory: {},
+    equipment: {},
     knowledge: {},
     skills: {},
     stats: {},
     variables: {},
   },
   mode: 'edit',
+  characters: [],
+  resources: [],
+
+  addCharacter: (char) => set((state) => ({ characters: [...state.characters, char] })),
+  updateCharacter: (id, char) => set((state) => ({
+      characters: state.characters.map((c) => (c.id === id ? { ...c, ...char } : c))
+  })),
+  deleteCharacter: (id) => set((state) => {
+      const nodesToDelete = state.nodes.filter(n => n.type === 'character' && n.data.referenceId === id).map(n => n.id);
+      let newNodes = state.nodes;
+      let newEdges = state.edges;
+      if (nodesToDelete.length > 0) {
+           newNodes = state.nodes.filter(n => !nodesToDelete.includes(n.id));
+           newEdges = state.edges.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target));
+      }
+      return {
+          characters: state.characters.filter((c) => c.id !== id),
+          nodes: newNodes,
+          edges: newEdges
+      };
+  }),
+
+  addResource: (res) => set((state) => ({ resources: [...state.resources, res] })),
+  updateResource: (id, res) => set((state) => ({
+      resources: state.resources.map((r) => (r.id === id ? { ...r, ...res } : r))
+  })),
+  deleteResource: (id) => set((state) => {
+       const resources = state.resources.filter((r) => r.id !== id);
+       const fallbackResource = resources.length > 0 ? resources[0] : null;
+
+       const newNodes = state.nodes.map(node => {
+           if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
+               return {
+                   ...node,
+                   data: {
+                       ...node.data,
+                       referenceId: fallbackResource ? fallbackResource.id : undefined,
+                       infoValue: fallbackResource ? fallbackResource.name : 'None',
+                       // Resetting infoType to fallback type might be good too if we were storing it, 
+                       // but currently we derive it in recalculateGameState or use referenceId.
+                   }
+               };
+           }
+           // Resource Nodes themselves checking referenceId? 
+           // Technically resource nodes also use referenceId.
+           if (node.type === 'resource' && node.data.referenceId === id) {
+                // If the resource node is pointing to the deleted resource, what should happen?
+                // Probably should be deleted or show error. 
+                // Existing logic deleted them. Let's keep deleting Resource Nodes that point to it,
+                // BUT Element Nodes should be reassigned.
+                return null; 
+           }
+           return node;
+       }).filter((n): n is ScenarioNode => n !== null);
+       
+       const validIds = new Set(newNodes.map(n => n.id));
+       const newEdges = state.edges.filter(e => validIds.has(e.source) && validIds.has(e.target));
+
+      return {
+          resources,
+          nodes: newNodes,
+          edges: newEdges
+      };
+  }),
+
   selectedNodeId: null,
   
   // Settings
-  language: 'ja', // Default to Japanese as per user preference
+  language: 'ja',
   setLanguage: (lang) => set({ language: lang }),
   theme: 'dark',
   setTheme: (theme) => set({ theme }),
@@ -166,51 +265,133 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   onNodesChange: (changes: NodeChange[]) => {
     const state = get();
     
-    // 1. Apply all changes
-    const nodesAfterChanges = applyNodeChanges(changes, state.nodes);
+    // Sticky Note Following Logic
+    const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
+    const stickyUpdates = new Map<string, {x: number, y: number}>();
     
-    // 2. Safety Check: Remove any node whose parent does not exist
-    // This effectively implements cascade deletion for groups and prevents crashes
-    const nodeIds = new Set(nodesAfterChanges.map(n => n.id));
-    const validNodes = nodesAfterChanges.filter(n => {
-        if (n.parentNode && !nodeIds.has(n.parentNode)) {
-            return false; // Remove orphan
-        }
-        return true;
-    });
+    // Helper to find all descendant IDs
+    const getDescendants = (parentId: string): string[] => {
+        const children = state.nodes.filter(n => n.parentNode === parentId);
+        let descendants: string[] = children.map(c => c.id);
+        children.forEach(c => {
+            descendants = [...descendants, ...getDescendants(c.id)];
+        });
+        return descendants;
+    };
 
-    // 3. Update group sizes for moved nodes
     changes.forEach(change => {
-        if (change.type === 'position' && change.position) {
-            const node = validNodes.find(n => n.id === change.id);
-            if (node && node.parentNode) {
-                const parentId = node.parentNode;
-                const parent = validNodes.find(p => p.id === parentId);
-                if (parent && parent.type === 'group' && parent.data.expanded) {
-                     const children = validNodes.filter(n => n.parentNode === parentId);
-                     if (children.length > 0) {
-                         let maxX = 0, maxY = 0;
-                         children.forEach(c => {
-                             const cW = c.width || 150;
-                             const cH = c.height || 50;
-                             maxX = Math.max(maxX, c.position.x + cW);
-                             maxY = Math.max(maxY, c.position.y + cH);
-                         });
-                         
-                         const padding = 40;
-                         const newWidth = Math.max(300, maxX + padding);
-                         const newHeight = Math.max(300, maxY + padding);
-                         
-                         if (parent.style?.width !== newWidth || parent.style?.height !== newHeight) {
-                             parent.style = { ...parent.style, width: newWidth, height: newHeight };
+        // Track movement of nodes that are not stickies themselves, but might be targets
+        if (change.type === 'position' && change.position && change.dragging) {
+            const oldNode = nodeMap.get(change.id);
+            if (oldNode && oldNode.type !== 'sticky') {
+                const dx = change.position.x - oldNode.position.x;
+                const dy = change.position.y - oldNode.position.y;
+                
+                if (dx !== 0 || dy !== 0) {
+                     // Determine all nodes affected by this move (self + descendants)
+                     const affectedNodeIds = [change.id, ...getDescendants(change.id)];
+                     
+                     // Find stickies attached to ANY of these nodes
+                     state.nodes.forEach(n => {
+                         if (n.type === 'sticky' && n.data.targetNodeId && affectedNodeIds.includes(n.data.targetNodeId)) {
+                            // Only move if not selected (to avoid double movement if both selected)
+                            if (!n.selected) {
+                                // CRITICAL CHECK: If sticky is a descendant of the moving node, it moves automatically.
+                                // Don't move it manually to avoid double movement.
+                                let isDescendant = false;
+                                let currentParent = n.parentNode;
+                                while(currentParent) {
+                                    if (currentParent === change.id) {
+                                        isDescendant = true;
+                                        break;
+                                    }
+                                    const pNode = nodeMap.get(currentParent);
+                                    currentParent = pNode ? pNode.parentNode : undefined;
+                                }
+                                if (isDescendant) return;
+
+                                stickyUpdates.set(n.id, { 
+                                    x: n.position.x + dx, 
+                                    y: n.position.y + dy 
+                                });
+                            }
                          }
-                     }
+                     });
                 }
             }
         }
     });
 
-    set({ nodes: validNodes });
+    // 1. Apply all changes
+    let nodesAfterChanges = applyNodeChanges(changes, state.nodes);
+    
+    // Apply sticky updates
+    if (stickyUpdates.size > 0) {
+        nodesAfterChanges = nodesAfterChanges.map(n => {
+            if (stickyUpdates.has(n.id)) {
+                return { ...n, position: stickyUpdates.get(n.id)! };
+            }
+            return n;
+        });
+    }
+    
+    // 2. Safety Check & Cascade Deletion
+    // Step A: Identify valid non-orphan nodes
+    // We do this by checking parent existence. Iterate until stable or just once?
+    // ReactFlow structure is usually flat list with parentNode pointers.
+    // If we filter once, we might miss grandchildren if order is wrong? 
+    // Actually, we should check against the *resulting* set of IDs.
+    
+    // First, map available IDs
+    let currentNodes = nodesAfterChanges;
+    let previousCount = -1;
+    
+    // Iteratively remove orphans until no more are removed (handles deep nesting)
+    while (currentNodes.length !== previousCount) {
+        previousCount = currentNodes.length;
+        const nodeIds = new Set(currentNodes.map(n => n.id));
+        currentNodes = currentNodes.filter(n => {
+            if (n.parentNode && !nodeIds.has(n.parentNode)) {
+                return false; // Remove orphan
+            }
+            return true;
+        });
+    }
+
+    // Step B: Remove Stickies connected to removed nodes
+    const validNodeIds = new Set(currentNodes.map(n => n.id));
+    currentNodes = currentNodes.filter(n => {
+        if (n.type === 'sticky' && n.data.targetNodeId) {
+            // If target node is not among the valid nodes, delete the sticky
+            if (!validNodeIds.has(n.data.targetNodeId)) {
+                return false;
+            }
+        }
+        return true;
+    });
+
+    // 3. Update group sizes for moved or resized nodes
+    // Using filtered 'currentNodes'
+    const finalNodeIds = new Set(currentNodes.map(n => n.id));
+    changes.forEach(change => {
+        if ((change.type === 'position' && change.position) || change.type === 'dimensions') {
+            // Only strictly valid checks
+             if (!finalNodeIds.has(change.id)) return;
+             
+             const node = currentNodes.find(n => n.id === change.id);
+             if (node && node.parentNode) {
+                setTimeout(() => {
+                    get().updateGroupSize(node.parentNode!);
+                }, 0);
+            }
+        }
+    });
+
+    // 4. Cleanup Edges connected to removed nodes
+    const finalNodeIdSet = new Set(currentNodes.map(n => n.id));
+    const cleanEdges = state.edges.filter(e => finalNodeIdSet.has(e.source) && finalNodeIdSet.has(e.target));
+
+    set({ nodes: currentNodes, edges: cleanEdges });
     get().recalculateGameState();
   },
   onEdgesChange: (changes: EdgeChange[]) => {
@@ -268,7 +449,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // Deselect all existing nodes
       const updatedExistingNodes = state.nodes.map(n => ({ ...n, selected: false }));
       
-      set({ nodes: [...updatedExistingNodes, ...newNodes] });
+      set({ 
+          nodes: [...updatedExistingNodes, ...newNodes],
+          selectedNodeId: newIds.length > 0 ? newIds[newIds.length - 1] : state.selectedNodeId
+      });
       get().recalculateGameState();
       return newIds;
   },
@@ -276,18 +460,245 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       get().pushHistory();
       const state = get();
       
+      // Recursively find all descendants to ensure we don't leave orphans
+      const idsToDelete = new Set(nodeIds);
+      let changed = true;
+      while (changed) {
+          changed = false;
+          state.nodes.forEach(node => {
+              // 1. Delete descendants
+              if (node.parentNode && idsToDelete.has(node.parentNode) && !idsToDelete.has(node.id)) {
+                  idsToDelete.add(node.id);
+                  changed = true;
+              }
+              // 2. Delete JumpNodes that target deleted nodes
+              if (node.type === 'jump' && node.data.jumpTarget && idsToDelete.has(node.data.jumpTarget) && !idsToDelete.has(node.id)) {
+                  idsToDelete.add(node.id);
+                  changed = true;
+              }
+              // 3. Delete StickyNodes that target deleted nodes
+              if (node.type === 'sticky' && node.data.targetNodeId && idsToDelete.has(node.data.targetNodeId) && !idsToDelete.has(node.id)) {
+                  idsToDelete.add(node.id);
+                  changed = true;
+              }
+          });
+      }
+      
       // Filter out nodes
-      const remainingNodes = state.nodes.filter(n => !nodeIds.includes(n.id));
+      const remainingNodes = state.nodes.filter(n => !idsToDelete.has(n.id));
       
       // Filter out edges connected to deleted nodes
-      const remainingEdges = state.edges.filter(e => !nodeIds.includes(e.source) && !nodeIds.includes(e.target));
+      const remainingEdges = state.edges.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target));
 
       set({ nodes: remainingNodes, edges: remainingEdges });
       get().recalculateGameState();
   },
-  setMode: (mode) => set({ mode }),
-  setSelectedNode: (id) => set({ selectedNodeId: id }),
-  loadScenario: (data) => set({ nodes: data.nodes, edges: data.edges, gameState: data.gameState }),
+  loadScenario: (data) => {
+       const { nodes, edges, gameState, characters, resources } = data;
+       set({ 
+           nodes: nodes || [], 
+           edges: edges || [], 
+           gameState: gameState || {
+              currentNodes: [],
+              revealedNodes: [],
+              inventory: {},
+              equipment: {},
+              knowledge: {},
+              skills: {},
+              stats: {},
+              variables: {},
+           },
+           characters: characters || [],
+           resources: resources || [],
+           past: [], 
+           future: [] 
+       });
+  },
+  setMode: (mode) => {
+      const state = get();
+      // Update draggable state: stickies are always draggable (or only in play/edit), others only in edit
+      // Spec: Sticky can be moved in play mode too.
+      // Other nodes: only in edit mode.
+      const updatedNodes = state.nodes.map(n => ({
+          ...n,
+          draggable: mode === 'edit' || n.type === 'sticky'
+      }));
+      set({ mode, nodes: updatedNodes });
+  },
+  
+  addSticky: (targetNodeId, position) => {
+      const state = get();
+      state.pushHistory();
+      const id = `sticky-${Date.now()}`;
+      
+      const newNode: ScenarioNode = {
+          id,
+          type: 'sticky',
+          position,
+          data: { 
+              label: 'Sticky Note', 
+              targetNodeId,
+          },
+          draggable: true, // Always draggable
+          width: 180,
+      };
+      
+      let newEdges = state.edges;
+      if (targetNodeId) {
+          // Create solid straight connection edge
+          const newEdge: ScenarioEdge = {
+              id: `edge-${id}`,
+              source: targetNodeId,
+              sourceHandle: 'sticky-origin',
+              target: id,
+              targetHandle: 'sticky-target',
+              type: 'straight',
+              style: { stroke: 'rgba(217, 119, 6, 0.5)', strokeWidth: 2 }, // Amber-600/50
+              markerEnd: { type: MarkerType.ArrowClosed, width: 0, height: 0, color: 'transparent' }, // Hide arrow
+              animated: false,
+          };
+          newEdges = [...newEdges, newEdge];
+      }
+      
+      set({ nodes: [...state.nodes, newNode], edges: newEdges });
+      get().recalculateGameState();
+  },
+
+  toggleStickies: (parentNodeId) => {
+      const state = get();
+      state.pushHistory();
+      
+      // Check current state of first sticky to toggle
+      const stickies = state.nodes.filter(n => n.type === 'sticky' && n.data.targetNodeId === parentNodeId);
+      if (stickies.length === 0) return;
+      
+      // If any is visible, hide all. If all hidden, show all.
+      const anyVisible = stickies.some(n => !n.hidden);
+      const newHiddenState = anyVisible; 
+      
+      const updatedNodes = state.nodes.map(n => {
+          if (n.type === 'sticky' && n.data.targetNodeId === parentNodeId) {
+              return { ...n, hidden: newHiddenState };
+          }
+          return n;
+      });
+      
+      set({ nodes: updatedNodes });
+  },
+
+  deleteStickies: (parentNodeId) => {
+      const state = get();
+      state.pushHistory(); // Assuming we want undo support
+      const stickies = state.nodes.filter(n => n.type === 'sticky' && n.data.targetNodeId === parentNodeId);
+      if (stickies.length > 0) {
+          get().deleteNodes(stickies.map(n => n.id));
+      }
+  },
+
+
+
+
+  showAllStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => n.type === 'sticky' ? { ...n, hidden: false } : n);
+      set({ nodes: updatedNodes });
+  },
+
+  hideAllStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => n.type === 'sticky' ? { ...n, hidden: true } : n);
+      set({ nodes: updatedNodes });
+  },
+
+  deleteAllStickiesGlobal: () => {
+      const state = get();
+      const stickies = state.nodes.filter(n => n.type === 'sticky');
+      if (stickies.length > 0) {
+          get().deleteNodes(stickies.map(n => n.id));
+      }
+  },
+
+  showAllFreeStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: false } : n);
+      set({ nodes: updatedNodes });
+  },
+  
+  hideAllFreeStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: true } : n);
+      set({ nodes: updatedNodes });
+  },
+  
+  deleteAllFreeStickies: () => {
+      const state = get();
+      const stickies = state.nodes.filter(n => n.type === 'sticky' && !n.data.targetNodeId);
+      if (stickies.length > 0) {
+          get().deleteNodes(stickies.map(n => n.id));
+      }
+  },
+
+  showAllNodeStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: false } : n);
+      set({ nodes: updatedNodes });
+  },
+  
+  hideAllNodeStickies: () => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: true } : n);
+      set({ nodes: updatedNodes });
+  },
+  
+  deleteAllNodeStickies: () => {
+      const state = get();
+      const stickies = state.nodes.filter(n => n.type === 'sticky' && n.data.targetNodeId);
+      if (stickies.length > 0) {
+          get().deleteNodes(stickies.map(n => n.id));
+      }
+  },
+
+  hideSticky: (stickyId) => {
+      const state = get();
+      state.pushHistory();
+      const updatedNodes = state.nodes.map(n => n.id === stickyId ? { ...n, hidden: true } : n);
+      set({ nodes: updatedNodes });
+  },
+
+  setSelectedNode: (idOrIds: string | string[] | null) => {
+      const state = get();
+      let idsToSelect: Set<string>;
+      let primaryId: string | null = null;
+
+      if (Array.isArray(idOrIds)) {
+          idsToSelect = new Set(idOrIds);
+          if (idOrIds.length > 0) {
+              primaryId = idOrIds[idOrIds.length - 1];
+          }
+      } else if (idOrIds) {
+          idsToSelect = new Set([idOrIds]);
+          primaryId = idOrIds;
+      } else {
+          idsToSelect = new Set();
+      }
+
+      const updatedNodes = state.nodes.map(n => ({
+          ...n,
+          selected: idsToSelect.has(n.id)
+      }));
+      
+      set({ 
+          selectedNodeId: primaryId,
+          nodes: updatedNodes
+      });
+  },
+
 
 
 
@@ -524,6 +935,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
             currentNodes: [],
             revealedNodes: [],
             inventory: {},
+            equipment: {},
             knowledge: {},
             skills: {},
             stats: {},
@@ -552,58 +964,123 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   recalculateGameState: () => {
       const state = get();
       const newInventory: Record<string, number> = {};
+      const newEquipment: Record<string, number> = {};
       const newKnowledge: Record<string, number> = {};
       const newSkills: Record<string, number> = {};
       const newStats: Record<string, number> = {};
 
       // 1. Scan all Element nodes to populate keys (init 0)
       state.nodes.forEach(node => {
-          if ((node.type === 'element' || node.type === 'information') && node.data.infoValue) {
-              const type = node.data.infoType || 'knowledge';
-              const name = node.data.infoValue;
+          if (node.type === 'element' || node.type === 'information') {
+              let type: string = node.data.infoType || 'knowledge';
+              let name = node.data.infoValue;
               
-              if (type === 'item') {
-                  if (newInventory[name] === undefined) newInventory[name] = 0;
-              } else if (type === 'skill') {
-                  if (newSkills[name] === undefined) newSkills[name] = 0;
-              } else if (type === 'stat') {
-                  if (newStats[name] === undefined) newStats[name] = 0;
-              } else {
-                  if (newKnowledge[name] === undefined) newKnowledge[name] = 0;
+              // Resolve from resource if available
+              if (node.type === 'element' && node.data.referenceId) {
+                 const res = state.resources.find(r => r.id === node.data.referenceId);
+                 if (res) {
+                     name = res.name;
+                     // Map ResourceType to GameState keys
+                     switch(res.type) {
+                         case 'Item': type = 'item'; break;
+                         case 'Equipment': type = 'equipment'; break;
+                         case 'Knowledge': type = 'knowledge'; break;
+                         case 'Skill': type = 'skill'; break;
+                         case 'Status': type = 'stat'; break;
+                         default: type = 'knowledge';
+                     }
+                 }
+              }
+
+              if (name) {
+                  if (type === 'item') {
+                      if (newInventory[name] === undefined) newInventory[name] = 0;
+                  } else if (type === 'equipment') {
+                      if (newEquipment[name] === undefined) newEquipment[name] = 0;
+                  } else if (type === 'skill') {
+                      if (newSkills[name] === undefined) newSkills[name] = 0;
+                  } else if (type === 'stat') {
+                      if (newStats[name] === undefined) newStats[name] = 0;
+                  } else {
+                      if (newKnowledge[name] === undefined) newKnowledge[name] = 0;
+                  }
               }
           }
       });
 
       // 2. Scan revealed nodes to update quantities
       state.nodes.forEach(node => {
-          if (node.data.revealed && (node.type === 'element' || node.type === 'information') && node.data.infoValue) {
-              const type = node.data.infoType || 'knowledge';
-              const name = node.data.infoValue;
-              const quantity = Number(node.data.quantity) || 1;
-              const action = node.data.actionType || 'obtain';
+          if (node.data.revealed && (node.type === 'element' || node.type === 'information')) {
+               let type: string = node.data.infoType || 'knowledge';
+               let name = node.data.infoValue;
+               const quantity = Number(node.data.quantity) || 1;
+               const action = node.data.actionType || 'obtain';
+
+              // Resolve from resource if available
+              if (node.type === 'element' && node.data.referenceId) {
+                 const res = state.resources.find(r => r.id === node.data.referenceId);
+                 if (res) {
+                     name = res.name;
+                     switch(res.type) {
+                         case 'Item': type = 'item'; break;
+                         case 'Equipment': type = 'equipment'; break;
+                         case 'Knowledge': type = 'knowledge'; break;
+                         case 'Skill': type = 'skill'; break;
+                         case 'Status': type = 'stat'; break;
+                         default: type = 'knowledge';
+                     }
+                 }
+              }
               
-              let collection = newKnowledge;
-              if (type === 'item') collection = newInventory;
-              else if (type === 'skill') collection = newSkills;
-              else if (type === 'stat') collection = newStats;
-              
-              if (action === 'obtain') {
-                  collection[name] = (collection[name] || 0) + quantity;
-              } else if (action === 'consume') {
-                  collection[name] = Math.max(0, (collection[name] || 0) - quantity);
+              if (name) {
+                  let collection = newKnowledge;
+                  if (type === 'item') collection = newInventory;
+                  else if (type === 'equipment') collection = newEquipment;
+                  else if (type === 'skill') collection = newSkills;
+                  else if (type === 'stat') collection = newStats;
+                  
+                  if (action === 'obtain') {
+                      collection[name] = (collection[name] || 0) + quantity;
+                  } else if (action === 'consume') {
+                      collection[name] = Math.max(0, (collection[name] || 0) - quantity);
+                  }
               }
           }
       });
 
-      set({
+      // 3. Update sticky status on nodes
+      const stickyTargets = new Set<string>();
+      state.nodes.forEach(n => {
+          if (n.type === 'sticky' && n.data.targetNodeId && !n.hidden) {
+              stickyTargets.add(n.data.targetNodeId);
+          }
+      });
+      
+      const newNodes = state.nodes.map(n => {
+          const hasSticky = stickyTargets.has(n.id);
+          if (n.data.hasSticky !== hasSticky) {
+             return { ...n, data: { ...n.data, hasSticky } }; 
+          }
+          return n;
+      });
+      
+      const updates: Partial<ScenarioState> = {
           gameState: {
               ...state.gameState,
               inventory: newInventory,
+              equipment: newEquipment,
               knowledge: newKnowledge,
               skills: newSkills,
               stats: newStats
           }
-      });
+      };
+      
+      const hasNodeChanges = newNodes.some((n, i) => n !== state.nodes[i]);
+      if (hasNodeChanges) {
+          updates.nodes = newNodes;
+      }
+
+      set(updates);
   },
 
   revealAll: () => {
@@ -704,79 +1181,84 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     const state = get();
     state.pushHistory();
 
-    const node = state.nodes.find((n) => n.id === nodeId);
-    if (!node) return;
+    const targetNode = state.nodes.find((n) => n.id === nodeId);
+    if (!targetNode) return;
 
-    // Toggle 'revealed' state
-    const isRevealed = !node.data.revealed;
-    let updatedNodeData = { ...node.data, revealed: isRevealed };
+    const isRevealed = !targetNode.data.revealed;
     let newGameState = { ...state.gameState };
-    
-    // Logic for VariableNode
-    if (node.type === 'variable') {
-        const targetVar = node.data.targetVariable;
-        const valueExpr = node.data.variableValue;
-        
-        if (targetVar && state.gameState.variables[targetVar]) {
-            const currentVar = state.gameState.variables[targetVar];
+    let newVariables = { ...newGameState.variables };
+
+    // Helper to find all descendants
+    const getDescendants = (parentId: string, nodes: ScenarioNode[]): string[] => {
+        let descendants: string[] = [];
+        const children = nodes.filter(n => n.parentNode === parentId);
+        children.forEach(child => {
+            descendants.push(child.id);
+            descendants = [...descendants, ...getDescendants(child.id, nodes)];
+        });
+        return descendants;
+    };
+
+    const descendants = getDescendants(nodeId, state.nodes);
+    const nodesToUpdate = [targetNode.id, ...descendants];
+
+    const updatedNodes = state.nodes.map(node => {
+        if (!nodesToUpdate.includes(node.id)) return node;
+
+        // Skip if state is already matching (to avoid double execution of side effects)
+        if (node.data.revealed === isRevealed) return node;
+
+        let updatedData = { ...node.data, revealed: isRevealed };
+
+        // Logic for VariableNode
+        if (node.type === 'variable') {
+            const targetVar = node.data.targetVariable;
+            const valueExpr = node.data.variableValue;
             
-            if (isRevealed) {
-                // Apply: Save previous value and assign new
-                updatedNodeData.previousValue = currentVar.value;
+            if (targetVar && newVariables[targetVar]) {
+                const currentVar = newVariables[targetVar];
                 
-                let newValue: any = valueExpr;
-                
-                // Use evaluateFormula for robust substitution and calculation
-                if (typeof valueExpr === 'string') {
-                    // Use current state variables
-                    const resolvedValue = evaluateFormula(valueExpr, state.gameState.variables);
+                if (isRevealed) {
+                    // Apply: Save previous value and assign new
+                    updatedData.previousValue = currentVar.value;
                     
-                    if (currentVar.type === 'number') {
-                        const num = Number(resolvedValue);
-                        if (!isNaN(num)) newValue = num;
-                    } else if (currentVar.type === 'boolean') {
-                        newValue = String(resolvedValue) === 'true';
+                    let newValue: any = valueExpr;
+                    
+                    if (typeof valueExpr === 'string') {
+                        // Use current state variables (accumulated changes)
+                        const resolvedValue = evaluateFormula(valueExpr, newVariables);
+                        
+                        if (currentVar.type === 'number') {
+                            const num = Number(resolvedValue);
+                            if (!isNaN(num)) newValue = num;
+                        } else if (currentVar.type === 'boolean') {
+                            newValue = String(resolvedValue) === 'true';
+                        } else {
+                            newValue = String(resolvedValue);
+                        }
                     } else {
-                        newValue = String(resolvedValue);
+                        newValue = valueExpr;
                     }
+                    
+                    newVariables[targetVar] = { ...currentVar, value: newValue };
                 } else {
-                    newValue = valueExpr;
-                }
-                
-                newGameState.variables = {
-                    ...newGameState.variables,
-                    [targetVar]: { ...currentVar, value: newValue }
-                };
-            } else {
-                // Revert: Restore previous value
-                if (updatedNodeData.previousValue !== undefined) {
-                    newGameState.variables = {
-                        ...newGameState.variables,
-                        [targetVar]: { ...currentVar, value: updatedNodeData.previousValue }
-                    };
-                    updatedNodeData.previousValue = undefined;
+                    // Revert: Restore previous value
+                    if (updatedData.previousValue !== undefined) {
+                        newVariables[targetVar] = { ...currentVar, value: updatedData.previousValue };
+                        updatedData.previousValue = undefined;
+                    }
                 }
             }
         }
-    }
+        
+        return { ...node, data: updatedData };
+    });
 
-    let updatedNodes = state.nodes.map((n) => 
-        n.id === nodeId ? { ...n, data: updatedNodeData } : n
-    );
-
-    // If GroupNode, toggle children as well
-    if (node.type === 'group') {
-        updatedNodes = updatedNodes.map(n => {
-            if (n.parentNode === nodeId) {
-                return { ...n, data: { ...n.data, revealed: isRevealed } };
-            }
-            return n;
-        });
-    }
-
-    set({ nodes: updatedNodes, gameState: newGameState });
+    set({ 
+        nodes: updatedNodes, 
+        gameState: { ...newGameState, variables: newVariables } 
+    });
     
-    // Recalculate game state for ElementNodes
     get().recalculateGameState();
   },
 
@@ -839,105 +1321,204 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           updatedEdges = updatedEdges.filter(e => !e.data?.isVirtual);
       }
 
-      // Calculate new size
-      let newWidth = 300;
-      let newHeight = 300;
-      const padding = 40;
+      let updatedNodes = [...state.nodes];
+      const nodeMap = new Map(updatedNodes.map(n => [n.id, { ...n }]));
 
-      if (!willCollapse) {
-          // Expanding: Calculate size based on children
-          const children = state.nodes.filter(n => n.parentNode === nodeId);
-          if (children.length > 0) {
-              let maxX = -Infinity, maxY = -Infinity;
-              children.forEach(c => {
-                  const cW = c.width || 150;
-                  const cH = c.height || 50;
-                  maxX = Math.max(maxX, c.position.x + cW);
-                  maxY = Math.max(maxY, c.position.y + cH);
-              });
-              newWidth = Math.max(newWidth, maxX + padding);
-              newHeight = Math.max(newHeight, maxY + padding);
-          }
-          
-          // Also consider content size if available
-          if (node.data.contentWidth && node.data.contentHeight) {
-             newWidth = Math.max(newWidth, node.data.contentWidth + padding);
-             newHeight = Math.max(newHeight, node.data.contentHeight + padding);
-          }
-      } else {
-          // Collapsing: Use content size + small padding
-          if (node.data.contentWidth && node.data.contentHeight) {
-              newWidth = node.data.contentWidth + 20;
-              newHeight = node.data.contentHeight + 20;
-          } else {
-              newWidth = 150;
-              newHeight = 50;
-          }
-      }
-      
-      // Ensure minimums
-      newWidth = Math.max(newWidth, 150);
-      newHeight = Math.max(newHeight, 50);
-
-      let updatedNodes = state.nodes.map(n => {
-          if (n.id === nodeId) {
-              const { backgroundColor, ...restStyle } = n.style || {};
-              return { 
-                  ...n, 
-                  data: { ...n.data, expanded: !isExpanded },
-                  style: { 
-                      ...restStyle, 
-                      width: newWidth,
-                      height: newHeight,
-                      zIndex: -1
+      if (willCollapse) {
+          // Collapsing
+          // Recursive function to hide all descendants
+          const hideDescendants = (parentId: string) => {
+              updatedNodes.forEach(n => {
+                  if (n.parentNode === parentId) {
+                      const node = nodeMap.get(n.id);
+                      if (node) {
+                          node.hidden = true;
+                          if (node.type === 'group') {
+                              hideDescendants(node.id);
+                          }
+                      }
                   }
+              });
+          };
+
+          const targetNode = nodeMap.get(nodeId);
+          if (targetNode) {
+              const { backgroundColor, ...restStyle } = targetNode.style || {};
+              // Calculate collapsed size
+              let w = 150, h = 50;
+              if (targetNode.data.contentWidth) w = targetNode.data.contentWidth + 20;
+              if (targetNode.data.contentHeight) h = targetNode.data.contentHeight + 20;
+              
+              targetNode.data = { ...targetNode.data, expanded: false };
+              targetNode.style = { 
+                  ...restStyle, 
+                  width: w,
+                  height: h,
+                  zIndex: -1
               };
+              
+              hideDescendants(nodeId);
           }
-          if (n.parentNode === nodeId) {
-              return { ...n, hidden: isExpanded }; 
+          updatedNodes = Array.from(nodeMap.values());
+      } else {
+          // Expanding
+          // 2. Set the target node to expanded first
+          const targetNode = nodeMap.get(nodeId);
+          if (targetNode) {
+              targetNode.data = { ...targetNode.data, expanded: true };
           }
-          return n;
-      });
+
+          // 3. Recursive function to calculate size and restore visibility
+          const updateSize = (nId: string): { w: number, h: number } => {
+              const n = nodeMap.get(nId);
+              if (!n) return { w: 0, h: 0 };
+              
+              if (n.type !== 'group') {
+                  return { 
+                      w: (n.style?.width as number) ?? n.width ?? 150,
+                      h: (n.style?.height as number) ?? n.height ?? 50
+                  };
+              }
+              
+              // It is a group
+              if (!n.data.expanded) {
+                  // Collapsed size logic
+                  let w = 150, h = 50;
+                  if (n.data.contentWidth) w = n.data.contentWidth + 20;
+                  if (n.data.contentHeight) h = n.data.contentHeight + 20;
+                  
+                  n.style = { ...n.style, width: w, height: h };
+                  return { w, h };
+              }
+              
+              // Expanded group
+              const children = Array.from(nodeMap.values()).filter(child => child.parentNode === nId);
+              
+              if (children.length > 0) {
+                  let maxX = 0, maxY = 0;
+                  children.forEach(child => {
+                      child.hidden = false; // Restore visibility for children of expanded group
+                      const size = updateSize(child.id); // Recurse
+                      maxX = Math.max(maxX, child.position.x + size.w);
+                      maxY = Math.max(maxY, child.position.y + size.h);
+                  });
+                  
+                  const padding = 40;
+                  // Match updateGroupSize logic: Math.max(150 + padding, childrenWidth)
+                  const newW = Math.max(190, maxX + padding);
+                  const newH = Math.max(90, maxY + padding);
+                  
+                  n.style = { ...n.style, width: newW, height: newH, zIndex: -1 };
+                  return { w: newW, h: newH };
+              } else {
+                  // Empty expanded group
+                  const newW = 300, newH = 300;
+                  n.style = { ...n.style, width: newW, height: newH, zIndex: -1 };
+                  return { w: newW, h: newH };
+              }
+          };
+          
+          // 4. Trigger update from the target node
+          updateSize(nodeId);
+          
+          updatedNodes = Array.from(nodeMap.values());
+      }
 
       // Overlap prevention when expanding
       if (!willCollapse) {
-          // Group position
-          const groupX = node.position.x;
-          const groupY = node.position.y;
-          
-          // Find nodes that are NOT children of this group and overlap with the expanded area
-          const overlappingNodes = state.nodes.filter(n => {
-              if (n.id === nodeId) return false;
-              if (n.parentNode === nodeId) return false; // Children are fine
-              
-              const nX = n.position.x;
-              const nY = n.position.y;
-              const nW = n.width || 150;
-              const nH = n.height || 50;
-              
-              return (
-                  groupX < nX + nW &&
-                  groupX + newWidth > nX &&
-                  groupY < nY + nH &&
-                  groupY + newHeight > nY
-              );
-          });
-          
-          if (overlappingNodes.length > 0) {
-              const shiftY = newHeight; // Shift by the new height
-              
-              updatedNodes = updatedNodes.map(n => {
-                  if (overlappingNodes.some(on => on.id === n.id)) {
-                      return {
-                          ...n,
-                          position: {
-                              ...n.position,
-                              y: n.position.y + shiftY
-                          }
-                      };
+          // Get the new size of the expanded group from the updated nodes
+          const expandedGroup = updatedNodes.find(n => n.id === nodeId);
+          const newWidth = Number(expandedGroup?.style?.width) || 300;
+          const newHeight = Number(expandedGroup?.style?.height) || 300;
+
+          // Helper to get absolute position
+          const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
+              let x = n.position.x;
+              let y = n.position.y;
+              let current = n;
+              while(current.parentNode) {
+                  const parent = allNodes.find(p => p.id === current.parentNode);
+                  if(parent) {
+                      x += parent.position.x;
+                      y += parent.position.y;
+                      current = parent;
+                  } else {
+                      break;
                   }
-                  return n;
+              }
+              return { x, y };
+          };
+
+          // Group absolute position
+          // Note: We use the current node's position. 
+          // If the group itself has a parent, we need its absolute position.
+          const groupNode = state.nodes.find(n => n.id === nodeId);
+          if (groupNode) {
+              const groupAbs = getAbsPos(groupNode, state.nodes);
+              
+              // Find nodes that are NOT descendants of this group and overlap with the expanded area
+              const overlappingNodes = state.nodes.filter(n => {
+                  if (n.id === nodeId) return false;
+                  
+                  // Check if n is a descendant of nodeId
+                  let p = n.parentNode;
+                  let isDescendant = false;
+                  while(p) {
+                      if (p === nodeId) {
+                          isDescendant = true;
+                          break;
+                      }
+                      const parent = state.nodes.find(pn => pn.id === p);
+                      p = parent ? parent.parentNode : undefined;
+                  }
+                  if (isDescendant) return false;
+
+                  // Check if n is an ancestor of nodeId (Prevent moving parent group)
+                  let currentParent = groupNode.parentNode;
+                  let isAncestor = false;
+                  while(currentParent) {
+                      if (currentParent === n.id) {
+                          isAncestor = true;
+                          break;
+                      }
+                      const parent = state.nodes.find(pn => pn.id === currentParent);
+                      currentParent = parent ? parent.parentNode : undefined;
+                  }
+                  if (isAncestor) return false;
+                  
+                  const nAbs = getAbsPos(n, state.nodes);
+                  const nW = n.width || 150;
+                  const nH = n.height || 50;
+                  
+                  return (
+                      groupAbs.x < nAbs.x + nW &&
+                      groupAbs.x + newWidth > nAbs.x &&
+                      groupAbs.y < nAbs.y + nH &&
+                      groupAbs.y + newHeight > nAbs.y
+                  );
               });
+              
+              // Filter out nodes whose parents are also moving to avoid double shifting
+              const rootsToMove = overlappingNodes.filter(n => {
+                  return !n.parentNode || !overlappingNodes.some(on => on.id === n.parentNode);
+              });
+              
+              if (rootsToMove.length > 0) {
+                  const shiftY = newHeight; // Shift by the new height
+                  
+                  updatedNodes = updatedNodes.map(n => {
+                      if (rootsToMove.some(rt => rt.id === n.id)) {
+                          return {
+                              ...n,
+                              position: {
+                                  ...n.position,
+                                  y: n.position.y + shiftY
+                              }
+                          };
+                      }
+                      return n;
+                  });
+              }
           }
       }
 
@@ -949,7 +1530,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
   groupNodes: (nodeIds: string[]) => {
       const state = get();
-      const nodesToGroup = state.nodes.filter(n => nodeIds.includes(n.id));
+      // Exclude sticky nodes from grouping
+      const nodesToGroup = state.nodes.filter(n => nodeIds.includes(n.id) && n.type !== 'sticky');
       if (nodesToGroup.length === 0) return;
 
       // Calculate bounding box
@@ -1006,17 +1588,15 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       if (!groupNode) return;
 
       const groupPos = groupNode.position;
-      
-      // Find children
-      // const children = state.nodes.filter(n => n.parentNode === groupId);
+      const newParentId = groupNode.parentNode;
       
       // Update children to remove parent and adjust position
       const updatedNodes = state.nodes.map(n => {
           if (n.parentNode === groupId) {
               return {
                   ...n,
-                  parentNode: undefined,
-                  extent: undefined,
+                  parentNode: newParentId,
+                  extent: newParentId ? 'parent' as 'parent' : undefined,
                   position: {
                       x: n.position.x + groupPos.x,
                       y: n.position.y + groupPos.y
@@ -1053,9 +1633,6 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // Update content size in data if provided
       let currentContentSize = contentSize;
       if (contentSize) {
-          // Only update data if changed to avoid unnecessary writes? 
-          // Actually we can just use the passed value for calculation and update data if needed.
-          // Let's update data if it's different so we persist it.
           if (groupNode.data.contentWidth !== contentSize.width || groupNode.data.contentHeight !== contentSize.height) {
              // We will update the node in the final set call
           }
@@ -1069,23 +1646,39 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       let newWidth = currentContentSize?.width || 150;
       let newHeight = currentContentSize?.height || 50;
       const padding = 40;
+      
+      let shiftX = 0;
+      let shiftY = 0;
 
       if (groupNode.data.expanded) {
-          const children = state.nodes.filter(n => n.parentNode === groupId);
+const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 'sticky');
           if (children.length > 0) {
               let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
               
               children.forEach(n => {
                   const nX = n.position.x;
                   const nY = n.position.y;
-                  const nW = n.width || 150;
-                  const nH = n.height || 50;
+                  const nW = (n.style?.width as number) ?? n.width ?? 150;
+                  const nH = (n.style?.height as number) ?? n.height ?? 50;
                   
                   minX = Math.min(minX, nX);
                   minY = Math.min(minY, nY);
                   maxX = Math.max(maxX, nX + nW);
                   maxY = Math.max(maxY, nY + nH);
               });
+
+              // Check for negative expansion (children moving left/up out of group)
+              // We add padding to ensure they are not right on the edge
+              if (minX < 20) {
+                  shiftX = 20 - minX;
+              }
+              if (minY < 50) { // More padding on top for header
+                  shiftY = 50 - minY;
+              }
+              
+              // Apply shift to max calculation
+              maxX += shiftX;
+              maxY += shiftY;
 
               const childrenWidth = maxX + padding;
               const childrenHeight = maxY + padding;
@@ -1094,13 +1687,12 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               newHeight = Math.max(newHeight + padding, childrenHeight);
           } else {
               // No children, just content + padding
-              // Ensure minimum size of 300x300 for empty groups
               newWidth = Math.max(newWidth + padding, 300);
               newHeight = Math.max(newHeight + padding, 300);
           }
       } else {
           // Collapsed: Content size + padding
-           newWidth += 20; // Smaller padding for collapsed
+           newWidth += 20;
            newHeight += 20;
       }
 
@@ -1111,11 +1703,217 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // Check if update is needed
       const styleChanged = groupNode.style?.width !== newWidth || groupNode.style?.height !== newHeight;
       const dataChanged = contentSize && (groupNode.data.contentWidth !== contentSize.width || groupNode.data.contentHeight !== contentSize.height);
+      const positionChanged = shiftX > 0 || shiftY > 0;
 
-      if (styleChanged || dataChanged) {
-          const updatedNodes = state.nodes.map(n => {
+      if (styleChanged || dataChanged || positionChanged) {
+          let updatedNodes = [...state.nodes];
+          
+          // Apply shifts if needed
+          if (positionChanged) {
+              updatedNodes = updatedNodes.map(n => {
+                  if (n.id === groupId) {
+                      return {
+                          ...n,
+                          position: {
+                              x: n.position.x - shiftX,
+                              y: n.position.y - shiftY
+                          }
+                      };
+                  }
+                  if (n.parentNode === groupId) {
+                      return {
+                          ...n,
+                          position: {
+                              x: n.position.x + shiftX,
+                              y: n.position.y + shiftY
+                          }
+                      };
+                  }
+                  return n;
+              });
+          }
+          
+          // Iterative Collision Resolution
+          let currentNodes = [...updatedNodes];
+          const queue: string[] = [groupId];
+          const MAX_ITERATIONS = 500;
+          let iterations = 0;
+
+          // Helper to get absolute position
+          const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
+              // Always calculate from relative positions because positionAbsolute might be stale
+              // during this simulation update loop.
+              let x = n.position.x;
+              let y = n.position.y;
+              let current = n;
+              while(current.parentNode) {
+                  const parent = allNodes.find(p => p.id === current.parentNode);
+                  if(parent) {
+                      x += parent.position.x;
+                      y += parent.position.y;
+                      current = parent;
+                  } else {
+                      break;
+                  }
+              }
+              return { x, y };
+          };
+
+          // Helper to check rect overlap
+          const checkRectOverlap = (r1: any, r2: any) => {
+              return (
+                  r1.x < r2.x + r2.width &&
+                  r1.x + r1.width > r2.x &&
+                  r1.y < r2.y + r2.height &&
+                  r1.y + r1.height > r2.y
+              );
+          };
+
+          while (queue.length > 0 && iterations < MAX_ITERATIONS) {
+              iterations++;
+              const pusherId = queue.shift()!;
+              // Allow re-visiting if pushed again? No, to prevent loops, maybe limit per node?
+              // But a node might need to move multiple times if pushed by different sources.
+              // Let's just rely on MAX_ITERATIONS for safety.
+              
+              const pusher = currentNodes.find(n => n.id === pusherId);
+              if (!pusher) continue;
+
+              const pusherAbs = getAbsPos(pusher, currentNodes);
+              let pusherW = (pusher.style?.width as number) || pusher.width || 150;
+              let pusherH = (pusher.style?.height as number) || pusher.height || 50;
+              
+              // Special case for the GroupNode being resized: use new dimensions
+              if (pusherId === groupId) {
+                  pusherW = newWidth;
+                  pusherH = newHeight;
+              }
+
+              const pusherRect = { x: pusherAbs.x, y: pusherAbs.y, width: pusherW, height: pusherH };
+              const pusherCenter = { x: pusherRect.x + pusherRect.width / 2, y: pusherRect.y + pusherRect.height / 2 };
+
+              // Find overlaps
+              const overlaps = currentNodes.filter(n => {
+                  if (n.id === pusherId) return false;
+                  if (n.type === 'sticky') return false;
+                  
+                  // Exclude descendants (they move with parent)
+                  let p = n.parentNode;
+                  while(p) {
+                      if (p === pusherId) return false;
+                      const parent = currentNodes.find(pn => pn.id === p);
+                      p = parent ? parent.parentNode : undefined;
+                  }
+
+                  // Exclude ancestors (parent groups don't move for children)
+                  let currentParent = pusher.parentNode;
+                  while(currentParent) {
+                      if (currentParent === n.id) return false;
+                      const parent = currentNodes.find(pn => pn.id === currentParent);
+                      currentParent = parent ? parent.parentNode : undefined;
+                  }
+
+                  const nAbs = getAbsPos(n, currentNodes);
+                  const nW = (n.style?.width as number) || n.width || 150;
+                  const nH = (n.style?.height as number) || n.height || 50;
+                  
+                  return checkRectOverlap(pusherRect, { x: nAbs.x, y: nAbs.y, width: nW, height: nH });
+              });
+
+              overlaps.forEach(n => {
+                  const nAbs = getAbsPos(n, currentNodes);
+                  const nW = (n.style?.width as number) || n.width || 150;
+                  const nH = (n.style?.height as number) || n.height || 50;
+                  const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
+
+                  let dx = 0;
+                  let dy = 0;
+
+                  // Determine shift direction based on center relative position
+                  // Prefer shifting Down or Right
+                  const diffX = nCenter.x - pusherCenter.x;
+                  const diffY = nCenter.y - pusherCenter.y;
+
+                  // Calculate minimum shift needed
+                  const overlapX = (pusherRect.width / 2 + nW / 2) - Math.abs(diffX);
+                  const overlapY = (pusherRect.height / 2 + nH / 2) - Math.abs(diffY);
+
+                  if (overlapX > 0 && overlapY > 0) {
+                       // Shift in the direction of least overlap, favoring Down/Right
+                       if (overlapY < overlapX) {
+                           // Shift Y
+                           if (diffY > 0) { // Below
+                               dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+                           } else {
+                               // Above - normally we don't shift up for expansion, but if overlap exists...
+                               // Ignore for now to prevent weird jumps, or shift down anyway?
+                               // Let's only shift if it was "originally" below or if we are forced.
+                               // For expansion, we usually only push out.
+                               if (pusherId === groupId) {
+                                   // If it's the expanding group, strictly push away
+                                   dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+                               }
+                           }
+                       } else {
+                           // Shift X
+                           if (diffX > 0) { // Right
+                               dx = (pusherRect.x + pusherRect.width + 20) - nAbs.x;
+                           } else {
+                               // Left
+                               if (pusherId === groupId) {
+                                   dx = (pusherRect.x + pusherRect.width + 20) - nAbs.x;
+                               }
+                           }
+                       }
+                  }
+                  
+                  // Force check: if originally below/right logic from previous step is preferred?
+                  // The previous logic used "original position". Here we use dynamic.
+                  // Let's stick to "Push Down or Right" if ambiguous.
+                  if (dx === 0 && dy === 0) {
+                      // Fallback if centers are aligned or something
+                      dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+                  }
+
+                  if (dx !== 0 || dy !== 0) {
+                      // Determine affected nodes (pushee + descendants) to move their stickies
+                      const getDescendants = (parentId: string, allNodes: ScenarioNode[]): string[] => {
+                          const children = allNodes.filter(n => n.parentNode === parentId);
+                          let ids = children.map(c => c.id);
+                          children.forEach(c => {
+                              ids = [...ids, ...getDescendants(c.id, allNodes)];
+                          });
+                          return ids;
+                      };
+                      const affectedIds = new Set([n.id, ...getDescendants(n.id, currentNodes)]);
+
+                      currentNodes = currentNodes.map(node => {
+                          if (node.id === n.id) {
+                              return {
+                                  ...node,
+                                  position: { x: node.position.x + dx, y: node.position.y + dy }
+                              };
+                          }
+                          // Move stickies attached to the pushed node OR its descendants
+                          if (node.type === 'sticky' && node.data.targetNodeId && affectedIds.has(node.data.targetNodeId)) {
+                               return {
+                                  ...node,
+                                  position: { x: node.position.x + dx, y: node.position.y + dy }
+                              };
+                          }
+                          return node;
+                      });
+                      if (!queue.includes(n.id)) {
+                          queue.push(n.id);
+                      }
+                  }
+              });
+          }
+          
+          updatedNodes = currentNodes;
+
+          updatedNodes = updatedNodes.map(n => {
               if (n.id === groupId) {
-                  // Explicitly remove backgroundColor to fix issue with persisting styles
                   const { backgroundColor, ...restStyle } = n.style || {};
                   return {
                       ...n,
@@ -1126,6 +1924,186 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               return n;
           });
           set({ nodes: updatedNodes });
+
+          // Recursively update parent group size
+          if (groupNode.parentNode) {
+              get().updateGroupSize(groupNode.parentNode);
+          }
+      }
+  },
+  
+  bringNodeToFront: (nodeId: string) => {
+      const state = get();
+      
+      // 1. Identify all nodes to move (target + descendants)
+      const nodesToMove = new Set<string>();
+      const queue = [nodeId];
+      
+      while(queue.length > 0) {
+          const id = queue.shift()!;
+          if (!nodesToMove.has(id)) {
+              nodesToMove.add(id);
+              // Find children
+              const children = state.nodes.filter(n => n.parentNode === id);
+              children.forEach(c => queue.push(c.id));
+          }
+      }
+      
+      // 2. Split nodes into "stay" and "move"
+      // We preserve the relative order of the moving nodes to maintain existing parent-child layering
+      const remainingNodes: ScenarioNode[] = [];
+      const movingNodes: ScenarioNode[] = [];
+      
+      state.nodes.forEach(n => {
+          if (nodesToMove.has(n.id)) {
+              movingNodes.push(n);
+          } else {
+              remainingNodes.push(n);
+          }
+      });
+      
+      // Optimization: Check if already at front
+      const len = movingNodes.length;
+      const lastNodes = state.nodes.slice(-len);
+      const isAlreadyAtFront = lastNodes.length === len && lastNodes.every((n, i) => n.id === movingNodes[i].id);
+      
+      if (isAlreadyAtFront) return;
+
+      set({ nodes: [...remainingNodes, ...movingNodes] });
+  },
+
+  resolveGroupOverlaps: (nodeId: string) => {
+      const state = get();
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (!node || node.type !== 'group') return;
+
+      let currentNodes = [...state.nodes];
+      const queue: string[] = [nodeId];
+      const MAX_ITERATIONS = 500;
+      let iterations = 0;
+      let hasChanges = false;
+
+      // Helper to get absolute position
+      const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
+          // Always calculate from relative positions
+          let x = n.position.x;
+          let y = n.position.y;
+          let current = n;
+          while(current.parentNode) {
+              const parent = allNodes.find(p => p.id === current.parentNode);
+              if(parent) {
+                  x += parent.position.x;
+                  y += parent.position.y;
+                  current = parent;
+              } else {
+                  break;
+              }
+          }
+          return { x, y };
+      };
+
+      // Helper to check rect overlap
+      const checkRectOverlap = (r1: any, r2: any) => {
+          return (
+              r1.x < r2.x + r2.width &&
+              r1.x + r1.width > r2.x &&
+              r1.y < r2.y + r2.height &&
+              r1.y + r1.height > r2.y
+          );
+      };
+
+      while (queue.length > 0 && iterations < MAX_ITERATIONS) {
+          iterations++;
+          const pusherId = queue.shift()!;
+          const pusher = currentNodes.find(n => n.id === pusherId);
+          if (!pusher) continue;
+
+          const pusherAbs = getAbsPos(pusher, currentNodes);
+          const pusherW = (pusher.style?.width as number) || pusher.width || 150;
+          const pusherH = (pusher.style?.height as number) || pusher.height || 50;
+          
+          const pusherRect = { x: pusherAbs.x, y: pusherAbs.y, width: pusherW, height: pusherH };
+          const pusherCenter = { x: pusherRect.x + pusherRect.width / 2, y: pusherRect.y + pusherRect.height / 2 };
+
+          // Find overlaps with SIBLING GROUPS only
+          const overlaps = currentNodes.filter(n => {
+              if (n.id === pusherId) return false;
+              if (n.type !== 'group') return false; 
+              if (n.parentNode !== pusher.parentNode) return false;
+
+              const nAbs = getAbsPos(n, currentNodes);
+              const nW = (n.style?.width as number) || n.width || 150;
+              const nH = (n.style?.height as number) || n.height || 50;
+              
+              return checkRectOverlap(pusherRect, { x: nAbs.x, y: nAbs.y, width: nW, height: nH });
+          });
+
+          overlaps.forEach(n => {
+              const nAbs = getAbsPos(n, currentNodes);
+              const nW = (n.style?.width as number) || n.width || 150;
+              const nH = (n.style?.height as number) || n.height || 50;
+              const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
+
+              let dx = 0;
+              let dy = 0;
+
+              // Determine shift direction
+              const diffX = nCenter.x - pusherCenter.x;
+              const diffY = nCenter.y - pusherCenter.y;
+
+              const overlapX = (pusherRect.width / 2 + nW / 2) - Math.abs(diffX);
+              const overlapY = (pusherRect.height / 2 + nH / 2) - Math.abs(diffY);
+
+              if (overlapX > 0 && overlapY > 0) {
+                   if (overlapY < overlapX) {
+                       // Shift Y
+                       if (diffY > 0) { // Below
+                           dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+                       } else {
+                           // Above - force push down if pusher is the original mover?
+                           // Or push up? Let's push away.
+                           dy = -((nAbs.y + nH) - (pusherRect.y - 20));
+                       }
+                   } else {
+                       // Shift X
+                       if (diffX > 0) { // Right
+                           dx = (pusherRect.x + pusherRect.width + 20) - nAbs.x;
+                       } else {
+                           // Left
+                           dx = -((nAbs.x + nW) - (pusherRect.x - 20));
+                       }
+                   }
+              }
+              
+              // Fallback
+              if (dx === 0 && dy === 0) {
+                  dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
+              }
+
+              if (dx !== 0 || dy !== 0) {
+                  currentNodes = currentNodes.map(node => {
+                      if (node.id === n.id) {
+                          return {
+                              ...node,
+                              position: { x: node.position.x + dx, y: node.position.y + dy }
+                          };
+                      }
+                      return node;
+                  });
+                  if (!queue.includes(n.id)) {
+                      queue.push(n.id);
+                  }
+                  hasChanges = true;
+              }
+          });
+      }
+
+      if (hasChanges) {
+          set({ nodes: currentNodes });
+          // If we moved things inside a group, update parent size
+          if (node.parentNode) {
+              get().updateGroupSize(node.parentNode);
+          }
       }
   }
 }));

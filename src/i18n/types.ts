@@ -36,17 +36,32 @@ export type TranslationKeys = {
     exportSimple: string;
     exportMarkdown: string;
     loadSample: string;
+    loadStory: string;
+    loadNestedGroup: string;
     confirmLoadSample: string;
+    bulkStickyOperations: string;
+    showAllStickies: string;
+    hideAllStickies: string;
+    deleteAllStickies: string;
+    showAllFreeStickies: string;
+    hideAllFreeStickies: string;
+    deleteAllFreeStickies: string;
+    showAllNodeStickies: string;
+    hideAllNodeStickies: string;
+    deleteAllNodeStickies: string;
+    bulkRevealOperations: string;
+    revealAllNodes: string;
+    unrevealAllNodes: string;
   };
   nodes: {
     event: string;
-    information: string;
     element: string;
     memo: string;
     variable: string;
     condition: string;
     branch: string;
     group: string;
+    jump: string;
     new: string;
   };
   properties: {
@@ -75,6 +90,8 @@ export type TranslationKeys = {
     addCase: string;
     selectItem: string;
     selectVariable: string;
+    jumpTarget: string;
+    noNodesAvailable: string;
   };
   gameState: {
     inventory: string;
@@ -97,6 +114,43 @@ export type TranslationKeys = {
     string: string;
     noVariables: string;
   };
+  characters: {
+    title: string;
+    add: string;
+    name: string;
+    reading: string;
+    description: string;
+    abilities: string;
+    skills: string;
+    note: string;
+    type: string;
+    types: {
+      Person: string;
+      Participant: string;
+      Monster: string;
+      Other: string;
+    };
+    noCharacters: string;
+  };
+  resources: {
+    title: string;
+    add: string;
+    name: string;
+    reading: string;
+    description: string;
+    cost: string;
+    effect: string;
+    note: string;
+    type: string;
+    types: {
+      Item: string;
+      Equipment: string;
+      Knowledge: string;
+      Skill: string;
+      Status: string;
+    };
+    noResources: string;
+  };
   manual: {
     title: string;
     introduction: string;
@@ -110,6 +164,12 @@ export type TranslationKeys = {
     infoNodeDesc: string;
     branchNodeDesc: string;
     groupNodeDesc: string;
+    jumpNodeDesc: string;
+    memoNodeDesc: string;
+    variableNodeDesc: string;
+    resourceNodeDesc: string;
+    characterNodeDesc: string;
+    stickyNodeDesc: string;
     controls: string;
     controlsDesc1: string;
     controlsDesc2: string;
@@ -123,8 +183,6 @@ export type TranslationKeys = {
     playModeTitle: string;
     variablesTitle: string;
     variablesDesc: string;
-    tipsTitle: string;
-    tipsDesc: string;
     shortcutsTitle: string;
     shortcutsDesc: string;
   };
@@ -143,5 +201,19 @@ export type TranslationKeys = {
     value: string;
     condition: string;
     cases: string;
+    detachFromGroup: string;
+    addSticky: string;
+    addFreeSticky: string;
+    toggleStickies: string;
+    deleteStickies: string;
+    deleteSticky: string;
+    hideSticky: string;
+    showStickies: string; 
+    hideStickies: string;
+  };
+  mobileBlocker: {
+    title: string;
+    message: string;
+    recommendation: string;
   };
 };

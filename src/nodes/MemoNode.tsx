@@ -11,10 +11,16 @@ const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   return (
     <div className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] min-h-[100px] relative transition-all duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
-      border-yellow-200 dark:border-yellow-800
-      bg-yellow-50 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-100
+      border-slate-200 dark:border-slate-700
+      bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100
       hover:shadow-lg
     `}>
+
+      {data.hasSticky && (
+          <div className="absolute -top-5 -right-5 w-7 h-7 bg-yellow-400 text-yellow-900 rounded-sm flex items-center justify-center shadow-md border border-yellow-600 rotate-6" title="Has Sticky Notes">
+            <StickyNote size={14} />
+          </div>
+      )}
       {data.revealed && (
           <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm z-10 border-2 border-background">
               <span className="text-white font-bold text-xs">✓</span>
@@ -22,13 +28,22 @@ const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       )}
       <div className="flex items-center mb-2">
         <StickyNote size={16} className="mr-2 opacity-70" />
-        <div className="font-bold text-sm">{substituteVariables(data.label, gameState.variables)}</div>
+        <div className="font-bold text-base">{substituteVariables(data.label, gameState.variables)}</div>
       </div>
-      <div className="text-xs whitespace-pre-wrap opacity-90 leading-relaxed">
+      <div className="text-sm whitespace-pre-wrap opacity-90 leading-relaxed">
         {substituteVariables(data.description || '', gameState.variables)}
       </div>
-      <Handle type="target" position={Position.Top} className="!bg-yellow-400" />
-      <Handle type="source" position={Position.Bottom} className="!bg-yellow-400" />
+      <Handle type="target" position={Position.Top} className="!bg-slate-400" />
+      <Handle type="source" position={Position.Bottom} className="!bg-slate-400" />
+      
+      <Handle 
+          type="source" 
+          id="sticky-origin" 
+          position={Position.Right} 
+          className="!w-1 !h-1 !bg-transparent !border-none !min-w-0 !min-h-0" 
+          style={{ top: -6, right: -6, position: 'absolute' }} 
+          isConnectable={false} 
+      />
     </div>
   );
 };

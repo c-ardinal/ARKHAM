@@ -1,26 +1,216 @@
 import { useScenarioStore } from '../store/scenarioStore';
-import type { ChangeEvent } from 'react';
+import { useEffect, type ChangeEvent } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
+import { substituteVariables } from '../utils/textUtils';
+import { INPUT_CLASS, LABEL_CLASS, ERROR_MSG_CLASS as ERROR_CLASS } from '../styles/common';
 
 interface PropertyPanelProps {
   width: number;
 }
 
 export const PropertyPanel = ({ width }: PropertyPanelProps) => {
-  const { nodes, selectedNodeId, updateNodeData } = useScenarioStore();
+  const { 
+      nodes, selectedNodeId, updateNodeData, gameState,
+      characters, resources, updateCharacter, updateResource
+  } = useScenarioStore();
   const { t } = useTranslation();
   
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  // Resolve selected item
+  let selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const selectedCharacter = !selectedNode 
+      ? characters.find(c => c.id === selectedNodeId)
+      : (selectedNode.type === 'character' ? characters.find(c => c.id === selectedNode.data.referenceId) : null);
+  const selectedResource = !selectedNode
+      ? resources.find(r => r.id === selectedNodeId)
+      : (selectedNode.type === 'resource' ? resources.find(r => r.id === selectedNode.data.referenceId) : null);
 
+
+
+  const inputClass = INPUT_CLASS;
+  const labelClass = LABEL_CLASS;
+
+  // Auto-select resource if available and not set (User Requirement)
+  useEffect(() => {
+      if ((selectedNode?.type === 'element' || selectedNode?.type === 'information') && 
+          !selectedNode.data.referenceId && 
+          resources.length > 0) {
+          updateNodeData(selectedNode.id, { 
+             referenceId: resources[0].id,
+             infoValue: resources[0].name 
+         });
+      }
+  }, [selectedNode?.id, resources.length, selectedNode?.data.referenceId]);
+
+
+  // --- Character Editing ---
+  if (selectedCharacter) {
+       const handleChange = (name: string, value: string) => {
+           updateCharacter(selectedCharacter.id, { [name]: value });
+       };
+
+       return (
+            <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+                <div className="p-4 border-b border-border">
+                    <h2 className="text-lg font-semibold text-card-foreground">{t('characters.title')}</h2>
+                    <div className="text-xs mt-1 text-muted-foreground">ID: {selectedCharacter.id}</div>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto space-y-4">
+                    <div>
+                        <label className={labelClass}>{t('characters.name')}</label>
+                        <input
+                            value={selectedCharacter.name}
+                            onChange={(e) => handleChange('name', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t('characters.reading')}</label>
+                        <input
+                            value={selectedCharacter.reading || ''}
+                            onChange={(e) => handleChange('reading', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t('characters.type')}</label>
+                         <select
+                            value={selectedCharacter.type}
+                            onChange={(e) => handleChange('type', e.target.value)}
+                            className={inputClass}
+                        >
+                            {Object.entries((t('characters.types') as any) || {}).map(([key, label]) => (
+                                <option key={key} value={key}>{label as string}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t('characters.description')}</label>
+                         <VariableSuggestInput
+                            multiline
+                            value={selectedCharacter.description || ''}
+                            onChange={(val) => handleChange('description', val)}
+                            className={`${inputClass} min-h-[80px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t('characters.abilities')}</label>
+                        <textarea
+                            value={selectedCharacter.abilities || ''}
+                            onChange={(e) => handleChange('abilities', e.target.value)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t('characters.skills')}</label>
+                        <textarea
+                            value={selectedCharacter.skills || ''}
+                            onChange={(e) => handleChange('skills', e.target.value)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t('characters.note')}</label>
+                        <textarea
+                            value={selectedCharacter.note || ''}
+                            onChange={(e) => handleChange('note', e.target.value)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                </div>
+            </aside>
+       );
+  }
+
+  // --- Resource Editing ---
+  if (selectedResource) {
+       const handleChange = (name: string, value: string) => {
+           updateResource(selectedResource.id, { [name]: value });
+       };
+
+       return (
+            <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+                <div className="p-4 border-b border-border">
+                    <h2 className="text-lg font-semibold text-card-foreground">{t('resources.title')}</h2>
+                    <div className="text-xs mt-1 text-muted-foreground">ID: {selectedResource.id}</div>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto space-y-4">
+                    <div>
+                        <label className={labelClass}>{t('resources.name')}</label>
+                        <input
+                            value={selectedResource.name}
+                            onChange={(e) => handleChange('name', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t('resources.reading')}</label>
+                        <input
+                            value={selectedResource.reading || ''}
+                            onChange={(e) => handleChange('reading', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t('resources.type')}</label>
+                         <select
+                            value={selectedResource.type}
+                            onChange={(e) => handleChange('type', e.target.value)}
+                            className={inputClass}
+                        >
+                            {Object.entries((t('resources.types') as any) || {}).map(([key, label]) => (
+                                <option key={key} value={key}>{label as string}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className={labelClass}>{t('resources.description')}</label>
+                         <VariableSuggestInput
+                            multiline
+                            value={selectedResource.description || ''}
+                            onChange={(val) => handleChange('description', val)}
+                            className={`${inputClass} min-h-[80px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t('resources.cost')}</label>
+                        <input
+                            value={selectedResource.cost || ''}
+                            onChange={(e) => handleChange('cost', e.target.value)}
+                            className={inputClass}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t('resources.effect')}</label>
+                        <VariableSuggestInput
+                            multiline
+                            value={selectedResource.effect || ''}
+                            onChange={(val) => handleChange('effect', val)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                     <div>
+                        <label className={labelClass}>{t('resources.note')}</label>
+                        <textarea
+                            value={selectedResource.note || ''}
+                            onChange={(e) => handleChange('note', e.target.value)}
+                            className={`${inputClass} min-h-[60px]`}
+                        />
+                    </div>
+                </div>
+            </aside>
+       );
+  }
+
+  // --- Standard Node Editing ---
   if (!selectedNode) {
     return (
       <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
         <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-card-foreground">{t.common.properties}</h2>
+          <h2 className="text-lg font-semibold text-card-foreground">{t('common.properties')}</h2>
         </div>
         <div className="p-4 flex-1 overflow-y-auto text-muted-foreground">
-          <p>{t.properties.selectNode}</p>
+          <p>{t('properties.selectNode')}</p>
         </div>
       </aside>
     );
@@ -31,24 +221,25 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
     updateNodeData(selectedNode.id, { [name]: value });
   };
 
+  /* Existing handleFieldChange */
   const handleFieldChange = (name: string, value: string) => {
     updateNodeData(selectedNode.id, { [name]: value });
   };
 
-  const inputClass = "w-full border rounded px-3 py-2 focus:outline-none focus:border-primary bg-background border-input text-foreground";
-  const labelClass = "block text-sm font-medium mb-1 text-foreground";
+
 
   return (
     <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+
       <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold text-card-foreground">{t.common.properties}</h2>
+        <h2 className="text-lg font-semibold text-card-foreground">{t('common.properties')}</h2>
         <div className="text-xs mt-1 text-muted-foreground">ID: {selectedNode.id}</div>
         <div className="text-xs text-muted-foreground">Type: {selectedNode.type}</div>
       </div>
       <div className="p-4 flex-1 overflow-y-auto">
         <div className="space-y-4">
           <div>
-            <label className={labelClass}>{t.properties.label}</label>
+            <label className={labelClass}>{t('properties.label')}</label>
             <VariableSuggestInput
               value={selectedNode.data.label}
               onChange={(val) => handleFieldChange('label', val)}
@@ -57,75 +248,64 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
           </div>
 
           <div>
-            <label className={labelClass}>{t.properties.description}</label>
+            <label className={labelClass}>{t('properties.description')}</label>
             <VariableSuggestInput
               multiline
               value={selectedNode.data.description || ''}
               onChange={(val) => handleFieldChange('description', val)}
-              className={`${inputClass} min-h-[80px]`}
+              className={`${inputClass} ${selectedNode.type === 'sticky' ? 'min-h-[400px]' : 'min-h-[80px]'}`}
             />
           </div>
 
           {(selectedNode.type === 'information' || selectedNode.type === 'element') && (
             <>
+              {/* InfoType removed as per request */}
+              
               <div>
-                <label className={labelClass}>{t.properties.infoType}</label>
-                <select
-                  name="infoType"
-                  value={selectedNode.data.infoType || 'knowledge'}
-                  onChange={handleChange}
-                  className={inputClass}
-                >
-                  <option value="knowledge">{t.gameState.knowledge}</option>
-                  <option value="item">{t.gameState.inventory}</option>
-                  <option value="skill">{t.gameState.skills}</option>
-                  <option value="stat">{t.gameState.stats}</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>{t.properties.actionType}</label>
+                <label className={labelClass}>{t('properties.actionType')}</label>
                 <select
                   name="actionType"
                   value={selectedNode.data.actionType || 'obtain'}
                   onChange={handleChange}
                   className={inputClass}
                 >
-                  <option value="obtain">{t.properties.actionTypeObtain}</option>
-                  <option value="consume">{t.properties.actionTypeConsume}</option>
+                  <option value="obtain">{t('properties.actionTypeObtain')}</option>
+                  <option value="consume">{t('properties.actionTypeConsume')}</option>
                 </select>
               </div>
+
               <div>
-                <label className={labelClass}>{t.properties.operationTarget}</label>
-                {selectedNode.data.actionType === 'consume' ? (
+                <label className={labelClass}>{t('properties.operationTarget')}</label>
+                {resources.length === 0 ? (
+                   <div className={ERROR_CLASS}>
+                       {t('resources.noResources') || "Elements not defined"}
+                   </div>
+                ) : (
                     <select
-                        value={selectedNode.data.infoValue || ''}
-                        onChange={(e) => handleFieldChange('infoValue', e.target.value)}
+                        value={selectedNode.data.referenceId || ''}
+                        onChange={(e) => {
+                             const selectedId = e.target.value;
+                             const resource = resources.find(r => r.id === selectedId);
+                             // Update referenceId AND infoValue (for backward compatibility or display)
+                             updateNodeData(selectedNode.id, { 
+                                 referenceId: selectedId,
+                                 infoValue: resource?.name || ''
+                             });
+                        }}
                         className={inputClass}
                     >
-                        <option value="">{t.properties.selectItem}</option>
-                        {Array.from(new Set(
-                            nodes
-                                .filter(n => 
-                                    (n.type === 'element' || n.type === 'information') && 
-                                    n.data.infoType === (selectedNode.data.infoType || 'knowledge') &&
-                                    n.data.actionType !== 'consume' // Only show items that are obtained elsewhere
-                                )
-                                .map(n => n.data.infoValue)
-                                .filter(Boolean)
-                        )).map((val) => (
-                            <option key={val} value={val}>{val}</option>
+
+                        {resources.map((r) => (
+                            <option key={r.id} value={r.id}>
+                                {r.name} ({t(`resources.types.${r.type}` as any) || r.type})
+                            </option>
                         ))}
                     </select>
-                ) : (
-                    <VariableSuggestInput
-                        value={selectedNode.data.infoValue || ''}
-                        onChange={(val) => handleFieldChange('infoValue', val)}
-                        className={inputClass}
-                    />
                 )}
               </div>
+
               <div>
-                <label className={labelClass}>{t.properties.operationQuantity}</label>
+                <label className={labelClass}>{t('properties.operationQuantity')}</label>
                 <input
                   type="number"
                   name="quantity"
@@ -140,22 +320,25 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
           {selectedNode.type === 'variable' && (
               <>
                 <div>
-                    <label className={labelClass}>{t.properties.targetVariable}</label>
-                    <select
-                        value={selectedNode.data.targetVariable || ''}
-                        onChange={(e) => handleFieldChange('targetVariable', e.target.value)}
-                        className={inputClass}
-                    >
-                        {Object.keys(useScenarioStore.getState().gameState.variables).length === 0 && (
-                             <option value="" disabled>{t.variables.noVariables}</option>
-                        )}
-                        {Object.keys(useScenarioStore.getState().gameState.variables).map((v) => (
-                            <option key={v} value={v}>{v}</option>
-                        ))}
-                    </select>
+                    <label className={labelClass}>{t('properties.targetVariable')}</label>
+                    {Object.keys(gameState.variables).length === 0 ? (
+                       <div className={ERROR_CLASS}>
+                           {t('variables.noVariables') || "No variables defined"}
+                       </div>
+                    ) : (
+                        <select
+                            value={selectedNode.data.targetVariable || ''}
+                            onChange={(e) => handleFieldChange('targetVariable', e.target.value)}
+                            className={inputClass}
+                        >
+                            {Object.keys(gameState.variables).map((v) => (
+                                <option key={v} value={v}>{v}</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
                 <div>
-                    <label className={labelClass}>{t.properties.assignmentValue}</label>
+                    <label className={labelClass}>{t('properties.assignmentValue')}</label>
                     {(() => {
                         const targetVarName = selectedNode.data.targetVariable;
                         const variables = useScenarioStore.getState().gameState.variables;
@@ -201,7 +384,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
           {selectedNode.type === 'branch' && (
             <>
               <div>
-                <label className={labelClass}>{t.properties.branchType}</label>
+                <label className={labelClass}>{t('properties.branchType')}</label>
                 <select
                   name="branchType"
                   value={selectedNode.data.branchType || 'if_else'}
@@ -214,14 +397,14 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
               </div>
               <div>
                 <label className={labelClass}>
-                    {t.properties.checkTarget}
+                    {t('properties.checkTarget')}
                 </label>
                 {selectedNode.data.branchType === 'switch' ? (
                     <VariableSuggestInput
                         value={selectedNode.data.conditionValue || selectedNode.data.conditionVariable || ''}
                         onChange={(val) => handleFieldChange('conditionValue', val)}
                         className={inputClass}
-                        placeholder={t.properties.selectVariable}
+                        placeholder={t('properties.selectVariable')}
                     />
                 ) : (
                     <VariableSuggestInput
@@ -286,8 +469,34 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                     onChange={(e) => updateNodeData(selectedNode.id, { isStart: e.target.checked })}
                     className="w-4 h-4"
                 />
-                <label className={labelClass}>{t.properties.isStartNode}</label>
+                <label className={labelClass}>{t('properties.isStartNode')}</label>
              </div>
+          )}
+
+          {selectedNode.type === 'jump' && (
+              <div>
+                  <label className={labelClass}>{t('properties.jumpTarget')}</label>
+                  {nodes.filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource').length === 0 ? (
+                       <div className={ERROR_CLASS}>
+                           {t('properties.noNodesAvailable') || "No jump targets available"}
+                       </div>
+                  ) : (
+                      <select
+                          value={selectedNode.data.jumpTarget || ''}
+                          onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value })}
+                          className={inputClass}
+                      >
+                          {nodes
+                              .filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource')
+                              .map(n => (
+                                  <option key={n.id} value={n.id}>
+                                      {substituteVariables(n.data.label, gameState.variables)} ({n.type})
+                                  </option>
+                              ))
+                          }
+                      </select>
+                  )}
+              </div>
           )}
         </div>
       </div>
