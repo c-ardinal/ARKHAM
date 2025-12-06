@@ -46,7 +46,7 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
 
   return (
     <div className={`
-      relative min-w-[200px] bg-card text-card-foreground rounded-lg border-2 shadow-sm
+      relative min-w-[200px] max-w-[60ch] bg-card text-card-foreground rounded-lg border-2 shadow-sm
       transition-colors duration-200
       ${selected ? `border-primary ring-2 ${getBorderColor(resource.type)}` : 'border-border'}
     `}>
@@ -71,17 +71,17 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       {/* Content Preview */}
       <div className="p-3 text-xs space-y-1">
           {resource.cost && (
-              <div className="text-muted-foreground">
+              <div className="text-muted-foreground whitespace-pre-wrap break-words">
                   <span className="font-semibold">{t('resources.cost')}:</span> {resource.cost}
               </div>
           )}
            {resource.effect && (
-              <div className="text-muted-foreground">
+              <div className="text-muted-foreground whitespace-pre-wrap break-words">
                   <span className="font-semibold">{t('resources.effect')}:</span> {resource.effect}
               </div>
           )}
           {resource.description && (
-              <div className="line-clamp-2 text-muted-foreground border-t border-border/50 pt-1 mt-1">
+              <div className="whitespace-pre-wrap break-words text-muted-foreground border-t border-border/50 pt-1 mt-1">
                   {resource.description}
               </div>
           )}

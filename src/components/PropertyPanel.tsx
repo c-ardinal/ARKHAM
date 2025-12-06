@@ -1,5 +1,5 @@
 import { useScenarioStore } from '../store/scenarioStore';
-import { useEffect, type ChangeEvent } from 'react';
+import React, { useEffect, type ChangeEvent } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { substituteVariables } from '../utils/textUtils';
@@ -9,7 +9,7 @@ interface PropertyPanelProps {
   width: number;
 }
 
-export const PropertyPanel = ({ width }: PropertyPanelProps) => {
+export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPanelProps>(({ width }, ref) => {
   const { 
       nodes, selectedNodeId, updateNodeData, gameState,
       characters, resources, updateCharacter, updateResource
@@ -50,7 +50,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
        };
 
        return (
-            <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+            <aside ref={ref} className="border-l flex flex-col bg-card border-border" style={{ width }}>
                 <div className="p-4 border-b border-border">
                     <h2 className="text-lg font-semibold text-card-foreground">{t('characters.title')}</h2>
                     <div className="text-xs mt-1 text-muted-foreground">ID: {selectedCharacter.id}</div>
@@ -129,7 +129,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
        };
 
        return (
-            <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+            <aside ref={ref} className="border-l flex flex-col bg-card border-border" style={{ width }}>
                 <div className="p-4 border-b border-border">
                     <h2 className="text-lg font-semibold text-card-foreground">{t('resources.title')}</h2>
                     <div className="text-xs mt-1 text-muted-foreground">ID: {selectedResource.id}</div>
@@ -205,7 +205,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
   // --- Standard Node Editing ---
   if (!selectedNode) {
     return (
-      <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+      <aside ref={ref} className="border-l flex flex-col bg-card border-border" style={{ width }}>
         <div className="p-4 border-b border-border">
           <h2 className="text-lg font-semibold text-card-foreground">{t('common.properties')}</h2>
         </div>
@@ -229,7 +229,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
 
 
   return (
-    <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+    <aside ref={ref} className="border-l flex flex-col bg-card border-border" style={{ width }}>
 
       <div className="p-4 border-b border-border">
         <h2 className="text-lg font-semibold text-card-foreground">{t('common.properties')}</h2>
@@ -502,4 +502,4 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
       </div>
     </aside>
   );
-};
+}));

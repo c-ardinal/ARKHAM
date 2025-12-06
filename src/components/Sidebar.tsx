@@ -14,8 +14,8 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
-  const { mode, gameState } = useScenarioStore();
+export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({ width, isOpen, onToggle }, ref) => {
+  const { mode, gameState, setSelectedNode } = useScenarioStore();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'nodes' | 'characters' | 'resources' | 'variables'>('nodes');
 
@@ -26,7 +26,7 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
 
   if (!isOpen) {
       return (
-          <aside className="border-r flex flex-col items-center bg-card border-border" style={{ width: 50 }}>
+          <aside ref={ref} className="border-r flex flex-col items-center bg-card border-border" style={{ width: 50 }}>
               <div className="p-2 border-b border-border w-full flex justify-center items-center">
                   <div className="h-[34px] flex items-center justify-center">
                     <button onClick={onToggle} className="p-1 rounded hover:bg-accent hover:text-accent-foreground text-muted-foreground" title="Expand">
@@ -94,6 +94,7 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
   if (mode === 'play') {
     return (
       <aside 
+        ref={ref}
         className="border-r flex flex-col bg-card border-border"
         style={{ width }}
       >
@@ -232,8 +233,15 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
 
   return (
     <aside 
-        className="border-r flex flex-col bg-card border-border"
-        style={{ width }}
+        ref={ref}
+        className={`bg-card border-r border-border flex flex-col transition-all duration-300 ${isOpen ? '' : '-ml-[100%]'}`}
+        style={{ width: isOpen ? width : 0 }}
+        onClick={(e) => {
+             // Only deselect if clicking the sidebar background itself, not its children
+             if (e.target === e.currentTarget) {
+                 setSelectedNode(null);
+             }
+        }}
     >
       <div className="p-2 border-b flex justify-between items-center border-border bg-muted/40s">
         {/* Tabs */}
@@ -341,4 +349,4 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
       </div>
     </aside>
   );
-};
+}));

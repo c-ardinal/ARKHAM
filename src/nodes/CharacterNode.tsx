@@ -28,7 +28,7 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
 
   return (
     <div className={`
-      relative min-w-[200px] bg-card text-card-foreground rounded-lg border-2 shadow-sm
+      relative min-w-[200px] max-w-[60ch] bg-card text-card-foreground rounded-lg border-2 shadow-sm
       transition-colors duration-200
       ${selected ? 'border-primary ring-2 ring-primary/20' : 'border-border'}
     `}>
@@ -61,7 +61,7 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           )}
 
           {character.description && (
-              <div className="line-clamp-2 text-muted-foreground">
+              <div className="whitespace-pre-wrap break-words text-muted-foreground">
                   {character.description}
               </div>
           )}

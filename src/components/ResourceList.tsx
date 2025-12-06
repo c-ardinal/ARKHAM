@@ -5,7 +5,7 @@ import { Plus, Trash2, GripVertical, Package } from 'lucide-react';
 import { getIconForResourceType } from '../utils/iconUtils';
 import type { ResourceType } from '../types';
 
-export const ResourceList = () => {
+export const ResourceList = React.memo(() => {
   const { t } = useTranslation();
   const { resources, addResource, deleteResource, setSelectedNode, selectedNodeId } = useScenarioStore();
 
@@ -33,13 +33,20 @@ export const ResourceList = () => {
 
 
   return (
-    <div className="flex flex-col h-full bg-card">
+    <div 
+        className="flex flex-col h-full bg-card"
+        onClick={() => setSelectedNode(null)} // Deselect on background click
+    >
         <div className="flex justify-between items-center mb-2 px-2 pt-2">
             <h3 className="text-sm font-semibold flex items-center gap-2">
                 <Package size={16} />
                 {t('resources.title')}
             </h3>
-            <button onClick={handleAdd} className="p-1 hover:bg-muted rounded text-primary hover:text-primary/80" title="Add Element">
+            <button 
+                onClick={(e) => { e.stopPropagation(); handleAdd(); }} 
+                className="p-1 hover:bg-muted rounded text-primary hover:text-primary/80" 
+                title="Add Element"
+            >
                 <Plus size={16} />
             </button>
         </div>
@@ -48,25 +55,57 @@ export const ResourceList = () => {
                 <div 
                     key={res.id}
                     className={`
-                        group flex items-center gap-2 p-2 rounded cursor-pointer text-sm border
-                        ${selectedNodeId === res.id ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card hover:bg-muted border-border'}
+                        group relative flex flex-col w-full bg-card text-card-foreground rounded-lg border-2 shadow-sm
+                        transition-colors duration-200 mb-2 cursor-pointer
+                        ${selectedNodeId === res.id ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'}
                     `}
-                    onClick={() => setSelectedNode(res.id)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedNode(res.id);
+                    }}
                     draggable
                     onDragStart={(e) => onDragStart(e, res.id)}
                 >
-                    <GripVertical size={14} className="text-muted-foreground opacity-50 cursor-grab shrink-0" />
-                    <div className="text-muted-foreground shrink-0">
-                        {getIconForResourceType(res.type, 14)}
+                    {/* Header */}
+                    <div className="flex items-center gap-2 p-2 border-b border-border bg-muted/30">
+                        <GripVertical size={14} className="text-muted-foreground opacity-50 cursor-grab shrink-0" />
+                        <div className="p-1.5 rounded-full bg-primary/10 text-primary shrink-0">
+                            {getIconForResourceType(res.type, 16)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                             <div className="text-sm text-muted-foreground font-medium truncate mb-1">{t(`resources.types.${res.type}`) || res.type}</div>
+                             {res.reading && (
+                                <div className="text-xs text-muted-foreground leading-none mb-0.5 truncate">{res.reading}</div>
+                             )}
+                             <div className="font-bold truncate text-base">{res.name || 'New Element'}</div>
+                        </div>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); deleteResource(res.id); }}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 hover:text-destructive rounded transition-all shrink-0"
+                            title="Delete"
+                        >
+                            <Trash2 size={14} />
+                        </button>
                     </div>
-                    <div className="flex-1 truncate font-medium">{res.name}</div>
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); deleteResource(res.id); }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity shrink-0"
-                        title="Delete"
-                    >
-                        <Trash2 size={14} />
-                    </button>
+
+                    {/* Content Preview */}
+                    <div className="p-2 text-sm space-y-1">
+                        {res.cost && (
+                            <div className="text-muted-foreground truncate">
+                                <span className="font-semibold text-foreground">{t('resources.cost')}:</span> {res.cost}
+                            </div>
+                        )}
+                        {res.effect && (
+                            <div className="text-muted-foreground truncate">
+                                <span className="font-semibold text-foreground">{t('resources.effect')}:</span> {res.effect}
+                            </div>
+                        )}
+                        {res.description && (
+                            <div className={`line-clamp-2 text-muted-foreground break-words ${res.cost || res.effect ? 'border-t border-border pt-1 mt-1' : ''}`}>
+                                {res.description}
+                            </div>
+                        )}
+                    </div>
                 </div>
             ))}
             {resources.length === 0 && (
@@ -77,4 +116,4 @@ export const ResourceList = () => {
         </div>
     </div>
   );
-};
+});

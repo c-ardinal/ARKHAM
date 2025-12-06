@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useTranslation } from '../hooks/useTranslation';
@@ -7,7 +7,7 @@ import type { VariableType } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 import { Variable as VariableIcon } from 'lucide-react';
 
-export const VariableList = () => {
+export const VariableList = React.memo(() => {
   const { gameState, addVariable, updateVariable, deleteVariable, updateVariableMetadata, mode } = useScenarioStore();
   const { t } = useTranslation();
 
@@ -169,7 +169,7 @@ export const VariableList = () => {
       }
   };
 
-  const inputClass = "w-full border rounded px-2 py-1 text-xs bg-background border-input text-foreground";
+  const inputClass = "w-full border rounded px-2 py-1 text-sm bg-background border-input text-foreground";
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -205,13 +205,13 @@ export const VariableList = () => {
       </div>
 
       <div className="flex gap-1 mb-2 px-2 shrink-0">
-          <button onClick={() => toggleSort('created')} className={`p-1 rounded text-xs flex items-center gap-1 ${sortBy === 'created' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`} title="Sort by Created">
+          <button onClick={() => toggleSort('created')} className={`p-1 rounded text-sm flex items-center gap-1 ${sortBy === 'created' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`} title="Sort by Created">
               Created {sortBy === 'created' && (sortOrder === 'asc' ? <ArrowDownAZ size={12} /> : <ArrowUpAZ size={12} />)}
           </button>
-          <button onClick={() => toggleSort('name')} className={`p-1 rounded text-xs flex items-center gap-1 ${sortBy === 'name' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`} title="Sort by Name">
+          <button onClick={() => toggleSort('name')} className={`p-1 rounded text-sm flex items-center gap-1 ${sortBy === 'name' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`} title="Sort by Name">
               Name {sortBy === 'name' && (sortOrder === 'asc' ? <ArrowDownAZ size={12} /> : <ArrowUpAZ size={12} />)}
           </button>
-          <button onClick={() => toggleSort('type')} className={`p-1 rounded text-xs flex items-center gap-1 ${sortBy === 'type' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`} title="Sort by Type">
+          <button onClick={() => toggleSort('type')} className={`p-1 rounded text-sm flex items-center gap-1 ${sortBy === 'type' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`} title="Sort by Type">
               Type {sortBy === 'type' && (sortOrder === 'asc' ? <ArrowDownAZ size={12} /> : <ArrowUpAZ size={12} />)}
           </button>
       </div>
@@ -230,11 +230,11 @@ export const VariableList = () => {
               {duplicateError && <span className="absolute right-2 top-1 text-[10px] text-destructive">Duplicate</span>}
           </div>
           <div className="flex gap-2">
-            <select
-              value={newType}
-              onChange={(e) => setNewType(e.target.value as VariableType)}
-              className={`flex-1 border rounded px-2 py-1 text-xs bg-background border-input text-foreground`}
-            >
+              <select
+                value={newType}
+                onChange={(e) => setNewType(e.target.value as VariableType)}
+                className={`flex-1 border rounded px-2 py-1 text-sm bg-background border-input text-foreground`}
+              >
               <option value="string">{t('variables.string')}</option>
               <option value="number">{t('variables.number')}</option>
               <option value="boolean">{t('variables.boolean')}</option>
@@ -260,11 +260,11 @@ export const VariableList = () => {
           )}
           {validationError && <div className="text-[10px] text-destructive">{validationError}</div>}
           <div className="flex justify-end gap-2">
-            <button onClick={() => setIsAdding(false)} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+            <button onClick={() => setIsAdding(false)} className="text-sm text-muted-foreground hover:text-foreground">Cancel</button>
             <button 
                 onClick={handleAdd} 
                 disabled={!!duplicateError || isChecking || !newName || (newType === 'boolean' && !newValue)}
-                className={`text-xs px-2 py-1 rounded text-primary-foreground ${duplicateError || isChecking || !newName || (newType === 'boolean' && !newValue) ? 'bg-gray-500 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'}`}
+                className={`text-sm px-2 py-1 rounded text-primary-foreground ${duplicateError || isChecking || !newName || (newType === 'boolean' && !newValue) ? 'bg-gray-500 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'}`}
             >
                 {t('variables.create')}
             </button>
@@ -277,7 +277,7 @@ export const VariableList = () => {
             <div className="text-xs text-muted-foreground italic text-center py-4">{t('variables.noVariables')}</div>
         )}
         {getSortedVariables().map((variable) => (
-          <div key={variable.name} className="p-2 rounded border bg-card border-border hover:border-ring/50">
+          <div key={variable.name} className="group relative flex flex-col w-full bg-card text-card-foreground rounded-lg border-2 shadow-sm transition-colors duration-200 mb-2 border-border hover:border-primary/50 p-2">
             {editingName === variable.name ? (
                 <div className="space-y-2">
                     {mode === 'edit' && (
@@ -337,7 +337,7 @@ export const VariableList = () => {
             ) : (
                 <>
                     <div className="flex justify-between items-start mb-1">
-                        <span className="font-medium text-sm whitespace-normal break-all text-primary">{variable.name}</span>
+                        <span className="font-medium text-base whitespace-normal break-all text-primary">{variable.name}</span>
                         <div className="flex gap-1 shrink-0">
                             <button onClick={() => startEditing(variable.name)} className="p-1 hover:bg-accent hover:text-accent-foreground rounded text-muted-foreground">
                                 <Edit2 size={12} />
@@ -349,9 +349,9 @@ export const VariableList = () => {
                             )}
                         </div>
                     </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
+                    <div className="flex justify-between text-sm text-muted-foreground">
                         <span>{variable.type}</span>
-                        <span className="font-mono truncate max-w-[100px] text-foreground" title={String(variable.value)}>
+                        <span className="font-mono truncate max-w-[220px] text-foreground" title={String(variable.value)}>
                             {variable.type === 'number' && typeof variable.value === 'string' 
                                 ? evaluateFormula(variable.value, gameState.variables) 
                                 : (variable.type === 'string' && typeof variable.value === 'string' && variable.value.includes('${')
@@ -368,4 +368,4 @@ export const VariableList = () => {
       </div>
     </div>
   );
-};
+});
