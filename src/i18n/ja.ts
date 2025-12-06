@@ -97,8 +97,8 @@ export const ja: TranslationKeys = {
     noNodesAvailable: '対象ノードが有りません',
   },
   gameState: {
-    inventory: '所持品',
-    knowledge: '知識',
+    inventory: '道具',
+    knowledge: '知識/情報',
     skills: 'スキル',
     stats: 'ステータス',
     empty: '空',
