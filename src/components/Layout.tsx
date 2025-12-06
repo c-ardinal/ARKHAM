@@ -237,7 +237,7 @@ export const Layout = () => {
     }
   };
 
-  const [sidebarWidth, setSidebarWidth] = useState(300);
+
   const [propertyPanelWidth, setPropertyPanelWidth] = useState(320);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isResizingProperty, setIsResizingProperty] = useState(false);
@@ -560,7 +560,7 @@ export const Layout = () => {
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar width={sidebarWidth} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <Sidebar width={300} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
         <Canvas onCanvasClick={closeMenu} />
         {(mode === 'edit' || (mode === 'play' && nodes.find(n => n.id === selectedNodeId)?.type === 'sticky')) && (
             <>
