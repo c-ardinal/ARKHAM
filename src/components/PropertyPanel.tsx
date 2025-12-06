@@ -1,5 +1,5 @@
 import { useScenarioStore } from '../store/scenarioStore';
-import type { ChangeEvent } from 'react';
+import { useEffect, type ChangeEvent } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { substituteVariables } from '../utils/textUtils';
@@ -26,6 +26,19 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
 
   const inputClass = "w-full border rounded px-3 py-2 focus:outline-none focus:border-primary bg-background border-input text-foreground";
   const labelClass = "block text-sm font-medium mb-1 text-foreground";
+
+  // Auto-select resource if available and not set (User Requirement)
+  useEffect(() => {
+      if ((selectedNode?.type === 'element' || selectedNode?.type === 'information') && 
+          !selectedNode.data.referenceId && 
+          resources.length > 0) {
+          updateNodeData(selectedNode.id, { 
+             referenceId: resources[0].id,
+             infoValue: resources[0].name 
+         });
+      }
+  }, [selectedNode?.id, resources.length, selectedNode?.data.referenceId]);
+
 
   // --- Character Editing ---
   if (selectedCharacter) {
@@ -205,12 +218,16 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
     updateNodeData(selectedNode.id, { [name]: value });
   };
 
+  /* Existing handleFieldChange */
   const handleFieldChange = (name: string, value: string) => {
     updateNodeData(selectedNode.id, { [name]: value });
   };
 
+
+
   return (
     <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
+
       <div className="p-4 border-b border-border">
         <h2 className="text-lg font-semibold text-card-foreground">{t.common.properties}</h2>
         <div className="text-xs mt-1 text-muted-foreground">ID: {selectedNode.id}</div>
@@ -239,20 +256,8 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
 
           {(selectedNode.type === 'information' || selectedNode.type === 'element') && (
             <>
-              <div>
-                <label className={labelClass}>{t.properties.infoType}</label>
-                <select
-                  name="infoType"
-                  value={selectedNode.data.infoType || 'knowledge'}
-                  onChange={handleChange}
-                  className={inputClass}
-                >
-                  <option value="knowledge">{t.gameState.knowledge}</option>
-                  <option value="item">{t.gameState.inventory}</option>
-                  <option value="skill">{t.gameState.skills}</option>
-                  <option value="stat">{t.gameState.stats}</option>
-                </select>
-              </div>
+              {/* InfoType removed as per request */}
+              
               <div>
                 <label className={labelClass}>{t.properties.actionType}</label>
                 <select
@@ -265,36 +270,37 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                   <option value="consume">{t.properties.actionTypeConsume}</option>
                 </select>
               </div>
+
               <div>
                 <label className={labelClass}>{t.properties.operationTarget}</label>
-                {selectedNode.data.actionType === 'consume' ? (
+                {resources.length === 0 ? (
+                   <div className="text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                       {t.resources?.noResources || "Elements not defined"}
+                   </div>
+                ) : (
                     <select
-                        value={selectedNode.data.infoValue || ''}
-                        onChange={(e) => handleFieldChange('infoValue', e.target.value)}
+                        value={selectedNode.data.referenceId || ''}
+                        onChange={(e) => {
+                             const selectedId = e.target.value;
+                             const resource = resources.find(r => r.id === selectedId);
+                             // Update referenceId AND infoValue (for backward compatibility or display)
+                             updateNodeData(selectedNode.id, { 
+                                 referenceId: selectedId,
+                                 infoValue: resource?.name || ''
+                             });
+                        }}
                         className={inputClass}
                     >
-                        <option value="">{t.properties.selectItem}</option>
-                        {Array.from(new Set(
-                            nodes
-                                .filter(n => 
-                                    (n.type === 'element' || n.type === 'information') && 
-                                    n.data.infoType === (selectedNode.data.infoType || 'knowledge') &&
-                                    n.data.actionType !== 'consume' 
-                                )
-                                .map(n => n.data.infoValue)
-                                .filter(Boolean)
-                        )).map((val) => (
-                            <option key={val} value={val}>{val}</option>
+
+                        {resources.map((r) => (
+                            <option key={r.id} value={r.id}>
+                                {r.name} ({t.resources.types[r.type] || r.type})
+                            </option>
                         ))}
                     </select>
-                ) : (
-                    <VariableSuggestInput
-                        value={selectedNode.data.infoValue || ''}
-                        onChange={(val) => handleFieldChange('infoValue', val)}
-                        className={inputClass}
-                    />
                 )}
               </div>
+
               <div>
                 <label className={labelClass}>{t.properties.operationQuantity}</label>
                 <input
@@ -312,18 +318,21 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
               <>
                 <div>
                     <label className={labelClass}>{t.properties.targetVariable}</label>
-                    <select
-                        value={selectedNode.data.targetVariable || ''}
-                        onChange={(e) => handleFieldChange('targetVariable', e.target.value)}
-                        className={inputClass}
-                    >
-                        {Object.keys(useScenarioStore.getState().gameState.variables).length === 0 && (
-                             <option value="" disabled>{t.variables.noVariables}</option>
-                        )}
-                        {Object.keys(useScenarioStore.getState().gameState.variables).map((v) => (
-                            <option key={v} value={v}>{v}</option>
-                        ))}
-                    </select>
+                    {Object.keys(gameState.variables).length === 0 ? (
+                       <div className="text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                           {t.variables?.noVariables || "No variables defined"}
+                       </div>
+                    ) : (
+                        <select
+                            value={selectedNode.data.targetVariable || ''}
+                            onChange={(e) => handleFieldChange('targetVariable', e.target.value)}
+                            className={inputClass}
+                        >
+                            {Object.keys(gameState.variables).map((v) => (
+                                <option key={v} value={v}>{v}</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
                 <div>
                     <label className={labelClass}>{t.properties.assignmentValue}</label>
@@ -464,23 +473,26 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
           {selectedNode.type === 'jump' && (
               <div>
                   <label className={labelClass}>{t.properties.jumpTarget}</label>
-                  <select
-                      value={selectedNode.data.jumpTarget || ''}
-                      onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value })}
-                      className={inputClass}
-                  >
-                      {nodes.filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource').length === 0 && (
-                           <option value="" disabled>{t.properties.noNodesAvailable}</option>
-                      )}
-                      {nodes
-                          .filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource')
-                          .map(n => (
-                              <option key={n.id} value={n.id}>
-                                  {substituteVariables(n.data.label, gameState.variables)} ({n.type})
-                              </option>
-                          ))
-                      }
-                  </select>
+                  {nodes.filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource').length === 0 ? (
+                       <div className="text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                           {t.properties?.noNodesAvailable || "No jump targets available"}
+                       </div>
+                  ) : (
+                      <select
+                          value={selectedNode.data.jumpTarget || ''}
+                          onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value })}
+                          className={inputClass}
+                      >
+                          {nodes
+                              .filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource')
+                              .map(n => (
+                                  <option key={n.id} value={n.id}>
+                                      {substituteVariables(n.data.label, gameState.variables)} ({n.type})
+                                  </option>
+                              ))
+                          }
+                      </select>
+                  )}
               </div>
           )}
         </div>

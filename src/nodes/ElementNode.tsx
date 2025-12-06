@@ -1,21 +1,25 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import { BookOpen, Package, Zap, Activity, StickyNote } from 'lucide-react';
+import { BookOpen, Package, Zap, Activity, StickyNote, Shield } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 
 const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
-  const { gameState } = useScenarioStore();
+  const { gameState, resources } = useScenarioStore();
   const description = data.description;
+  const resource = resources.find(r => r.id === data.referenceId);
   
   const getIcon = () => {
-    switch (data.infoType) {
-      case 'knowledge': return <BookOpen size={16} />;
-      case 'item': return <Package size={16} />;
-      case 'skill': return <Zap size={16} />;
-      case 'stat': return <Activity size={16} />;
-      default: return <BookOpen size={16} />;
+    if (!resource) return <Package size={16} />;
+    
+    switch (resource.type) {
+      case 'Knowledge': return <BookOpen size={16} />;
+      case 'Item': return <Package size={16} />;
+      case 'Equipment': return <Shield size={16} />;
+      case 'Skill': return <Zap size={16} />;
+      case 'Status': return <Activity size={16} />;
+      default: return <Package size={16} />;
     }
   };
 
@@ -61,11 +65,11 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
         <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
             <div className={`text-sm font-mono font-semibold p-1 rounded flex justify-center items-center ${
                 data.actionType === 'consume' 
-                    ? 'bg-red-100 text-red-900 dark:bg-red-900/50 dark:text-red-100' 
-                    : 'bg-green-100 text-green-900 dark:bg-green-900/50 dark:text-green-100'
+                    ? 'bg-red-100 text-red-950 dark:bg-red-900 dark:text-red-50' 
+                    : 'bg-green-100 text-green-950 dark:bg-green-900 dark:text-green-50'
             }`} title={data.infoValue}>
               <span className="truncate max-w-[100px]">
-                  {substituteVariables(data.infoValue || 'No Name', gameState.variables)}
+                  {substituteVariables(data.infoValue || 'None', gameState.variables)}
               </span>
               <span className="font-bold ml-1 shrink-0 opacity-80">
                   x{data.quantity !== undefined ? data.quantity : 1}

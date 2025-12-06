@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { NodeType } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Package, ChevronsRight, Zap, BookOpen, Brain, ChevronsLeft, StickyNote, Variable as VariableIcon, Flag, GitBranch, Folder, Rabbit, Layers, Users } from 'lucide-react';
+import { Package, ChevronsRight, Zap, BookOpen, Brain, ChevronsLeft, StickyNote, Variable as VariableIcon, Flag, GitBranch, Folder, Rabbit, Layers, Users, Activity, Shield } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableList } from './VariableList';
 import { CharacterList } from './CharacterList';
@@ -36,131 +36,195 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
               </div>
               
               <div className="flex flex-col gap-2 w-full px-1 py-2">
-                  <button 
-                      onClick={() => { setActiveTab('nodes'); onToggle(); }}
-                      className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'nodes' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                      title={t.common.nodes}
-                  >
-                      <Layers size={18} />
-                  </button>
-                  <button 
-                      onClick={() => { setActiveTab('characters'); onToggle(); }}
-                      className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'characters' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                      title={t.characters.title}
-                  >
-                      <Users size={18} />
-                  </button>
-                  <button 
-                      onClick={() => { setActiveTab('resources'); onToggle(); }}
-                      className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'resources' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                      title={t.resources.title}
-                  >
-                      <Package size={18} />
-                  </button>
-                  <button 
-                      onClick={() => { setActiveTab('variables'); onToggle(); }}
-                      className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                      title={t.variables.title}
-                  >
-                      <VariableIcon size={18} />
-                  </button>
+                  {mode === 'play' ? (
+                      <>
+                        <button 
+                            onClick={() => { setActiveTab('nodes'); onToggle(); }}
+                            className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab !== 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
+                            title={t.common?.gameState || "Game State"}
+                        >
+                            <Activity size={18} />
+                        </button>
+                        <button 
+                            onClick={() => { setActiveTab('variables'); onToggle(); }}
+                            className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
+                            title={t.variables.title}
+                        >
+                            <VariableIcon size={18} />
+                        </button>
+                      </>
+                  ) : (
+                      <>
+                        <button 
+                            onClick={() => { setActiveTab('nodes'); onToggle(); }}
+                            className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'nodes' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
+                            title={t.common.nodes}
+                        >
+                            <Layers size={18} />
+                        </button>
+                        <button 
+                            onClick={() => { setActiveTab('characters'); onToggle(); }}
+                            className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'characters' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
+                            title={t.characters.title}
+                        >
+                            <Users size={18} />
+                        </button>
+                        <button 
+                            onClick={() => { setActiveTab('resources'); onToggle(); }}
+                            className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'resources' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
+                            title={t.resources.title}
+                        >
+                            <Package size={18} />
+                        </button>
+                        <button 
+                            onClick={() => { setActiveTab('variables'); onToggle(); }}
+                            className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
+                            title={t.variables.title}
+                        >
+                            <VariableIcon size={18} />
+                        </button>
+                      </>
+                  )}
               </div>
           </aside>
       );
   }
 
+  // --- Play Mode Sidebar ---
   if (mode === 'play') {
     return (
       <aside 
         className="border-r flex flex-col bg-card border-border"
         style={{ width }}
       >
-        <div className="p-4 border-b flex justify-between items-center border-border">
-          <h2 className="text-lg font-semibold text-card-foreground">{t.common.gameState}</h2>
-          <button onClick={onToggle} className="p-1 rounded hover:bg-accent hover:text-accent-foreground text-muted-foreground">
-            <ChevronsLeft size={16} />
-          </button>
+        <div className="p-2 border-b flex justify-between items-center border-border bg-muted/40s">
+            <div className="flex space-x-1 flex-1">
+                <button 
+                    onClick={() => setActiveTab('nodes')} // Reusing 'nodes' state for 'State' tab to avoid adding new state if possible, or mapping
+                    className={`p-2 rounded flex items-center justify-center flex-1 transition-colors ${activeTab !== 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
+                    title={t.common.gameState}
+                >
+                    <Activity size={18} />
+                </button>
+                <button 
+                    onClick={() => setActiveTab('variables')}
+                    className={`p-2 rounded flex items-center justify-center flex-1 transition-colors ${activeTab === 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
+                    title={t.variables.title}
+                >
+                    <VariableIcon size={18} />
+                </button>
+            </div>
+            <button onClick={onToggle} className="p-1 rounded hover:bg-accent hover:text-accent-foreground text-muted-foreground ml-2">
+                <ChevronsLeft size={16} />
+            </button>
         </div>
-        <div className="p-4 flex-1 overflow-y-auto space-y-6">
-          {/* Inventory */}
-          <div>
-            <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
-              <Package size={14} /> {t.gameState.inventory}
-            </h3>
-            {Object.keys(gameState.inventory).length === 0 ? (
-              <div className="text-xs text-muted-foreground italic">{t.gameState.empty}</div>
-            ) : (
-              <ul className="space-y-1">
-                {Object.entries(gameState.inventory).map(([item, qty], i) => (
-                  <li key={i} className="text-sm px-2 py-1 rounded flex justify-between bg-muted text-foreground">
-                      <span>{substituteVariables(item, gameState.variables)}</span>
-                      <span className="font-mono text-xs opacity-70">x{qty}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
 
-          {/* Knowledge */}
-          <div>
-            <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
-              <Brain size={14} /> {t.gameState.knowledge}
-            </h3>
-            {Object.keys(gameState.knowledge).length === 0 ? (
-              <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
-            ) : (
-              <ul className="space-y-1">
-                {Object.entries(gameState.knowledge).map(([k, qty], i) => (
-                  <li key={i} className="text-sm px-2 py-1 rounded flex justify-between bg-muted text-foreground">
-                      <span>{substituteVariables(k, gameState.variables)}</span>
-                      <span className="font-mono text-xs opacity-70">x{qty}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {activeTab !== 'variables' && (
+            <div className="p-4 flex-1 overflow-y-auto space-y-6">
+                
+              {/* Tools (Inventory) */}
+              <div>
+                <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
+                  <Package size={14} /> {t.gameState.inventory}
+                </h3>
+                {Object.keys(gameState.inventory).length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic">{t.gameState.empty}</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {Object.entries(gameState.inventory).map(([item, qty], i) => (
+                      <li key={i} className="text-sm px-2 py-1 rounded flex justify-between bg-muted text-foreground">
+                          <span>{substituteVariables(item, gameState.variables)}</span>
+                          <span className="font-mono text-xs opacity-70">x{qty}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
-          {/* Skills */}
-          <div>
-            <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
-              <Zap size={14} /> {t.gameState.skills}
-            </h3>
-            {Object.keys(gameState.skills).length === 0 ? (
-              <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
-            ) : (
-              <ul className="space-y-1">
-                {Object.entries(gameState.skills).map(([s, qty], i) => (
-                  <li key={i} className="text-sm px-2 py-1 rounded flex justify-between bg-muted text-foreground">
-                      <span>{substituteVariables(s, gameState.variables)}</span>
-                      <span className="font-mono text-xs opacity-70">x{qty}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+               {/* Equipment */}
+               <div>
+                <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
+                  <Shield size={14} /> {t.resources?.types?.Equipment || 'Equipment'}
+                </h3>
+                {(!gameState.equipment || Object.keys(gameState.equipment).length === 0) ? (
+                  <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {Object.entries(gameState.equipment).map(([item, qty], i) => (
+                      <li key={i} className="text-sm px-2 py-1 rounded flex justify-between bg-muted text-foreground">
+                          <span>{substituteVariables(item, gameState.variables)}</span>
+                          <span className="font-mono text-xs opacity-70">x{qty}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
-          {/* Stats */}
-          <div>
-            <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
-              <BookOpen size={14} /> {t.gameState.stats}
-            </h3>
-            {Object.keys(gameState.stats).length === 0 ? (
-              <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
-            ) : (
-              <ul className="space-y-1">
-                {Object.entries(gameState.stats).map(([key, val], i) => (
-                  <li key={i} className="text-sm flex justify-between px-2 py-1 rounded bg-muted text-foreground">
-                    <span>{substituteVariables(key, gameState.variables)}</span>
-                    <span className="font-bold">{val}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          
-          <div className="border-t pt-4 flex-1 min-h-0 border-border">
-            <VariableList />
-          </div>
+              {/* Knowledge */}
+              <div>
+                <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
+                  <Brain size={14} /> {t.gameState.knowledge}
+                </h3>
+                {Object.keys(gameState.knowledge).length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {Object.entries(gameState.knowledge).map(([k, qty], i) => (
+                      <li key={i} className="text-sm px-2 py-1 rounded flex justify-between bg-muted text-foreground">
+                          <span>{substituteVariables(k, gameState.variables)}</span>
+                          <span className="font-mono text-xs opacity-70">x{qty}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Skills */}
+              <div>
+                <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
+                  <Zap size={14} /> {t.gameState.skills}
+                </h3>
+                {Object.keys(gameState.skills).length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {Object.entries(gameState.skills).map(([s, qty], i) => (
+                      <li key={i} className="text-sm px-2 py-1 rounded flex justify-between bg-muted text-foreground">
+                          <span>{substituteVariables(s, gameState.variables)}</span>
+                          <span className="font-mono text-xs opacity-70">x{qty}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Stats */}
+              <div>
+                <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
+                  <BookOpen size={14} /> {t.gameState.stats}
+                </h3>
+                {Object.keys(gameState.stats).length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {Object.entries(gameState.stats).map(([key, val], i) => (
+                      <li key={i} className="text-sm flex justify-between px-2 py-1 rounded bg-muted text-foreground">
+                        <span>{substituteVariables(key, gameState.variables)}</span>
+                        <span className="font-bold">{val}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'variables' && (
+             <div className="border-t pt-0 flex-1 min-h-0 border-border">
+                <VariableList />
+             </div>
+          )}
         </div>
       </aside>
     );

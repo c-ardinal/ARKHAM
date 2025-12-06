@@ -12,8 +12,14 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
 
   if (!resource) {
     return (
-      <div className={`p-4 rounded-md border-2 bg-destructive/10 border-destructive w-[200px] text-destructive`}>
-        Deleted Element
+      <div className={`
+        relative min-w-[200px] bg-card text-muted-foreground rounded-lg border-2 border-dashed border-muted-foreground/30
+        p-4 flex flex-col items-center justify-center gap-2
+      `}>
+         <div className="p-2 rounded-full bg-muted">
+           <Package size={20} className="opacity-50" />
+         </div>
+         <span className="text-sm font-medium">None</span>
       </div>
     );
   }

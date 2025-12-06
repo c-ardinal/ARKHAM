@@ -445,6 +445,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   }, [bringNodeToFront]);
 
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+      if (!node) return;
       pushHistory(); // Push history on drag stop
 
       const allNodes = getNodes();

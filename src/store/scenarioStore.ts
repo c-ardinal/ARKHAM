@@ -127,6 +127,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     currentNodes: [],
     revealedNodes: [],
     inventory: {},
+    equipment: {},
     knowledge: {},
     skills: {},
     stats: {},
@@ -160,15 +161,39 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       resources: state.resources.map((r) => (r.id === id ? { ...r, ...res } : r))
   })),
   deleteResource: (id) => set((state) => {
-       const nodesToDelete = state.nodes.filter(n => n.type === 'resource' && n.data.referenceId === id).map(n => n.id);
-       let newNodes = state.nodes;
-       let newEdges = state.edges;
-       if (nodesToDelete.length > 0) {
-           newNodes = state.nodes.filter(n => !nodesToDelete.includes(n.id));
-           newEdges = state.edges.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target));
-       }
+       const resources = state.resources.filter((r) => r.id !== id);
+       const fallbackResource = resources.length > 0 ? resources[0] : null;
+
+       const newNodes = state.nodes.map(node => {
+           if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
+               return {
+                   ...node,
+                   data: {
+                       ...node.data,
+                       referenceId: fallbackResource ? fallbackResource.id : undefined,
+                       infoValue: fallbackResource ? fallbackResource.name : 'None',
+                       // Resetting infoType to fallback type might be good too if we were storing it, 
+                       // but currently we derive it in recalculateGameState or use referenceId.
+                   }
+               };
+           }
+           // Resource Nodes themselves checking referenceId? 
+           // Technically resource nodes also use referenceId.
+           if (node.type === 'resource' && node.data.referenceId === id) {
+                // If the resource node is pointing to the deleted resource, what should happen?
+                // Probably should be deleted or show error. 
+                // Existing logic deleted them. Let's keep deleting Resource Nodes that point to it,
+                // BUT Element Nodes should be reassigned.
+                return null; 
+           }
+           return node;
+       }).filter((n): n is ScenarioNode => n !== null);
+       
+       const validIds = new Set(newNodes.map(n => n.id));
+       const newEdges = state.edges.filter(e => validIds.has(e.source) && validIds.has(e.target));
+
       return {
-          resources: state.resources.filter((r) => r.id !== id),
+          resources,
           nodes: newNodes,
           edges: newEdges
       };
@@ -477,6 +502,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               currentNodes: [],
               revealedNodes: [],
               inventory: {},
+              equipment: {},
               knowledge: {},
               skills: {},
               stats: {},
@@ -909,6 +935,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
             currentNodes: [],
             revealedNodes: [],
             inventory: {},
+            equipment: {},
             knowledge: {},
             skills: {},
             stats: {},
@@ -937,45 +964,86 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   recalculateGameState: () => {
       const state = get();
       const newInventory: Record<string, number> = {};
+      const newEquipment: Record<string, number> = {};
       const newKnowledge: Record<string, number> = {};
       const newSkills: Record<string, number> = {};
       const newStats: Record<string, number> = {};
 
       // 1. Scan all Element nodes to populate keys (init 0)
       state.nodes.forEach(node => {
-          if ((node.type === 'element' || node.type === 'information') && node.data.infoValue) {
-              const type = node.data.infoType || 'knowledge';
-              const name = node.data.infoValue;
+          if (node.type === 'element' || node.type === 'information') {
+              let type: string = node.data.infoType || 'knowledge';
+              let name = node.data.infoValue;
               
-              if (type === 'item') {
-                  if (newInventory[name] === undefined) newInventory[name] = 0;
-              } else if (type === 'skill') {
-                  if (newSkills[name] === undefined) newSkills[name] = 0;
-              } else if (type === 'stat') {
-                  if (newStats[name] === undefined) newStats[name] = 0;
-              } else {
-                  if (newKnowledge[name] === undefined) newKnowledge[name] = 0;
+              // Resolve from resource if available
+              if (node.type === 'element' && node.data.referenceId) {
+                 const res = state.resources.find(r => r.id === node.data.referenceId);
+                 if (res) {
+                     name = res.name;
+                     // Map ResourceType to GameState keys
+                     switch(res.type) {
+                         case 'Item': type = 'item'; break;
+                         case 'Equipment': type = 'equipment'; break;
+                         case 'Knowledge': type = 'knowledge'; break;
+                         case 'Skill': type = 'skill'; break;
+                         case 'Status': type = 'stat'; break;
+                         default: type = 'knowledge';
+                     }
+                 }
+              }
+
+              if (name) {
+                  if (type === 'item') {
+                      if (newInventory[name] === undefined) newInventory[name] = 0;
+                  } else if (type === 'equipment') {
+                      if (newEquipment[name] === undefined) newEquipment[name] = 0;
+                  } else if (type === 'skill') {
+                      if (newSkills[name] === undefined) newSkills[name] = 0;
+                  } else if (type === 'stat') {
+                      if (newStats[name] === undefined) newStats[name] = 0;
+                  } else {
+                      if (newKnowledge[name] === undefined) newKnowledge[name] = 0;
+                  }
               }
           }
       });
 
       // 2. Scan revealed nodes to update quantities
       state.nodes.forEach(node => {
-          if (node.data.revealed && (node.type === 'element' || node.type === 'information') && node.data.infoValue) {
-              const type = node.data.infoType || 'knowledge';
-              const name = node.data.infoValue;
-              const quantity = Number(node.data.quantity) || 1;
-              const action = node.data.actionType || 'obtain';
+          if (node.data.revealed && (node.type === 'element' || node.type === 'information')) {
+               let type: string = node.data.infoType || 'knowledge';
+               let name = node.data.infoValue;
+               const quantity = Number(node.data.quantity) || 1;
+               const action = node.data.actionType || 'obtain';
+
+              // Resolve from resource if available
+              if (node.type === 'element' && node.data.referenceId) {
+                 const res = state.resources.find(r => r.id === node.data.referenceId);
+                 if (res) {
+                     name = res.name;
+                     switch(res.type) {
+                         case 'Item': type = 'item'; break;
+                         case 'Equipment': type = 'equipment'; break;
+                         case 'Knowledge': type = 'knowledge'; break;
+                         case 'Skill': type = 'skill'; break;
+                         case 'Status': type = 'stat'; break;
+                         default: type = 'knowledge';
+                     }
+                 }
+              }
               
-              let collection = newKnowledge;
-              if (type === 'item') collection = newInventory;
-              else if (type === 'skill') collection = newSkills;
-              else if (type === 'stat') collection = newStats;
-              
-              if (action === 'obtain') {
-                  collection[name] = (collection[name] || 0) + quantity;
-              } else if (action === 'consume') {
-                  collection[name] = Math.max(0, (collection[name] || 0) - quantity);
+              if (name) {
+                  let collection = newKnowledge;
+                  if (type === 'item') collection = newInventory;
+                  else if (type === 'equipment') collection = newEquipment;
+                  else if (type === 'skill') collection = newSkills;
+                  else if (type === 'stat') collection = newStats;
+                  
+                  if (action === 'obtain') {
+                      collection[name] = (collection[name] || 0) + quantity;
+                  } else if (action === 'consume') {
+                      collection[name] = Math.max(0, (collection[name] || 0) - quantity);
+                  }
               }
           }
       });
@@ -1000,6 +1068,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           gameState: {
               ...state.gameState,
               inventory: newInventory,
+              equipment: newEquipment,
               knowledge: newKnowledge,
               skills: newSkills,
               stats: newStats

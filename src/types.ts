@@ -6,7 +6,7 @@ export interface ScenarioNodeData {
   label: string;
   description?: string;
   // For Element nodes (formerly Information)
-  infoType?: 'knowledge' | 'item' | 'skill' | 'stat';
+  infoType?: 'knowledge' | 'item' | 'skill' | 'stat' | 'equipment';
   infoValue?: string; // Renamed to "Name" in UI, but keeping key for compatibility or refactor? User said "Value/Name" -> "Name". Let's keep infoValue as the internal key for Name to avoid massive refactor, or rename it. Let's keep it but treat it as Name.
   quantity?: number;
   actionType?: 'obtain' | 'consume';
@@ -71,7 +71,8 @@ export interface Variable {
 export interface GameState {
   currentNodes: string[]; // IDs of active nodes
   revealedNodes: string[]; // IDs of revealed nodes
-  inventory: Record<string, number>; // Name -> Quantity
+  inventory: Record<string, number>; // Name -> Quantity (Tools)
+  equipment: Record<string, number>; // Name -> Quantity
   knowledge: Record<string, number>; // Name -> Quantity
   skills: Record<string, number>; // Name -> Quantity
   stats: Record<string, number>;
