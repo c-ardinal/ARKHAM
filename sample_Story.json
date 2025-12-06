@@ -10,7 +10,9 @@
       "data": {
         "label": "導入",
         "isStart": true,
-        "description": "彗星のニュースで賑わっている今日このごろ、\nあなたは道を散歩していると何かが落ちているのを見つける。拾ってみる。"
+        "description": "彗星のニュースで賑わっている今日このごろ、\nあなたは道を散歩していると何かが落ちているのを見つける。拾ってみる。",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 424,
       "height": 109,
@@ -19,7 +21,8 @@
         "x": -245.85670362185397,
         "y": -395.97483582760304
       },
-      "dragging": false
+      "dragging": false,
+      "draggable": false
     },
     {
       "id": "element-1764849446947",
@@ -33,7 +36,9 @@
         "infoType": "item",
         "infoValue": "謎の石",
         "description": "目星：\n　成功→星のような模様が書かれているが欠けていてよく分からない\n　失敗→何も分からない\n　ファンブル→冒涜的な声が聞こえて寒気がした。0/1d2のSANc。\n",
-        "quantity": "1"
+        "quantity": "1",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 406,
       "height": 194,
@@ -42,7 +47,8 @@
         "x": -239.1348457651352,
         "y": -218.69421888051508
       },
-      "dragging": false
+      "dragging": false,
+      "draggable": false
     },
     {
       "id": "branch-1764849598489",
@@ -68,7 +74,9 @@
             "id": "case-1764849659284",
             "label": "祖父の家"
           }
-        ]
+        ],
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 203,
       "height": 165,
@@ -77,7 +85,8 @@
       "positionAbsolute": {
         "x": -375.11450713696337,
         "y": 62.36318853433133
-      }
+      },
+      "draggable": false
     },
     {
       "id": "memo-1764849912394",
@@ -88,7 +97,9 @@
       },
       "data": {
         "label": "本シナリオについて",
-        "description": "サンプルチャート用にでっちあげた超適当シナリオです。\n著作権は本ツール開発者(c-ardinal)に帰属します。"
+        "description": "サンプルチャート用にでっちあげた超適当シナリオです。\n著作権は本ツール開発者(c-ardinal)に帰属します。",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 322,
       "height": 106,
@@ -97,28 +108,32 @@
         "x": 223.59493923605407,
         "y": -211.35234527740712
       },
-      "dragging": false
+      "dragging": false,
+      "draggable": false
     },
     {
       "id": "branch-1764850923418",
       "type": "branch",
       "position": {
-        "x": 121.0393644218725,
-        "y": 1423.9443376716063
+        "x": 109.70007465300273,
+        "y": 1457.9622069782158
       },
       "data": {
         "label": "道具や情報が出揃っているか確認",
         "branchType": "if_else",
-        "conditionValue": "MP補助薬・退散の呪文・石の情報を入手済か"
+        "conditionValue": "MP補助薬・退散の呪文・石の情報を入手済か",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 454,
       "height": 125,
       "selected": false,
       "positionAbsolute": {
-        "x": 121.0393644218725,
-        "y": 1423.9443376716063
+        "x": 109.70007465300273,
+        "y": 1457.9622069782158
       },
-      "dragging": false
+      "dragging": false,
+      "draggable": false
     },
     {
       "id": "branch-1764850983767",
@@ -130,7 +145,9 @@
       "data": {
         "label": "余命確認",
         "branchType": "if_else",
-        "conditionValue": "余命(現在値${余命の日数}日)が0日以下か"
+        "conditionValue": "余命(現在値${余命の日数}日)が0日以下か",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 343,
       "height": 125,
@@ -139,7 +156,8 @@
         "x": 453.69850032297586,
         "y": 1665.1292107608992
       },
-      "dragging": false
+      "dragging": false,
+      "draggable": false
     },
     {
       "id": "jump-1764925066327",
@@ -150,7 +168,9 @@
       },
       "data": {
         "label": "調査先の選択肢に戻る",
-        "jumpTarget": "branch-1764849598489"
+        "jumpTarget": "branch-1764849598489",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 227,
       "height": 131,
@@ -159,7 +179,8 @@
       "positionAbsolute": {
         "x": 661.4340507503036,
         "y": 1926.1241649334063
-      }
+      },
+      "draggable": false
     },
     {
       "id": "event-1764849814308",
@@ -169,7 +190,9 @@
         "y": 113.3892582516599
       },
       "data": {
-        "label": "宝石店を営む友人に見てもらう"
+        "label": "宝石店を営む友人に見てもらう",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 299,
       "height": 52,
@@ -180,7 +203,8 @@
       },
       "dragging": false,
       "parentNode": "group-1764851348375",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "memo-1764850827845",
@@ -191,7 +215,9 @@
       },
       "data": {
         "label": "${割愛の共通文}",
-        "description": "${割愛の共通文}"
+        "description": "${割愛の共通文}",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 180,
       "height": 100,
@@ -202,7 +228,8 @@
       },
       "dragging": false,
       "parentNode": "group-1764851348375",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "group-1764851348375",
@@ -215,7 +242,9 @@
         "label": "宝石店でのイベント",
         "expanded": true,
         "contentWidth": 140.484375,
-        "contentHeight": 20
+        "contentHeight": 20,
+        "hasSticky": false,
+        "revealed": false
       },
       "style": {
         "width": 388.6109335802492,
@@ -229,7 +258,8 @@
         "x": 125.27540945165134,
         "y": 285.6557256903351
       },
-      "dragging": false
+      "dragging": false,
+      "draggable": false
     },
     {
       "id": "element-1764925632067",
@@ -243,7 +273,10 @@
         "infoType": "skill",
         "infoValue": "退魔呪文",
         "description": "詳細割愛",
-        "quantity": "1"
+        "quantity": "1",
+        "hasSticky": false,
+        "referenceId": "res-1764990463234",
+        "revealed": false
       },
       "width": 299,
       "height": 134,
@@ -254,7 +287,8 @@
       },
       "dragging": false,
       "parentNode": "group-1764851348375",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "event-1764849815349",
@@ -264,7 +298,9 @@
         "y": 105.43305104496676
       },
       "data": {
-        "label": "地質学者の祖父に見てもらう"
+        "label": "地質学者の祖父に見てもらう",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 285,
       "height": 52,
@@ -275,7 +311,8 @@
       },
       "dragging": false,
       "parentNode": "group-1764851374095",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "memo-1764850896155-7bdb6s4zo",
@@ -286,7 +323,9 @@
       },
       "data": {
         "label": "${割愛の共通文}",
-        "description": "${割愛の共通文}"
+        "description": "${割愛の共通文}",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 180,
       "height": 100,
@@ -297,7 +336,8 @@
       },
       "dragging": false,
       "parentNode": "group-1764851374095",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "group-1764851374095",
@@ -310,7 +350,9 @@
         "label": "祖父宅でのイベント",
         "expanded": true,
         "contentWidth": 140.484375,
-        "contentHeight": 20
+        "contentHeight": 20,
+        "hasSticky": false,
+        "revealed": false
       },
       "style": {
         "width": 395.11855130341155,
@@ -324,7 +366,8 @@
         "x": -281.22844716132687,
         "y": 292.07439058405146
       },
-      "dragging": false
+      "dragging": false,
+      "draggable": false
     },
     {
       "id": "element-1764925770469",
@@ -337,8 +380,11 @@
         "label": "祖父から青色の綺麗な液体薬を貰う",
         "infoType": "item",
         "description": "詳細割愛",
-        "infoValue": "MP補助薬",
-        "quantity": "1"
+        "infoValue": "MP回復薬",
+        "quantity": "1",
+        "hasSticky": false,
+        "referenceId": "res-1764990648387",
+        "revealed": false
       },
       "width": 312,
       "height": 134,
@@ -349,7 +395,8 @@
         "y": 1159.5834737536804
       },
       "parentNode": "group-1764851374095",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "variable-1764850432623",
@@ -361,7 +408,9 @@
       "data": {
         "label": "余命を減らす",
         "targetVariable": "余命の日数",
-        "variableValue": "${余命の日数}-1"
+        "variableValue": "${余命の日数}-1",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 173,
       "height": 89,
@@ -373,7 +422,8 @@
       "dragging": false,
       "hidden": false,
       "parentNode": "group-1764851311181",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "event-1764849811414",
@@ -384,7 +434,9 @@
       },
       "data": {
         "label": "図書館で文献を漁る",
-        "description": ""
+        "description": "",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 227,
       "height": 52,
@@ -396,7 +448,8 @@
       "dragging": false,
       "parentNode": "group-1764851311181",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "draggable": false
     },
     {
       "id": "branch-1764850376087",
@@ -408,7 +461,9 @@
       "data": {
         "label": "図書館ロール",
         "branchType": "if_else",
-        "conditionValue": "成功?"
+        "conditionValue": "成功?",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 173,
       "height": 125,
@@ -420,7 +475,8 @@
       "dragging": false,
       "parentNode": "group-1764851311181",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "draggable": false
     },
     {
       "id": "element-1764850483251",
@@ -434,7 +490,10 @@
         "infoType": "knowledge",
         "description": "詳細割愛",
         "infoValue": "石の情報",
-        "quantity": "1"
+        "quantity": "1",
+        "hasSticky": false,
+        "referenceId": "res-1764990340952",
+        "revealed": false
       },
       "width": 303,
       "height": 134,
@@ -446,7 +505,8 @@
       "dragging": false,
       "parentNode": "group-1764851311181",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "draggable": false
     },
     {
       "id": "group-1764851311181",
@@ -459,7 +519,9 @@
         "label": "図書館でのイベント",
         "expanded": true,
         "contentWidth": 140.484375,
-        "contentHeight": 20
+        "contentHeight": 20,
+        "hasSticky": false,
+        "revealed": false
       },
       "style": {
         "width": 727.3214153119516,
@@ -473,7 +535,8 @@
         "x": 565.445537871278,
         "y": 286.0822842346772
       },
-      "dragging": false
+      "dragging": false,
+      "draggable": false
     },
     {
       "id": "jump-1764924930235",
@@ -484,7 +547,9 @@
       },
       "data": {
         "label": "調査先の選択肢に戻る",
-        "jumpTarget": "branch-1764849598489"
+        "jumpTarget": "branch-1764849598489",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 227,
       "height": 131,
@@ -495,7 +560,8 @@
         "y": 1169.1716400340092
       },
       "parentNode": "group-1764851311181",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "event-1764851833875",
@@ -506,7 +572,9 @@
       },
       "data": {
         "label": "目を覚ます",
-        "description": "気がついたら病院のベッドの上。医師の話を聞く限り1週間寝ていたようだ。\n\n眠っていた間に色々あったようだ。\nあなたが気絶したあの日、彗星が地球にぶつかる軌道に入ったことが全世界で報じられた。\n\nしかし…${割愛の共通文}"
+        "description": "気がついたら病院のベッドの上。医師の話を聞く限り1週間寝ていたようだ。\n\n眠っていた間に色々あったようだ。\nあなたが気絶したあの日、彗星が地球にぶつかる軌道に入ったことが全世界で報じられた。\n\nしかし…${割愛の共通文}",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 524,
       "height": 189,
@@ -517,7 +585,8 @@
       },
       "dragging": false,
       "parentNode": "group-1764925143643",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "event-1764852260167",
@@ -528,7 +597,9 @@
       },
       "data": {
         "label": "グッドエンド",
-        "description": "お疲れ様でした"
+        "description": "お疲れ様でした",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 156,
       "height": 89,
@@ -539,7 +610,8 @@
       },
       "dragging": false,
       "parentNode": "group-1764925143643",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "variable-1764851664755",
@@ -551,7 +623,9 @@
       "data": {
         "label": "余命が0になる",
         "targetVariable": "余命の日数",
-        "variableValue": "0"
+        "variableValue": "0",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 170,
       "height": 89,
@@ -562,7 +636,8 @@
       },
       "dragging": false,
       "parentNode": "group-1764925143643",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "event-1764851699613",
@@ -573,7 +648,9 @@
       },
       "data": {
         "label": "突然石が光る",
-        "description": "石が輝き初め、脱力感に襲われる。"
+        "description": "石が輝き初め、脱力感に襲われる。",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 232,
       "height": 89,
@@ -584,7 +661,8 @@
       },
       "dragging": false,
       "parentNode": "group-1764925143643",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "group-1764925143643",
@@ -597,7 +675,9 @@
         "label": "エンディング1",
         "expanded": true,
         "contentWidth": 107.359375,
-        "contentHeight": 20
+        "contentHeight": 20,
+        "hasSticky": false,
+        "revealed": false
       },
       "style": {
         "width": 589.9996237086889,
@@ -611,7 +691,8 @@
         "x": -345.06065656312,
         "y": 1887.7265731977973
       },
-      "dragging": false
+      "dragging": false,
+      "draggable": false
     },
     {
       "id": "event-1764851266531",
@@ -622,7 +703,9 @@
       },
       "data": {
         "label": "バッドエンド",
-        "description": "${割愛の共通文}"
+        "description": "${割愛の共通文}",
+        "hasSticky": false,
+        "revealed": false
       },
       "width": 157,
       "height": 89,
@@ -633,7 +716,8 @@
         "y": 1861.8168746774168
       },
       "parentNode": "group-1764925181787",
-      "extent": "parent"
+      "extent": "parent",
+      "draggable": false
     },
     {
       "id": "group-1764925181787",
@@ -646,7 +730,9 @@
         "label": "エンディング2",
         "expanded": true,
         "contentWidth": 109.1875,
-        "contentHeight": 20
+        "contentHeight": 20,
+        "hasSticky": false,
+        "revealed": false
       },
       "style": {
         "width": 260.72234477273514,
@@ -660,7 +746,77 @@
       "positionAbsolute": {
         "x": 296.7169740559241,
         "y": 1894.9861178853116
-      }
+      },
+      "draggable": false
+    },
+    {
+      "id": "resource-1764990786384",
+      "type": "resource",
+      "position": {
+        "x": 592.1081199292628,
+        "y": 1003.5238833890753
+      },
+      "data": {
+        "label": "",
+        "referenceId": "res-1764990340952",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 411,
+      "height": 122,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 592.1081199292628,
+        "y": 1003.5238833890753
+      },
+      "dragging": false,
+      "draggable": false
+    },
+    {
+      "id": "resource-1764990792447",
+      "type": "resource",
+      "position": {
+        "x": 238.070294923439,
+        "y": 992.1845936202054
+      },
+      "data": {
+        "label": "",
+        "referenceId": "res-1764990463234",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 205,
+      "height": 138,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 238.070294923439,
+        "y": 992.1845936202054
+      },
+      "dragging": false,
+      "draggable": false
+    },
+    {
+      "id": "resource-1764990796127",
+      "type": "resource",
+      "position": {
+        "x": -212.981453660493,
+        "y": 989.6647514493454
+      },
+      "data": {
+        "label": "",
+        "referenceId": "res-1764990648387",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 254,
+      "height": 138,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -212.981453660493,
+        "y": 989.6647514493454
+      },
+      "dragging": false,
+      "draggable": false
     }
   ],
   "edges": [
@@ -1005,7 +1161,7 @@
     "revealedNodes": [],
     "inventory": {
       "謎の石": 0,
-      "MP補助薬": 0
+      "MP回復薬": 0
     },
     "knowledge": {
       "石の情報": 0
@@ -1023,8 +1179,9 @@
       "余命の日数": {
         "name": "余命の日数",
         "type": "number",
-        "value": "5"
+        "value": 4
       }
-    }
+    },
+    "equipment": {}
   }
 }

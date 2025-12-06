@@ -149,7 +149,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose }: Confi
 
 export const Layout = () => {
   const { mode, setMode, nodes, edges, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, setEdgeType, edgeType, selectedNodeId } = useScenarioStore();
-  const { t, tf } = useTranslation();
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
