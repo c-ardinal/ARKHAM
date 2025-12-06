@@ -191,13 +191,13 @@ export const VariableList = () => {
       <div className="flex items-center justify-between mb-2 px-2 pt-2 shrink-0">
         <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
             <VariableIcon size={16} />
-            {t.variables.title}
+            {t('variables.title')}
         </h3>
         {mode === 'edit' && (
             <button 
             onClick={() => setIsAdding(true)}
             className="p-1 hover:bg-muted rounded text-primary hover:text-primary/80"
-            title={t.variables.add}
+            title={t('variables.add')}
             >
             <Plus size={16} />
             </button>
@@ -221,7 +221,7 @@ export const VariableList = () => {
           <div className="relative">
               <input
                 type="text"
-                placeholder={t.variables.name}
+                placeholder={t('variables.name')}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 className={inputClass}
@@ -235,9 +235,9 @@ export const VariableList = () => {
               onChange={(e) => setNewType(e.target.value as VariableType)}
               className={`flex-1 border rounded px-2 py-1 text-xs bg-background border-input text-foreground`}
             >
-              <option value="string">{t.variables.string}</option>
-              <option value="number">{t.variables.number}</option>
-              <option value="boolean">{t.variables.boolean}</option>
+              <option value="string">{t('variables.string')}</option>
+              <option value="number">{t('variables.number')}</option>
+              <option value="boolean">{t('variables.boolean')}</option>
             </select>
           </div>
           {newType === 'boolean' ? (
@@ -252,7 +252,7 @@ export const VariableList = () => {
               </select>
           ) : (
               <VariableSuggestInput
-                placeholder={t.variables.value}
+                placeholder={t('variables.value')}
                 value={newValue}
                 onChange={setNewValue}
                 className={inputClass}
@@ -266,7 +266,7 @@ export const VariableList = () => {
                 disabled={!!duplicateError || isChecking || !newName || (newType === 'boolean' && !newValue)}
                 className={`text-xs px-2 py-1 rounded text-primary-foreground ${duplicateError || isChecking || !newName || (newType === 'boolean' && !newValue) ? 'bg-gray-500 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'}`}
             >
-                {t.variables.create}
+                {t('variables.create')}
             </button>
           </div>
         </div>
@@ -274,7 +274,7 @@ export const VariableList = () => {
 
       <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar px-2 pb-2">
         {Object.values(gameState.variables).length === 0 && !isAdding && (
-            <div className="text-xs text-muted-foreground italic text-center py-4">{t.variables.noVariables}</div>
+            <div className="text-xs text-muted-foreground italic text-center py-4">{t('variables.noVariables')}</div>
         )}
         {getSortedVariables().map((variable) => (
           <div key={variable.name} className="p-2 rounded border bg-card border-border hover:border-ring/50">
@@ -299,9 +299,9 @@ export const VariableList = () => {
                             className={`${inputClass} opacity-50 cursor-not-allowed`}
                             disabled
                         >
-                            <option value="string">{t.variables.string}</option>
-                            <option value="number">{t.variables.number}</option>
-                            <option value="boolean">{t.variables.boolean}</option>
+                            <option value="string">{t('variables.string')}</option>
+                            <option value="number">{t('variables.number')}</option>
+                            <option value="boolean">{t('variables.boolean')}</option>
                         </select>
                     )}
                     {editType === 'boolean' ? (

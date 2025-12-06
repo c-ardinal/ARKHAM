@@ -116,7 +116,7 @@ const ContextMenu = ({
                   onClick={onDuplicate}
                   className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
                 >
-                  {t.contextMenu.duplicate}
+                  {t('contextMenu.duplicate')}
                 </button>
             )}
 
@@ -125,19 +125,19 @@ const ContextMenu = ({
                 <button 
                 className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full flex justify-between items-center"
                 >
-                {t.contextMenu.copyText} <span>▶</span>
+                {t('contextMenu.copyText')} <span>▶</span>
                 </button>
                 <div className="absolute left-full top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] hidden group-hover:flex flex-col">
-                    <button onClick={() => onCopyText?.('all')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.all}</button>
-                    <button onClick={() => onCopyText?.('label')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.label}</button>
-                    <button onClick={() => onCopyText?.('description')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.description}</button>
+                    <button onClick={() => onCopyText?.('all')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.all')}</button>
+                    <button onClick={() => onCopyText?.('label')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.label')}</button>
+                    <button onClick={() => onCopyText?.('description')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.description')}</button>
                     {['element', 'variable'].includes(menu.nodeType || '') && (
-                        <button onClick={() => onCopyText?.('value')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.value}</button>
+                        <button onClick={() => onCopyText?.('value')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.value')}</button>
                     )}
                     {menu.nodeType === 'branch' && (
                         <>
-                            <button onClick={() => onCopyText?.('condition')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.condition}</button>
-                            <button onClick={() => onCopyText?.('cases')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t.contextMenu.cases}</button>
+                            <button onClick={() => onCopyText?.('condition')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.condition')}</button>
+                            <button onClick={() => onCopyText?.('cases')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.cases')}</button>
                         </>
                     )}
                 </div>
@@ -149,7 +149,7 @@ const ContextMenu = ({
                     onClick={onToggleState}
                     className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
                 >
-                    {menu.data?.revealed ? t.contextMenu.markUnrevealed : t.contextMenu.markRevealed}
+                    {menu.data?.revealed ? t('contextMenu.markUnrevealed') : t('contextMenu.markRevealed')}
                 </button>
             )}
 
@@ -159,7 +159,7 @@ const ContextMenu = ({
                   onClick={() => onHideSticky?.(menu.id)}
                   className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
                 >
-                  {t.contextMenu.hideSticky}
+                  {t('contextMenu.hideSticky')}
                 </button>
             )}
 
@@ -171,7 +171,7 @@ const ContextMenu = ({
                         onClick={() => onAddSticky?.(menu.id)}
                         className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
                     >
-                        {t.contextMenu.addSticky}
+                        {t('contextMenu.addSticky')}
                     </button>
                     {menu.hasSticky && (
                         <>
@@ -179,13 +179,13 @@ const ContextMenu = ({
                                 onClick={() => onToggleStickies?.(menu.id)}
                                 className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
                             >
-                                {menu.stickiesHidden ? t.contextMenu.showStickies : t.contextMenu.hideStickies}
+                                {menu.stickiesHidden ? t('contextMenu.showStickies') : t('contextMenu.hideStickies')}
                             </button>
                             <button 
                                 onClick={() => onDeleteStickies?.(menu.id)}
                                 className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
                             >
-                                {t.contextMenu.deleteStickies}
+                                {t('contextMenu.deleteStickies')}
                             </button>
                         </>
                     )}
@@ -202,7 +202,7 @@ const ContextMenu = ({
                             onClick={onUngroup}
                             className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
                         >
-                            {t.contextMenu.ungroup}
+                            {t('contextMenu.ungroup')}
                         </button>
                       </>
                     )}
@@ -212,7 +212,7 @@ const ContextMenu = ({
                             onClick={onDetachFromGroup}
                             className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
                         >
-                            {t.contextMenu.detachFromGroup}
+                            {t('contextMenu.detachFromGroup')}
                         </button>
                     )}
                 </>
@@ -226,7 +226,7 @@ const ContextMenu = ({
                         onClick={onDelete}
                         className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
                     >
-                        {menu.nodeType === 'sticky' ? t.contextMenu.deleteSticky : t.contextMenu.delete}
+                        {menu.nodeType === 'sticky' ? t('contextMenu.deleteSticky') : t('contextMenu.delete')}
                     </button>
                 </>
             )}
@@ -240,7 +240,7 @@ const ContextMenu = ({
                 onClick={() => onAddSticky?.()}
                 className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
             >
-                {t.contextMenu.addFreeSticky}
+                {t('contextMenu.addFreeSticky')}
             </button>
             
             {mode === 'edit' && (
@@ -248,7 +248,7 @@ const ContextMenu = ({
                     onClick={onReduplicate}
                     className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
                 >
-                    {t.contextMenu.reduplicate}
+                    {t('contextMenu.reduplicate')}
                 </button>
             )}
           </>
@@ -260,7 +260,7 @@ const ContextMenu = ({
             onClick={onDelete}
             className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
           >
-            {t.contextMenu.delete}
+            {t('contextMenu.delete')}
           </button>
       )}
     </div>
@@ -421,7 +421,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         type,
         position,
         data: { 
-            label: `${type === 'character' || type === 'resource' ? '' : t.nodes.new + ' ' + type}`,
+            label: `${type === 'character' || type === 'resource' ? '' : t('nodes.new') + ' ' + type}`,
             referenceId: referenceId || undefined,
             // Set defaults
             infoType: (type === 'element') ? 'knowledge' : undefined,

@@ -3,6 +3,7 @@ import { useEffect, type ChangeEvent } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { substituteVariables } from '../utils/textUtils';
+import { INPUT_CLASS, LABEL_CLASS, ERROR_MSG_CLASS as ERROR_CLASS } from '../styles/common';
 
 interface PropertyPanelProps {
   width: number;
@@ -24,8 +25,10 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
       ? resources.find(r => r.id === selectedNodeId)
       : (selectedNode.type === 'resource' ? resources.find(r => r.id === selectedNode.data.referenceId) : null);
 
-  const inputClass = "w-full border rounded px-3 py-2 focus:outline-none focus:border-primary bg-background border-input text-foreground";
-  const labelClass = "block text-sm font-medium mb-1 text-foreground";
+
+
+  const inputClass = INPUT_CLASS;
+  const labelClass = LABEL_CLASS;
 
   // Auto-select resource if available and not set (User Requirement)
   useEffect(() => {
@@ -49,12 +52,12 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
        return (
             <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
                 <div className="p-4 border-b border-border">
-                    <h2 className="text-lg font-semibold text-card-foreground">{t.characters?.title || 'Characters'}</h2>
+                    <h2 className="text-lg font-semibold text-card-foreground">{t('characters.title')}</h2>
                     <div className="text-xs mt-1 text-muted-foreground">ID: {selectedCharacter.id}</div>
                 </div>
                 <div className="p-4 flex-1 overflow-y-auto space-y-4">
                     <div>
-                        <label className={labelClass}>{t.characters?.name || 'Name'}</label>
+                        <label className={labelClass}>{t('characters.name')}</label>
                         <input
                             value={selectedCharacter.name}
                             onChange={(e) => handleChange('name', e.target.value)}
@@ -62,7 +65,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                     <div>
-                        <label className={labelClass}>{t.characters?.reading || 'Reading'}</label>
+                        <label className={labelClass}>{t('characters.reading')}</label>
                         <input
                             value={selectedCharacter.reading || ''}
                             onChange={(e) => handleChange('reading', e.target.value)}
@@ -70,19 +73,19 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                     <div>
-                        <label className={labelClass}>{t.characters?.type || 'Type'}</label>
+                        <label className={labelClass}>{t('characters.type')}</label>
                          <select
                             value={selectedCharacter.type}
                             onChange={(e) => handleChange('type', e.target.value)}
                             className={inputClass}
                         >
-                            {Object.entries((t.characters?.types as any) || {}).map(([key, label]) => (
+                            {Object.entries((t('characters.types') as any) || {}).map(([key, label]) => (
                                 <option key={key} value={key}>{label as string}</option>
                             ))}
                         </select>
                     </div>
                     <div>
-                        <label className={labelClass}>{t.characters?.description || 'Description'}</label>
+                        <label className={labelClass}>{t('characters.description')}</label>
                          <VariableSuggestInput
                             multiline
                             value={selectedCharacter.description || ''}
@@ -91,7 +94,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                      <div>
-                        <label className={labelClass}>{t.characters?.abilities || 'Abilities'}</label>
+                        <label className={labelClass}>{t('characters.abilities')}</label>
                         <textarea
                             value={selectedCharacter.abilities || ''}
                             onChange={(e) => handleChange('abilities', e.target.value)}
@@ -99,7 +102,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                      <div>
-                        <label className={labelClass}>{t.characters?.skills || 'Skills'}</label>
+                        <label className={labelClass}>{t('characters.skills')}</label>
                         <textarea
                             value={selectedCharacter.skills || ''}
                             onChange={(e) => handleChange('skills', e.target.value)}
@@ -107,7 +110,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                      <div>
-                        <label className={labelClass}>{t.characters?.note || 'Note'}</label>
+                        <label className={labelClass}>{t('characters.note')}</label>
                         <textarea
                             value={selectedCharacter.note || ''}
                             onChange={(e) => handleChange('note', e.target.value)}
@@ -128,12 +131,12 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
        return (
             <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
                 <div className="p-4 border-b border-border">
-                    <h2 className="text-lg font-semibold text-card-foreground">{t.resources?.title || 'Resources'}</h2>
+                    <h2 className="text-lg font-semibold text-card-foreground">{t('resources.title')}</h2>
                     <div className="text-xs mt-1 text-muted-foreground">ID: {selectedResource.id}</div>
                 </div>
                 <div className="p-4 flex-1 overflow-y-auto space-y-4">
                     <div>
-                        <label className={labelClass}>{t.resources?.name || 'Name'}</label>
+                        <label className={labelClass}>{t('resources.name')}</label>
                         <input
                             value={selectedResource.name}
                             onChange={(e) => handleChange('name', e.target.value)}
@@ -141,7 +144,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                      <div>
-                        <label className={labelClass}>{t.resources?.reading || 'Reading'}</label>
+                        <label className={labelClass}>{t('resources.reading')}</label>
                         <input
                             value={selectedResource.reading || ''}
                             onChange={(e) => handleChange('reading', e.target.value)}
@@ -149,19 +152,19 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                     <div>
-                        <label className={labelClass}>{t.resources?.type || 'Type'}</label>
+                        <label className={labelClass}>{t('resources.type')}</label>
                          <select
                             value={selectedResource.type}
                             onChange={(e) => handleChange('type', e.target.value)}
                             className={inputClass}
                         >
-                            {Object.entries((t.resources?.types as any) || {}).map(([key, label]) => (
+                            {Object.entries((t('resources.types') as any) || {}).map(([key, label]) => (
                                 <option key={key} value={key}>{label as string}</option>
                             ))}
                         </select>
                     </div>
                     <div>
-                        <label className={labelClass}>{t.resources?.description || 'Description'}</label>
+                        <label className={labelClass}>{t('resources.description')}</label>
                          <VariableSuggestInput
                             multiline
                             value={selectedResource.description || ''}
@@ -170,7 +173,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                      <div>
-                        <label className={labelClass}>{t.resources?.cost || 'Cost'}</label>
+                        <label className={labelClass}>{t('resources.cost')}</label>
                         <input
                             value={selectedResource.cost || ''}
                             onChange={(e) => handleChange('cost', e.target.value)}
@@ -178,7 +181,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                      <div>
-                        <label className={labelClass}>{t.resources?.effect || 'Effect'}</label>
+                        <label className={labelClass}>{t('resources.effect')}</label>
                         <VariableSuggestInput
                             multiline
                             value={selectedResource.effect || ''}
@@ -187,7 +190,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                         />
                     </div>
                      <div>
-                        <label className={labelClass}>{t.resources?.note || 'Note'}</label>
+                        <label className={labelClass}>{t('resources.note')}</label>
                         <textarea
                             value={selectedResource.note || ''}
                             onChange={(e) => handleChange('note', e.target.value)}
@@ -204,10 +207,10 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
     return (
       <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
         <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-card-foreground">{t.common.properties}</h2>
+          <h2 className="text-lg font-semibold text-card-foreground">{t('common.properties')}</h2>
         </div>
         <div className="p-4 flex-1 overflow-y-auto text-muted-foreground">
-          <p>{t.properties.selectNode}</p>
+          <p>{t('properties.selectNode')}</p>
         </div>
       </aside>
     );
@@ -229,14 +232,14 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
     <aside className="border-l flex flex-col bg-card border-border" style={{ width }}>
 
       <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold text-card-foreground">{t.common.properties}</h2>
+        <h2 className="text-lg font-semibold text-card-foreground">{t('common.properties')}</h2>
         <div className="text-xs mt-1 text-muted-foreground">ID: {selectedNode.id}</div>
         <div className="text-xs text-muted-foreground">Type: {selectedNode.type}</div>
       </div>
       <div className="p-4 flex-1 overflow-y-auto">
         <div className="space-y-4">
           <div>
-            <label className={labelClass}>{t.properties.label}</label>
+            <label className={labelClass}>{t('properties.label')}</label>
             <VariableSuggestInput
               value={selectedNode.data.label}
               onChange={(val) => handleFieldChange('label', val)}
@@ -245,7 +248,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
           </div>
 
           <div>
-            <label className={labelClass}>{t.properties.description}</label>
+            <label className={labelClass}>{t('properties.description')}</label>
             <VariableSuggestInput
               multiline
               value={selectedNode.data.description || ''}
@@ -259,23 +262,23 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
               {/* InfoType removed as per request */}
               
               <div>
-                <label className={labelClass}>{t.properties.actionType}</label>
+                <label className={labelClass}>{t('properties.actionType')}</label>
                 <select
                   name="actionType"
                   value={selectedNode.data.actionType || 'obtain'}
                   onChange={handleChange}
                   className={inputClass}
                 >
-                  <option value="obtain">{t.properties.actionTypeObtain}</option>
-                  <option value="consume">{t.properties.actionTypeConsume}</option>
+                  <option value="obtain">{t('properties.actionTypeObtain')}</option>
+                  <option value="consume">{t('properties.actionTypeConsume')}</option>
                 </select>
               </div>
 
               <div>
-                <label className={labelClass}>{t.properties.operationTarget}</label>
+                <label className={labelClass}>{t('properties.operationTarget')}</label>
                 {resources.length === 0 ? (
-                   <div className="text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 p-2 rounded">
-                       {t.resources?.noResources || "Elements not defined"}
+                   <div className={ERROR_CLASS}>
+                       {t('resources.noResources') || "Elements not defined"}
                    </div>
                 ) : (
                     <select
@@ -294,7 +297,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
 
                         {resources.map((r) => (
                             <option key={r.id} value={r.id}>
-                                {r.name} ({t.resources.types[r.type] || r.type})
+                                {r.name} ({t(`resources.types.${r.type}` as any) || r.type})
                             </option>
                         ))}
                     </select>
@@ -302,7 +305,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
               </div>
 
               <div>
-                <label className={labelClass}>{t.properties.operationQuantity}</label>
+                <label className={labelClass}>{t('properties.operationQuantity')}</label>
                 <input
                   type="number"
                   name="quantity"
@@ -317,10 +320,10 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
           {selectedNode.type === 'variable' && (
               <>
                 <div>
-                    <label className={labelClass}>{t.properties.targetVariable}</label>
+                    <label className={labelClass}>{t('properties.targetVariable')}</label>
                     {Object.keys(gameState.variables).length === 0 ? (
-                       <div className="text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 p-2 rounded">
-                           {t.variables?.noVariables || "No variables defined"}
+                       <div className={ERROR_CLASS}>
+                           {t('variables.noVariables') || "No variables defined"}
                        </div>
                     ) : (
                         <select
@@ -335,7 +338,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                     )}
                 </div>
                 <div>
-                    <label className={labelClass}>{t.properties.assignmentValue}</label>
+                    <label className={labelClass}>{t('properties.assignmentValue')}</label>
                     {(() => {
                         const targetVarName = selectedNode.data.targetVariable;
                         const variables = useScenarioStore.getState().gameState.variables;
@@ -381,7 +384,7 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
           {selectedNode.type === 'branch' && (
             <>
               <div>
-                <label className={labelClass}>{t.properties.branchType}</label>
+                <label className={labelClass}>{t('properties.branchType')}</label>
                 <select
                   name="branchType"
                   value={selectedNode.data.branchType || 'if_else'}
@@ -394,14 +397,14 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
               </div>
               <div>
                 <label className={labelClass}>
-                    {t.properties.checkTarget}
+                    {t('properties.checkTarget')}
                 </label>
                 {selectedNode.data.branchType === 'switch' ? (
                     <VariableSuggestInput
                         value={selectedNode.data.conditionValue || selectedNode.data.conditionVariable || ''}
                         onChange={(val) => handleFieldChange('conditionValue', val)}
                         className={inputClass}
-                        placeholder={t.properties.selectVariable}
+                        placeholder={t('properties.selectVariable')}
                     />
                 ) : (
                     <VariableSuggestInput
@@ -466,16 +469,16 @@ export const PropertyPanel = ({ width }: PropertyPanelProps) => {
                     onChange={(e) => updateNodeData(selectedNode.id, { isStart: e.target.checked })}
                     className="w-4 h-4"
                 />
-                <label className={labelClass}>{t.properties.isStartNode}</label>
+                <label className={labelClass}>{t('properties.isStartNode')}</label>
              </div>
           )}
 
           {selectedNode.type === 'jump' && (
               <div>
-                  <label className={labelClass}>{t.properties.jumpTarget}</label>
+                  <label className={labelClass}>{t('properties.jumpTarget')}</label>
                   {nodes.filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource').length === 0 ? (
-                       <div className="text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 p-2 rounded">
-                           {t.properties?.noNodesAvailable || "No jump targets available"}
+                       <div className={ERROR_CLASS}>
+                           {t('properties.noNodesAvailable') || "No jump targets available"}
                        </div>
                   ) : (
                       <select

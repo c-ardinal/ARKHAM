@@ -55,7 +55,6 @@ export type TranslationKeys = {
   };
   nodes: {
     event: string;
-    information: string;
     element: string;
     memo: string;
     variable: string;
@@ -165,6 +164,12 @@ export type TranslationKeys = {
     infoNodeDesc: string;
     branchNodeDesc: string;
     groupNodeDesc: string;
+    jumpNodeDesc: string;
+    memoNodeDesc: string;
+    variableNodeDesc: string;
+    resourceNodeDesc: string;
+    characterNodeDesc: string;
+    stickyNodeDesc: string;
     controls: string;
     controlsDesc1: string;
     controlsDesc2: string;
@@ -178,8 +183,6 @@ export type TranslationKeys = {
     playModeTitle: string;
     variablesTitle: string;
     variablesDesc: string;
-    tipsTitle: string;
-    tipsDesc: string;
     shortcutsTitle: string;
     shortcutsDesc: string;
   };

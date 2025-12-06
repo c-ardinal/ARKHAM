@@ -1,4 +1,5 @@
 import type { Variable } from '../types';
+import React from 'react';
 
 export const substituteVariables = (text: string, variables: Record<string, Variable>): string => {
   if (!text) return '';
@@ -57,4 +58,17 @@ export const evaluateFormula = (formula: string, variables: Record<string, Varia
   } catch (e) {
       return substituted;
   }
+};
+
+/**
+ * Converts newlines in text to <br> tags.
+ */
+export const nl2br = (text: string): React.ReactNode => {
+    if (!text) return '';
+    return text.split('\n').map((str, index, array) => {
+        return React.createElement(React.Fragment, { key: index }, 
+            str,
+            index < array.length - 1 ? React.createElement('br') : null
+        );
+    });
 };

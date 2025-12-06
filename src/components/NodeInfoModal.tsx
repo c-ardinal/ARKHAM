@@ -1,6 +1,7 @@
 import { useScenarioStore } from '../store/scenarioStore';
 import { useTranslation } from '../hooks/useTranslation';
-import { X, User, Users, Ghost, HelpCircle, Package, Shield, Book, Zap, Activity } from 'lucide-react';
+import { X } from 'lucide-react';
+import { getIconForResourceType, getIconForCharacterType } from '../utils/iconUtils';
 
 interface NodeInfoModalProps {
   referenceId: string | null;
@@ -21,34 +22,21 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
 
   const getIcon = () => {
       if (character) {
-        switch (character.type) {
-            case 'Person': return <User size={24} />;
-            case 'Participant': return <Users size={24} />;
-            case 'Monster': return <Ghost size={24} />;
-            case 'Other': return <HelpCircle size={24} />;
-            default: return <User size={24} />;
-        }
+          return getIconForCharacterType(character.type, 24);
       } else if (resource) {
-        switch (resource.type) {
-            case 'Item': return <Package size={24} />;
-            case 'Equipment': return <Shield size={24} />;
-            case 'Knowledge': return <Book size={24} />;
-            case 'Skill': return <Zap size={24} />;
-            case 'Status': return <Activity size={24} />;
-            default: return <Package size={24} />;
-        }
+          return getIconForResourceType(resource.type, 24);
       }
       return null;
   };
 
   const getTypeLabel = () => {
        if (character) {
-           const types = (t.characters?.types as any) || {};
-           return types[character.type] || character.type;
+           const types = t('characters.types') as unknown as Record<string, string>;
+           return types?.[character.type] || character.type;
        }
        if (resource) {
-           const types = (t.resources?.types as any) || {};
-           return types[resource.type] || resource.type;
+           const types = t('resources.types') as unknown as Record<string, string>;
+           return types?.[resource.type] || resource.type;
        }
        return '';
   };
@@ -89,7 +77,7 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
         <div className="p-6 overflow-y-auto space-y-6">
             {data.description && (
                 <div>
-                    <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t.properties?.description || 'Description'}</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t('properties.description')}</h4>
                     <div className="whitespace-pre-wrap leading-relaxed">
                         {data.description}
                     </div>
@@ -100,7 +88,7 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
                 <>
                     {character.abilities && (
                         <div>
-                             <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t.characters?.abilities || 'Abilities'}</h4>
+                             <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t('characters.abilities')}</h4>
                              <div className="whitespace-pre-wrap text-sm bg-muted/50 p-3 rounded">
                                 {character.abilities}
                              </div>
@@ -108,7 +96,7 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
                     )}
                     {character.skills && (
                         <div>
-                             <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t.characters?.skills || 'Skills'}</h4>
+                             <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t('characters.skills')}</h4>
                              <div className="whitespace-pre-wrap text-sm bg-muted/50 p-3 rounded">
                                 {character.skills}
                              </div>
@@ -121,7 +109,7 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
                 <>
                     {resource.effect && (
                         <div>
-                             <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t.resources?.effect || 'Effect'}</h4>
+                             <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t('resources.effect')}</h4>
                              <div className="whitespace-pre-wrap text-sm bg-muted/50 p-3 rounded">
                                 {resource.effect}
                              </div>
@@ -129,7 +117,7 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
                     )}
                      {resource.cost && (
                         <div>
-                             <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t.resources?.cost || 'Cost'}</h4>
+                             <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">{t('resources.cost')}</h4>
                              <div className="text-sm font-medium">
                                 {resource.cost}
                              </div>
@@ -141,7 +129,7 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
              {data.note && (
                 <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase">
-                        {character ? (t.characters?.note || 'Note') : (t.resources?.note || 'Note')}
+                        {character ? t('characters.note') : t('resources.note')}
                     </h4>
                     <div className="whitespace-pre-wrap text-sm text-muted-foreground italic">
                         {data.note}
@@ -156,7 +144,7 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
                 onClick={onClose}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-sm font-medium"
             >
-                {t.common?.close || 'Close'}
+                {t('common.close')}
             </button>
         </div>
 

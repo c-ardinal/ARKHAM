@@ -41,14 +41,14 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
                         <button 
                             onClick={() => { setActiveTab('nodes'); onToggle(); }}
                             className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab !== 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                            title={t.common?.gameState || "Game State"}
+                            title={t('common.gameState')}
                         >
                             <Activity size={18} />
                         </button>
                         <button 
                             onClick={() => { setActiveTab('variables'); onToggle(); }}
                             className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                            title={t.variables.title}
+                            title={t('variables.title')}
                         >
                             <VariableIcon size={18} />
                         </button>
@@ -58,28 +58,28 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
                         <button 
                             onClick={() => { setActiveTab('nodes'); onToggle(); }}
                             className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'nodes' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                            title={t.common.nodes}
+                            title={t('common.nodes')}
                         >
                             <Layers size={18} />
                         </button>
                         <button 
                             onClick={() => { setActiveTab('characters'); onToggle(); }}
                             className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'characters' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                            title={t.characters.title}
+                            title={t('characters.title')}
                         >
                             <Users size={18} />
                         </button>
                         <button 
                             onClick={() => { setActiveTab('resources'); onToggle(); }}
                             className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'resources' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                            title={t.resources.title}
+                            title={t('resources.title')}
                         >
                             <Package size={18} />
                         </button>
                         <button 
                             onClick={() => { setActiveTab('variables'); onToggle(); }}
                             className={`p-2 rounded flex items-center justify-center transition-colors ${activeTab === 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                            title={t.variables.title}
+                            title={t('variables.title')}
                         >
                             <VariableIcon size={18} />
                         </button>
@@ -102,14 +102,14 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
                 <button 
                     onClick={() => setActiveTab('nodes')} // Reusing 'nodes' state for 'State' tab to avoid adding new state if possible, or mapping
                     className={`p-2 rounded flex items-center justify-center flex-1 transition-colors ${activeTab !== 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                    title={t.common.gameState}
+                    title={t('common.gameState')}
                 >
                     <Activity size={18} />
                 </button>
                 <button 
                     onClick={() => setActiveTab('variables')}
                     className={`p-2 rounded flex items-center justify-center flex-1 transition-colors ${activeTab === 'variables' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}`}
-                    title={t.variables.title}
+                    title={t('variables.title')}
                 >
                     <VariableIcon size={18} />
                 </button>
@@ -126,10 +126,10 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
               {/* Tools (Inventory) */}
               <div>
                 <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
-                  <Package size={14} /> {t.gameState.inventory}
+                  <Package size={14} /> {t('gameState.inventory')}
                 </h3>
                 {Object.keys(gameState.inventory).length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic">{t.gameState.empty}</div>
+                  <div className="text-xs text-muted-foreground italic">{t('gameState.empty')}</div>
                 ) : (
                   <ul className="space-y-1">
                     {Object.entries(gameState.inventory).map(([item, qty], i) => (
@@ -145,10 +145,10 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
                {/* Equipment */}
                <div>
                 <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
-                  <Shield size={14} /> {t.resources?.types?.Equipment || 'Equipment'}
+                  <Shield size={14} /> {t('resources.types.Equipment')}
                 </h3>
                 {(!gameState.equipment || Object.keys(gameState.equipment).length === 0) ? (
-                  <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
+                  <div className="text-xs text-muted-foreground italic">{t('gameState.none')}</div>
                 ) : (
                   <ul className="space-y-1">
                     {Object.entries(gameState.equipment).map(([item, qty], i) => (
@@ -161,13 +161,13 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
                 )}
               </div>
 
-              {/* Knowledge */}
-              <div>
+               {/* Knowledge */}
+               <div>
                 <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
-                  <Brain size={14} /> {t.gameState.knowledge}
+                  <Brain size={14} /> {t('gameState.knowledge')}
                 </h3>
                 {Object.keys(gameState.knowledge).length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
+                  <div className="text-xs text-muted-foreground italic">{t('gameState.none')}</div>
                 ) : (
                   <ul className="space-y-1">
                     {Object.entries(gameState.knowledge).map(([k, qty], i) => (
@@ -180,13 +180,13 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
                 )}
               </div>
 
-              {/* Skills */}
-              <div>
+               {/* Skills */}
+               <div>
                 <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
-                  <Zap size={14} /> {t.gameState.skills}
+                  <Zap size={14} /> {t('gameState.skills')}
                 </h3>
                 {Object.keys(gameState.skills).length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
+                  <div className="text-xs text-muted-foreground italic">{t('gameState.none')}</div>
                 ) : (
                   <ul className="space-y-1">
                     {Object.entries(gameState.skills).map(([s, qty], i) => (
@@ -199,13 +199,13 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
                 )}
               </div>
 
-              {/* Stats */}
-              <div>
+               {/* Stats */}
+               <div>
                 <h3 className="text-sm font-medium mb-2 flex items-center gap-2 text-muted-foreground">
-                  <BookOpen size={14} /> {t.gameState.stats}
+                  <BookOpen size={14} /> {t('gameState.stats')}
                 </h3>
                 {Object.keys(gameState.stats).length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic">{t.gameState.none}</div>
+                  <div className="text-xs text-muted-foreground italic">{t('gameState.none')}</div>
                 ) : (
                   <ul className="space-y-1">
                     {Object.entries(gameState.stats).map(([key, val], i) => (
@@ -278,7 +278,7 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
                  <div className="flex justify-between items-center mb-2 px-2 pt-2">
                     <h3 className="text-sm font-semibold flex items-center gap-2">
                         <Layers size={16} />
-                        {t.common.nodes}
+                        {t('common.nodes')}
                     </h3>
                  </div>
                  <div className="flex-1 overflow-y-auto flex flex-col gap-2 px-2 pb-2">
@@ -288,49 +288,49 @@ export const Sidebar = ({ width, isOpen, onToggle }: SidebarProps) => {
                     onDragStart={(event) => onDragStart(event, 'event')}
                     draggable
                  >
-                    <Flag size={16} /> {t.nodes.event}
+                    <Flag size={16} /> {t('nodes.event')}
                  </div>
                  <div 
                     className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-200 dark:border-blue-800 bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-200"
                     onDragStart={(event) => onDragStart(event, 'element')}
                     draggable
                  >
-                    <Package size={16} /> {t.nodes.element}
+                    <Package size={16} /> {t('nodes.element')}
                  </div>
                  <div 
                     className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 dark:text-purple-200 dark:border-purple-800 bg-purple-50 hover:bg-purple-100 text-purple-900 border-purple-200"
                     onDragStart={(event) => onDragStart(event, 'branch')}
                     draggable
                  >
-                    <GitBranch size={16} /> {t.nodes.branch}
+                    <GitBranch size={16} /> {t('nodes.branch')}
                  </div>
                  <div 
                     className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-200 dark:border-red-800 bg-red-50 hover:bg-red-100 text-red-900 border-red-200"
                     onDragStart={(event) => onDragStart(event, 'variable')}
                     draggable
                  >
-                    <VariableIcon size={16} /> {t.nodes.variable}
+                    <VariableIcon size={16} /> {t('nodes.variable')}
                  </div>
                  <div 
                     className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-100 dark:border-slate-600 bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300"
                     onDragStart={(event) => onDragStart(event, 'group')}
                     draggable
                  >
-                    <Folder size={16} /> {t.nodes.group}
+                    <Folder size={16} /> {t('nodes.group')}
                  </div>
                  <div 
                     className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 dark:text-yellow-200 dark:border-yellow-800 bg-yellow-50 hover:bg-yellow-100 text-yellow-900 border-yellow-200"
                     onDragStart={(event) => onDragStart(event, 'jump')}
                     draggable
                  >
-                    <Rabbit size={16} /> {t.nodes.jump}
+                    <Rabbit size={16} /> {t('nodes.jump')}
                  </div>
                  <div 
                     className="p-3 rounded cursor-move transition-colors font-medium border flex items-center gap-2 dark:bg-slate-500 dark:hover:bg-slate-400 dark:text-slate-100 dark:border-slate-500 bg-white hover:bg-slate-50 text-slate-900 border-slate-200"
                     onDragStart={(event) => onDragStart(event, 'memo')}
                     draggable
                  >
-                    <StickyNote size={16} /> {t.nodes.memo}
+                    <StickyNote size={16} /> {t('nodes.memo')}
                  </div>
             </div>
              </div>

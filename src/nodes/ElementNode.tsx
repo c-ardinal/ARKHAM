@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import { BookOpen, Package, Zap, Activity, StickyNote, Shield } from 'lucide-react';
+import { Package, StickyNote } from 'lucide-react';
+import { getIconForResourceType } from '../utils/iconUtils';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
@@ -12,15 +13,7 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   
   const getIcon = () => {
     if (!resource) return <Package size={16} />;
-    
-    switch (resource.type) {
-      case 'Knowledge': return <BookOpen size={16} />;
-      case 'Item': return <Package size={16} />;
-      case 'Equipment': return <Shield size={16} />;
-      case 'Skill': return <Zap size={16} />;
-      case 'Status': return <Activity size={16} />;
-      default: return <Package size={16} />;
-    }
+    return getIconForResourceType(resource.type, 16);
   };
 
   return (

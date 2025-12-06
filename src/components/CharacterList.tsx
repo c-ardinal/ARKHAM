@@ -1,7 +1,8 @@
 import React from 'react';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useTranslation } from '../hooks/useTranslation';
-import { Plus, Trash2, GripVertical, User, Users, Ghost, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Users } from 'lucide-react';
+import { getIconForCharacterType } from '../utils/iconUtils';
 import type { CharacterType } from '../types';
 
 export const CharacterList = () => {
@@ -29,22 +30,14 @@ export const CharacterList = () => {
     event.dataTransfer.effectAllowed = 'move';
   };
 
-  const getIcon = (type: CharacterType) => {
-      switch (type) {
-        case 'Person': return <User size={14} />;
-        case 'Participant': return <Users size={14} />;
-        case 'Monster': return <Ghost size={14} />;
-        case 'Other': return <HelpCircle size={14} />;
-        default: return <User size={14} />;
-      }
-  };
+
 
   return (
     <div className="flex flex-col h-full bg-card">
         <div className="flex justify-between items-center mb-2 px-2 pt-2">
             <h3 className="text-sm font-semibold flex items-center gap-2">
                 <Users size={16} />
-                {t.characters.title}
+                {t('characters.title')}
             </h3>
             <button onClick={handleAdd} className="p-1 hover:bg-muted rounded text-primary hover:text-primary/80" title="Add Character">
                 <Plus size={16} />
@@ -64,7 +57,7 @@ export const CharacterList = () => {
                 >
                     <GripVertical size={14} className="text-muted-foreground opacity-50 cursor-grab shrink-0" />
                     <div className="text-muted-foreground shrink-0">
-                        {getIcon(char.type)}
+                        {getIconForCharacterType(char.type, 14)}
                     </div>
                     <div className="flex-1 truncate font-medium">{char.name}</div>
                     <button 

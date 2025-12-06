@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import type { NodeProps } from 'reactflow';
-import { Package, Shield, Book, Zap, Activity } from 'lucide-react';
+import { Package } from 'lucide-react';
+import { getIconForResourceType } from '../utils/iconUtils';
 import { useScenarioStore } from '../store/scenarioStore';
 import type { ResourceType, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
@@ -24,20 +25,11 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
     );
   }
 
-  const getIcon = (type: ResourceType) => {
-    switch (type) {
-      case 'Item': return <Package size={20} />;
-      case 'Equipment': return <Shield size={20} />;
-      case 'Knowledge': return <Book size={20} />;
-      case 'Skill': return <Zap size={20} />;
-      case 'Status': return <Activity size={20} />;
-      default: return <Package size={20} />;
-    }
-  };
+
 
   const getTypeLabel = (type: ResourceType) => {
-      const types = t.resources.types as any;
-      return types[type] || type;
+      const types = t('resources.types') as unknown as Record<string, string>;
+      return types?.[type] || type;
   };
 
   const getBorderColor = (type: ResourceType) => {
@@ -61,7 +53,7 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       {/* Header */}
       <div className="flex items-center gap-2 p-2 border-b border-border bg-muted/30">
         <div className="p-1.5 rounded-full bg-primary/10 text-primary">
-            {getIcon(resource.type)}
+            {getIconForResourceType(resource.type, 20)}
         </div>
         <div className="flex-1 min-w-0">
             <div className="text-xs text-muted-foreground font-medium truncate mb-1">
@@ -80,12 +72,12 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       <div className="p-3 text-xs space-y-1">
           {resource.cost && (
               <div className="text-muted-foreground">
-                  <span className="font-semibold">{t.resources.cost}:</span> {resource.cost}
+                  <span className="font-semibold">{t('resources.cost')}:</span> {resource.cost}
               </div>
           )}
            {resource.effect && (
               <div className="text-muted-foreground">
-                  <span className="font-semibold">{t.resources.effect}:</span> {resource.effect}
+                  <span className="font-semibold">{t('resources.effect')}:</span> {resource.effect}
               </div>
           )}
           {resource.description && (

@@ -1,7 +1,8 @@
 import React from 'react';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useTranslation } from '../hooks/useTranslation';
-import { Plus, Trash2, GripVertical, Package, Shield, Book, Zap, Activity } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Package } from 'lucide-react';
+import { getIconForResourceType } from '../utils/iconUtils';
 import type { ResourceType } from '../types';
 
 export const ResourceList = () => {
@@ -29,23 +30,14 @@ export const ResourceList = () => {
     event.dataTransfer.effectAllowed = 'move';
   };
 
-  const getIcon = (type: ResourceType) => {
-    switch (type) {
-        case 'Item': return <Package size={14} />;
-        case 'Equipment': return <Shield size={14} />;
-        case 'Knowledge': return <Book size={14} />;
-        case 'Skill': return <Zap size={14} />;
-        case 'Status': return <Activity size={14} />;
-        default: return <Package size={14} />;
-    }
-  };
+
 
   return (
     <div className="flex flex-col h-full bg-card">
         <div className="flex justify-between items-center mb-2 px-2 pt-2">
             <h3 className="text-sm font-semibold flex items-center gap-2">
                 <Package size={16} />
-                {t.resources.title}
+                {t('resources.title')}
             </h3>
             <button onClick={handleAdd} className="p-1 hover:bg-muted rounded text-primary hover:text-primary/80" title="Add Element">
                 <Plus size={16} />
@@ -65,7 +57,7 @@ export const ResourceList = () => {
                 >
                     <GripVertical size={14} className="text-muted-foreground opacity-50 cursor-grab shrink-0" />
                     <div className="text-muted-foreground shrink-0">
-                        {getIcon(res.type)}
+                        {getIconForResourceType(res.type, 14)}
                     </div>
                     <div className="flex-1 truncate font-medium">{res.name}</div>
                     <button 
