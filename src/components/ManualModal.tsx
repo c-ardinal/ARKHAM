@@ -13,8 +13,8 @@ export const ManualModal = ({ isOpen, onClose }: ManualModalProps) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="rounded-lg shadow-xl w-[800px] max-h-[80vh] flex flex-col bg-card border border-border">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="rounded-lg shadow-xl w-full max-w-[800px] max-h-[85vh] flex flex-col bg-card border border-border">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-xl font-bold text-card-foreground">{t('manual.title')}</h2>
           <button onClick={onClose} className="hover:text-muted-foreground text-muted-foreground/80">

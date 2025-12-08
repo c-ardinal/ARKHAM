@@ -183,279 +183,6 @@
       "draggable": true
     },
     {
-      "id": "event-1764849814308",
-      "type": "event",
-      "position": {
-        "x": 49.610933580249196,
-        "y": 113.3892582516599
-      },
-      "data": {
-        "label": "宝石店を営む友人に見てもらう",
-        "hasSticky": false,
-        "revealed": false
-      },
-      "width": 299,
-      "height": 52,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 198.05885462983093,
-        "y": 399.044983941995
-      },
-      "dragging": false,
-      "parentNode": "group-1764851348375",
-      "extent": "parent",
-      "draggable": true
-    },
-    {
-      "id": "memo-1764850827845",
-      "type": "memo",
-      "position": {
-        "x": 92.96844980457831,
-        "y": 442.2522426977765
-      },
-      "data": {
-        "label": "${割愛の共通文}",
-        "description": "${割愛の共通文}",
-        "hasSticky": false,
-        "revealed": false
-      },
-      "width": 180,
-      "height": 100,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 241.41637085416005,
-        "y": 727.9079683881116
-      },
-      "dragging": false,
-      "parentNode": "group-1764851348375",
-      "extent": "parent",
-      "draggable": true
-    },
-    {
-      "id": "group-1764851348375",
-      "type": "group",
-      "position": {
-        "x": 148.44792104958174,
-        "y": 285.6557256903351
-      },
-      "data": {
-        "label": "宝石店でのイベント",
-        "expanded": true,
-        "contentWidth": 140.484375,
-        "contentHeight": 20,
-        "hasSticky": false,
-        "revealed": false
-      },
-      "style": {
-        "width": 388.6109335802492,
-        "height": 1050.4253880955594,
-        "zIndex": -1
-      },
-      "width": 389,
-      "height": 1050,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 125.27540945165134,
-        "y": 285.6557256903351
-      },
-      "dragging": false,
-      "draggable": true
-    },
-    {
-      "id": "element-1764925632067",
-      "type": "element",
-      "position": {
-        "x": 39.99874569562962,
-        "y": 876.4253880955595
-      },
-      "data": {
-        "label": "友人から退魔の呪文を教えてもらう",
-        "infoType": "skill",
-        "infoValue": "退散呪文",
-        "description": "詳細割愛",
-        "quantity": "1",
-        "hasSticky": false,
-        "referenceId": "res-1764993830126",
-        "revealed": false
-      },
-      "width": 299,
-      "height": 134,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 188.44666674521136,
-        "y": 1162.0811137858946
-      },
-      "dragging": false,
-      "parentNode": "group-1764851348375",
-      "extent": "parent",
-      "draggable": true
-    },
-    {
-      "id": "variable-1764850432623",
-      "type": "variable",
-      "position": {
-        "x": 438.93596183263014,
-        "y": 606.3553864190475
-      },
-      "data": {
-        "label": "余命を減らす",
-        "targetVariable": "余命の日数",
-        "variableValue": "${余命の日数}-1",
-        "hasSticky": false,
-        "revealed": false
-      },
-      "width": 173,
-      "height": 89,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 994.3821268560934,
-        "y": 892.4376706537247
-      },
-      "dragging": false,
-      "hidden": false,
-      "parentNode": "group-1764851311181",
-      "extent": "parent",
-      "draggable": true
-    },
-    {
-      "id": "event-1764849811414",
-      "type": "event",
-      "position": {
-        "x": 193.73584905184202,
-        "y": 113.9959862260149
-      },
-      "data": {
-        "label": "図書館で文献を漁る",
-        "description": "",
-        "hasSticky": false,
-        "revealed": false
-      },
-      "width": 227,
-      "height": 52,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 749.1820140753052,
-        "y": 400.0782704606921
-      },
-      "dragging": false,
-      "parentNode": "group-1764851311181",
-      "extent": "parent",
-      "hidden": false,
-      "draggable": true
-    },
-    {
-      "id": "branch-1764850376087",
-      "type": "branch",
-      "position": {
-        "x": 243.15274966574316,
-        "y": 288.0250712693844
-      },
-      "data": {
-        "label": "図書館ロール",
-        "branchType": "if_else",
-        "conditionValue": "成功?",
-        "hasSticky": false,
-        "revealed": false
-      },
-      "width": 173,
-      "height": 125,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 798.5989146892064,
-        "y": 574.1073555040616
-      },
-      "dragging": false,
-      "parentNode": "group-1764851311181",
-      "extent": "parent",
-      "hidden": false,
-      "draggable": true
-    },
-    {
-      "id": "element-1764850483251",
-      "type": "element",
-      "position": {
-        "x": 74.20334602906462,
-        "y": 879.7079658977054
-      },
-      "data": {
-        "label": "非常に似ている石の情報を見つける",
-        "infoType": "knowledge",
-        "description": "詳細割愛",
-        "infoValue": "石の情報",
-        "quantity": "1",
-        "hasSticky": false,
-        "referenceId": "res-1764993770997",
-        "revealed": false
-      },
-      "width": 303,
-      "height": 134,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 629.6495110525278,
-        "y": 1165.7902501323827
-      },
-      "dragging": false,
-      "parentNode": "group-1764851311181",
-      "extent": "parent",
-      "hidden": false,
-      "draggable": true
-    },
-    {
-      "id": "group-1764851311181",
-      "type": "group",
-      "position": {
-        "x": 565.445537871278,
-        "y": 286.0822842346772
-      },
-      "data": {
-        "label": "図書館でのイベント",
-        "expanded": true,
-        "contentWidth": 140.484375,
-        "contentHeight": 20,
-        "hasSticky": false,
-        "revealed": false
-      },
-      "style": {
-        "width": 727.3214153119516,
-        "height": 1054.089355799332,
-        "zIndex": -1
-      },
-      "width": 727,
-      "height": 1054,
-      "selected": false,
-      "positionAbsolute": {
-        "x": 565.445537871278,
-        "y": 286.0822842346772
-      },
-      "dragging": false,
-      "draggable": true
-    },
-    {
-      "id": "jump-1764924930235",
-      "type": "jump",
-      "position": {
-        "x": 460.32141531195157,
-        "y": 883.089355799332
-      },
-      "data": {
-        "label": "調査先の選択肢に戻る",
-        "jumpTarget": "branch-1764849598489",
-        "hasSticky": false,
-        "revealed": false
-      },
-      "width": 227,
-      "height": 131,
-      "selected": false,
-      "dragging": false,
-      "positionAbsolute": {
-        "x": 1015.7675803354148,
-        "y": 1169.1716400340092
-      },
-      "parentNode": "group-1764851311181",
-      "extent": "parent",
-      "draggable": true
-    },
-    {
       "id": "event-1764851833875",
       "type": "event",
       "position": {
@@ -642,114 +369,6 @@
       "draggable": true
     },
     {
-      "id": "event-1764849815349",
-      "type": "event",
-      "position": {
-        "x": 43.031851152678996,
-        "y": 105.43305104496676
-      },
-      "data": {
-        "label": "地質学者の祖父に見てもらう",
-        "hasSticky": false,
-        "revealed": false
-      },
-      "width": 285,
-      "height": 52,
-      "selected": false,
-      "positionAbsolute": {
-        "x": -238.19659600864787,
-        "y": 397.5074416290182
-      },
-      "dragging": false,
-      "parentNode": "group-1764851374095",
-      "extent": "parent",
-      "draggable": true
-    },
-    {
-      "id": "memo-1764850896155-7bdb6s4zo",
-      "type": "memo",
-      "position": {
-        "x": 88.08870025083206,
-        "y": 441.054736560077
-      },
-      "data": {
-        "label": "${割愛の共通文}",
-        "description": "${割愛の共通文}",
-        "hasSticky": false,
-        "revealed": false
-      },
-      "width": 180,
-      "height": 100,
-      "selected": false,
-      "positionAbsolute": {
-        "x": -193.1397469104948,
-        "y": 733.1291271441285
-      },
-      "dragging": false,
-      "parentNode": "group-1764851374095",
-      "extent": "parent",
-      "draggable": true
-    },
-    {
-      "id": "group-1764851374095",
-      "type": "group",
-      "position": {
-        "x": -281.545927362766,
-        "y": 290.4869895768547
-      },
-      "data": {
-        "label": "祖父宅でのイベント",
-        "expanded": true,
-        "contentWidth": 140.484375,
-        "contentHeight": 20,
-        "hasSticky": false,
-        "revealed": false
-      },
-      "style": {
-        "width": 395.11855130341155,
-        "height": 1041.5090831696289,
-        "zIndex": -1
-      },
-      "width": 395,
-      "height": 1042,
-      "selected": false,
-      "positionAbsolute": {
-        "x": -281.545927362766,
-        "y": 290.4869895768547
-      },
-      "dragging": false,
-      "draggable": true
-    },
-    {
-      "id": "element-1764925770469",
-      "type": "element",
-      "position": {
-        "x": 43.11855130341155,
-        "y": 867.509083169629
-      },
-      "data": {
-        "label": "祖父から青色の綺麗な液体薬を貰う",
-        "infoType": "item",
-        "description": "詳細割愛",
-        "infoValue": "MP強化薬",
-        "quantity": "1",
-        "hasSticky": false,
-        "referenceId": "res-1764993907255",
-        "revealed": false
-      },
-      "width": 312,
-      "height": 134,
-      "selected": false,
-      "dragging": false,
-      "positionAbsolute": {
-        "x": -238.10989585791532,
-        "y": 1159.5834737536804
-      },
-      "parentNode": "group-1764851374095",
-      "extent": "parent",
-      "draggable": true
-    },
-    {
       "id": "resource-1764994204309",
       "type": "resource",
       "position": {
@@ -809,6 +428,471 @@
       "positionAbsolute": {
         "x": 818.6358034155148,
         "y": 1429.6342716714619
+      },
+      "dragging": false
+    },
+    {
+      "id": "character-1765168082600",
+      "type": "character",
+      "position": {
+        "x": -199.57722893596434,
+        "y": 507.15928873123835
+      },
+      "data": {
+        "label": "",
+        "referenceId": "char-1765167681255",
+        "hasSticky": false
+      },
+      "width": 200,
+      "height": 141,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -199.57722893596434,
+        "y": 507.15928873123835
+      },
+      "dragging": false
+    },
+    {
+      "id": "character-1765169127790",
+      "type": "character",
+      "position": {
+        "x": 196.39793583750247,
+        "y": 507.15928873123835
+      },
+      "data": {
+        "label": "",
+        "referenceId": "char-1765167819087",
+        "hasSticky": false
+      },
+      "width": 395,
+      "height": 141,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 196.39793583750247,
+        "y": 507.15928873123835
+      },
+      "dragging": false
+    },
+    {
+      "id": "event-1764849815349",
+      "type": "event",
+      "position": {
+        "x": 43.031851152678996,
+        "y": 105.43305104496676
+      },
+      "data": {
+        "label": "地質学者の祖父に見てもらう",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 285,
+      "height": 52,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -238.19659600864787,
+        "y": 397.5074416290182
+      },
+      "dragging": false,
+      "parentNode": "group-1764851374095",
+      "extent": "parent",
+      "draggable": true
+    },
+    {
+      "id": "memo-1764850896155-7bdb6s4zo",
+      "type": "memo",
+      "position": {
+        "x": 88.08870025083206,
+        "y": 441.054736560077
+      },
+      "data": {
+        "label": "${割愛の共通文}",
+        "description": "${割愛の共通文}",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 180,
+      "height": 100,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -193.1397469104948,
+        "y": 733.1291271441285
+      },
+      "dragging": false,
+      "parentNode": "group-1764851374095",
+      "extent": "parent",
+      "draggable": true
+    },
+    {
+      "id": "group-1764851374095",
+      "type": "group",
+      "position": {
+        "x": -329.062947135582,
+        "y": 287.3191882586669
+      },
+      "data": {
+        "label": "祖父宅でのイベント",
+        "expanded": true,
+        "contentWidth": 140.484375,
+        "contentHeight": 20,
+        "hasSticky": false,
+        "revealed": false
+      },
+      "style": {
+        "width": 395.11855130341155,
+        "height": 1041.5090831696289,
+        "zIndex": -1
+      },
+      "width": 395,
+      "height": 1042,
+      "selected": false,
+      "positionAbsolute": {
+        "x": -329.062947135582,
+        "y": 287.3191882586669
+      },
+      "dragging": false,
+      "draggable": true
+    },
+    {
+      "id": "element-1764925770469",
+      "type": "element",
+      "position": {
+        "x": 43.11855130341155,
+        "y": 867.509083169629
+      },
+      "data": {
+        "label": "祖父から青色の綺麗な液体薬を貰う",
+        "infoType": "item",
+        "description": "詳細割愛",
+        "infoValue": "MP強化薬",
+        "quantity": "1",
+        "hasSticky": false,
+        "referenceId": "res-1764993907255",
+        "revealed": false
+      },
+      "width": 312,
+      "height": 134,
+      "selected": false,
+      "dragging": false,
+      "positionAbsolute": {
+        "x": -238.10989585791532,
+        "y": 1159.5834737536804
+      },
+      "parentNode": "group-1764851374095",
+      "extent": "parent",
+      "draggable": true
+    },
+    {
+      "id": "variable-1764850432623",
+      "type": "variable",
+      "position": {
+        "x": 438.93596183263014,
+        "y": 606.3553864190475
+      },
+      "data": {
+        "label": "余命を減らす",
+        "targetVariable": "余命の日数",
+        "variableValue": "${余命の日数}-1",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 173,
+      "height": 89,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 994.3821268560934,
+        "y": 892.4376706537247
+      },
+      "dragging": false,
+      "hidden": false,
+      "parentNode": "group-1764851311181",
+      "extent": "parent",
+      "draggable": true
+    },
+    {
+      "id": "event-1764849811414",
+      "type": "event",
+      "position": {
+        "x": 193.73584905184202,
+        "y": 113.9959862260149
+      },
+      "data": {
+        "label": "図書館で文献を漁る",
+        "description": "",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 227,
+      "height": 52,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 749.1820140753052,
+        "y": 400.0782704606921
+      },
+      "dragging": false,
+      "parentNode": "group-1764851311181",
+      "extent": "parent",
+      "hidden": false,
+      "draggable": true
+    },
+    {
+      "id": "branch-1764850376087",
+      "type": "branch",
+      "position": {
+        "x": 243.15274966574316,
+        "y": 288.0250712693844
+      },
+      "data": {
+        "label": "図書館ロール",
+        "branchType": "if_else",
+        "conditionValue": "成功?",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 173,
+      "height": 125,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 798.5989146892064,
+        "y": 574.1073555040616
+      },
+      "dragging": false,
+      "parentNode": "group-1764851311181",
+      "extent": "parent",
+      "hidden": false,
+      "draggable": true
+    },
+    {
+      "id": "element-1764850483251",
+      "type": "element",
+      "position": {
+        "x": 74.20334602906462,
+        "y": 879.7079658977054
+      },
+      "data": {
+        "label": "非常に似ている石の情報を見つける",
+        "infoType": "knowledge",
+        "description": "詳細割愛",
+        "infoValue": "石の情報",
+        "quantity": "1",
+        "hasSticky": false,
+        "referenceId": "res-1764993770997",
+        "revealed": false
+      },
+      "width": 303,
+      "height": 134,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 629.6495110525278,
+        "y": 1165.7902501323827
+      },
+      "dragging": false,
+      "parentNode": "group-1764851311181",
+      "extent": "parent",
+      "hidden": false,
+      "draggable": true
+    },
+    {
+      "id": "group-1764851311181",
+      "type": "group",
+      "position": {
+        "x": 744.4263123488852,
+        "y": 292.4178868710527
+      },
+      "data": {
+        "label": "図書館でのイベント",
+        "expanded": true,
+        "contentWidth": 140.484375,
+        "contentHeight": 20,
+        "hasSticky": false,
+        "revealed": false
+      },
+      "style": {
+        "width": 727.3214153119516,
+        "height": 1054.089355799332,
+        "zIndex": -1
+      },
+      "width": 727,
+      "height": 1054,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 744.4263123488852,
+        "y": 292.4178868710527
+      },
+      "dragging": false,
+      "draggable": true
+    },
+    {
+      "id": "jump-1764924930235",
+      "type": "jump",
+      "position": {
+        "x": 460.32141531195157,
+        "y": 883.089355799332
+      },
+      "data": {
+        "label": "調査先の選択肢に戻る",
+        "jumpTarget": "branch-1764849598489",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 227,
+      "height": 131,
+      "selected": false,
+      "dragging": false,
+      "positionAbsolute": {
+        "x": 1015.7675803354148,
+        "y": 1169.1716400340092
+      },
+      "parentNode": "group-1764851311181",
+      "extent": "parent",
+      "draggable": true
+    },
+    {
+      "id": "event-1764849814308",
+      "type": "event",
+      "position": {
+        "x": 49.610933580249196,
+        "y": 113.3892582516599
+      },
+      "data": {
+        "label": "宝石店を営む友人に見てもらう",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 299,
+      "height": 52,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 198.05885462983093,
+        "y": 399.044983941995
+      },
+      "dragging": false,
+      "parentNode": "group-1764851348375",
+      "extent": "parent",
+      "draggable": true
+    },
+    {
+      "id": "memo-1764850827845",
+      "type": "memo",
+      "position": {
+        "x": 92.96844980457831,
+        "y": 442.2522426977765
+      },
+      "data": {
+        "label": "${割愛の共通文}",
+        "description": "${割愛の共通文}",
+        "hasSticky": false,
+        "revealed": false
+      },
+      "width": 180,
+      "height": 100,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 241.41637085416005,
+        "y": 727.9079683881116
+      },
+      "dragging": false,
+      "parentNode": "group-1764851348375",
+      "extent": "parent",
+      "draggable": true
+    },
+    {
+      "id": "group-1764851348375",
+      "type": "group",
+      "position": {
+        "x": 205.4683447769611,
+        "y": 288.8235270085228
+      },
+      "data": {
+        "label": "宝石店でのイベント",
+        "expanded": true,
+        "contentWidth": 140.484375,
+        "contentHeight": 20,
+        "hasSticky": false,
+        "revealed": false
+      },
+      "style": {
+        "width": 388.6109335802492,
+        "height": 1050.4253880955594,
+        "zIndex": -1
+      },
+      "width": 389,
+      "height": 1050,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 205.4683447769611,
+        "y": 288.8235270085228
+      },
+      "dragging": false,
+      "draggable": true
+    },
+    {
+      "id": "element-1764925632067",
+      "type": "element",
+      "position": {
+        "x": 39.99874569562962,
+        "y": 876.4253880955595
+      },
+      "data": {
+        "label": "友人から退魔の呪文を教えてもらう",
+        "infoType": "skill",
+        "infoValue": "退散呪文",
+        "description": "詳細割愛",
+        "quantity": "1",
+        "hasSticky": false,
+        "referenceId": "res-1764993830126",
+        "revealed": false
+      },
+      "width": 299,
+      "height": 134,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 188.44666674521136,
+        "y": 1162.0811137858946
+      },
+      "dragging": false,
+      "parentNode": "group-1764851348375",
+      "extent": "parent",
+      "draggable": true
+    },
+    {
+      "id": "character-1765169149147",
+      "type": "character",
+      "position": {
+        "x": 202.73353847387807,
+        "y": -362.4021731112945
+      },
+      "data": {
+        "label": "",
+        "referenceId": "char-1765167831418",
+        "hasSticky": false
+      },
+      "width": 278,
+      "height": 113,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 202.73353847387807,
+        "y": -362.4021731112945
+      },
+      "dragging": false
+    },
+    {
+      "id": "character-1765169159228",
+      "type": "character",
+      "position": {
+        "x": 464.07714722436594,
+        "y": 2113.2345570524194
+      },
+      "data": {
+        "label": "",
+        "referenceId": "char-1765167864401",
+        "hasSticky": false
+      },
+      "width": 200,
+      "height": 141,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 464.07714722436594,
+        "y": 2113.2345570524194
       },
       "dragging": false
     }
@@ -1178,7 +1262,48 @@
     },
     "equipment": {}
   },
-  "characters": [],
+  "characters": [
+    {
+      "id": "char-1765167681255",
+      "type": "Person",
+      "name": "祖父",
+      "description": "探索者の祖父。地質学者。",
+      "abilities": "STR9\nCON13\nPOW11\nDEX9\nAPP10\nSIZ11\nINT15\nEDU20\nHP12/12\nMP11/11\nSAN55/55",
+      "skills": "地質学85%",
+      "reading": "そふ",
+      "note": ""
+    },
+    {
+      "id": "char-1765167819087",
+      "type": "Person",
+      "name": "友人",
+      "description": "探索者の高校時代からの友人。昔から石に詳しく、今は宝石店を営んでいる。",
+      "abilities": "STR7\nCON14\nPOW12\nDEX10\nAPP11\nSIZ13\nINT12\nEDU15\nHP14/14\nMP12/12\nSAN60/60",
+      "skills": "考古学70%",
+      "reading": "ゆうじん",
+      "note": ""
+    },
+    {
+      "id": "char-1765167831418",
+      "type": "Other",
+      "name": "彗星",
+      "description": "ニュースで話題になっている彗星。しかしその正体は…。",
+      "abilities": "",
+      "skills": "",
+      "reading": "すいせい",
+      "note": ""
+    },
+    {
+      "id": "char-1765167864401",
+      "type": "Monster",
+      "name": "ゾンビ",
+      "description": "割愛",
+      "abilities": "STR15\nCON15\nPOW1\nDEX7\nAPP1\nSIZ13\nINT1\nEDU1\nHP14/14\nMP1/1",
+      "skills": "噛みつき30%/1d3+db",
+      "reading": "ぞんび",
+      "note": ""
+    }
+  ],
   "resources": [
     {
       "id": "res-1764993770997",

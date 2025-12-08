@@ -67,6 +67,7 @@ interface ScenarioState {
   deleteResource: (id: string) => void;
 
   // Game Logic
+  reset: () => void;
   resetGame: () => void;
   recalculateGameState: () => void;
   revealAll: () => void;
@@ -265,7 +266,21 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   onNodesChange: (changes: NodeChange[]) => {
     const state = get();
     
-    // Sticky Note Following Logic
+    // Filter changes if in Play Mode
+    let validChanges = changes;
+    if (state.mode === 'play') {
+        validChanges = changes.filter(change => {
+            if (change.type === 'position' || change.type === 'dimensions') {
+                 const node = state.nodes.find(n => n.id === change.id);
+                 if (node && node.type !== 'sticky') {
+                     return false; // Prevent movement for non-sticky nodes in Play Mode
+                 }
+            }
+            return true;
+        });
+    }
+
+    // Sticky Note Following Logic (using filtered changes)
     const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
     const stickyUpdates = new Map<string, {x: number, y: number}>();
     
@@ -279,7 +294,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         return descendants;
     };
 
-    changes.forEach(change => {
+    validChanges.forEach(change => {
         // Track movement of nodes that are not stickies themselves, but might be targets
         if (change.type === 'position' && change.position && change.dragging) {
             const oldNode = nodeMap.get(change.id);
@@ -323,7 +338,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     });
 
     // 1. Apply all changes
-    let nodesAfterChanges = applyNodeChanges(changes, state.nodes);
+    let nodesAfterChanges = applyNodeChanges(validChanges, state.nodes);
     
     // Apply sticky updates
     if (stickyUpdates.size > 0) {
@@ -373,7 +388,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     // 3. Update group sizes for moved or resized nodes
     // Using filtered 'currentNodes'
     const finalNodeIds = new Set(currentNodes.map(n => n.id));
-    changes.forEach(change => {
+    validChanges.forEach(change => {
         if ((change.type === 'position' && change.position) || change.type === 'dimensions') {
             // Only strictly valid checks
              if (!finalNodeIds.has(change.id)) return;
@@ -518,13 +533,12 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
   setMode: (mode) => {
       const state = get();
-      // Update draggable state: stickies are always draggable (or only in play/edit), others only in edit
-      // Spec: Sticky can be moved in play mode too.
-      // Other nodes: only in edit mode.
-      const updatedNodes = state.nodes.map(n => ({
-          ...n,
-          draggable: mode === 'edit' || n.type === 'sticky'
-      }));
+       const updatedNodes = state.nodes.map(n => ({
+           ...n,
+           // Enable draggable for ALL nodes in both modes to mimic Edit Mode interaction (prevents double-tap zoom),
+           // but we will restrict actual movement in onNodesChange for Play Mode.
+           draggable: true 
+       }));
       set({ mode, nodes: updatedNodes });
   },
   
@@ -2107,5 +2121,27 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               get().updateGroupSize(node.parentNode);
           }
       }
+  },
+  reset: () => {
+    set({
+      nodes: [],
+      edges: [],
+      gameState: { 
+        currentNodes: [], 
+        revealedNodes: [], 
+        inventory: {}, 
+        equipment: {}, 
+        knowledge: {}, 
+        skills: {}, 
+        stats: {}, 
+        variables: {} 
+      },
+      characters: [],
+      resources: [],
+      mode: 'edit',
+      past: [],
+      future: [],
+      selectedNodeId: null
+    });
   }
 }));

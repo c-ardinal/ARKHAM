@@ -11,14 +11,23 @@ export type TranslationKeys = {
     close: string;
     revealAll: string;
     unrevealAll: string;
+    charactersShort: string;
+    resources: string;
     confirmRevealAll: string;
     confirmUnrevealAll: string;
+    characters: string;
+    elements: string;
+    variables: string;
+    reset: string;
+    confirmReset: string;
   };
   menu: {
     file: string;
     edit: string;
     setting: string;
     help: string;
+    undo: string;
+    redo: string;
     changeEdgeStyle: string;
     edgeStyle: {
       default: string;
@@ -27,6 +36,7 @@ export type TranslationKeys = {
       smoothstep: string;
       simplebezier: string;
     };
+
     switchToLight: string;
     switchToDark: string;
     switchToJa: string;
@@ -43,13 +53,16 @@ export type TranslationKeys = {
     showAllStickies: string;
     hideAllStickies: string;
     deleteAllStickies: string;
-    showAllFreeStickies: string;
-    hideAllFreeStickies: string;
-    deleteAllFreeStickies: string;
-    showAllNodeStickies: string;
-    hideAllNodeStickies: string;
-    deleteAllNodeStickies: string;
+    showFreeStickies: string;
+    hideFreeStickies: string;
+    deleteFreeStickies: string;
+    showNodeStickies: string;
+    hideNodeStickies: string;
+    deleteNodeStickies: string;
     bulkRevealOperations: string;
+    stickyNotes: string;
+    confirmDeleteFreeStickies: string;
+    confirmDeleteNodeStickies: string;
     revealAllNodes: string;
     unrevealAllNodes: string;
   };
@@ -63,6 +76,7 @@ export type TranslationKeys = {
     group: string;
     jump: string;
     new: string;
+    dragInfoMobile: string;
   };
   properties: {
     label: string;
@@ -148,6 +162,17 @@ export type TranslationKeys = {
       Knowledge: string;
       Skill: string;
       Status: string;
+    };
+    categoryLabels: {
+        item: string;
+        equipment: string;
+        knowledge: string;
+        skill: string;
+        status: string;
+    };
+    statusView: {
+        empty: string;
+        none: string;
     };
     noResources: string;
   };

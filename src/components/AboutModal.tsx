@@ -16,8 +16,8 @@ export const AboutModal = ({ isOpen, onClose }: AboutModalProps) => {
   const devDependencies = packageJson.devDependencies || {};
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="rounded-lg shadow-xl w-[500px] max-h-[80vh] flex flex-col bg-card border border-border">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="rounded-lg shadow-xl w-full max-w-[500px] max-h-[85vh] flex flex-col bg-card border border-border">
         <div className="flex flex-col items-center justify-center p-6 border-b border-border bg-card relative">
           <div className="flex flex-col items-center">
               <h1 className="text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-green-800 drop-shadow-sm tracking-wider" style={{ fontFamily: '"Cinzel Decorative", cursive', lineHeight: '0.8' }}>

@@ -1,14 +1,13 @@
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Plus, Minus, Maximize } from 'lucide-react';
 import ReactFlow, { 
   Background, 
   Controls, 
   ControlButton,
-  ReactFlowProvider,
-  useReactFlow,
-  type Node,
   type Edge,
+  type Node,
   MarkerType,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useScenarioStore } from '../store/scenarioStore';
@@ -100,12 +99,38 @@ const ContextMenu = ({
   }, [onClose]);
 
   const { mode } = useScenarioStore();
+  
+  // Boundary check
+  const [safePos, setSafePos] = useState({ top: menu.top, left: menu.left });
+
+  useLayoutEffect(() => {
+     if (ref.current) {
+         const { width, height } = ref.current.getBoundingClientRect();
+         const screenW = window.innerWidth;
+         const screenH = window.innerHeight;
+         
+         let newLeft = menu.left;
+         let newTop = menu.top;
+
+         // Shift left if overflowing right edge
+         if (newLeft + width > screenW) {
+             newLeft = screenW - width - 10;
+         }
+         
+         // Shift up if overflowing bottom edge
+         if (newTop + height > screenH) {
+             newTop = screenH - height - 10;
+         }
+
+         setSafePos({ top: Math.max(0, newTop), left: Math.max(0, newLeft) });
+     }
+  }, [menu.top, menu.left]);
 
   return (
     <div 
       ref={ref}
-      style={{ top: menu.top, left: menu.left }} 
-      className="fixed z-50 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[160px] flex flex-col text-sm text-popover-foreground"
+      style={{ top: safePos.top, left: safePos.left }} 
+      className="fixed z-50 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[160px] flex flex-col text-sm text-popover-foreground transition-opacity animate-in fade-in zoom-in-95 duration-75"
     >
       {/* Node Actions */}
       {menu.type === 'node' && (
@@ -267,7 +292,11 @@ const ContextMenu = ({
   );
 };
 
-const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
+const CanvasContent = ({ onCanvasClick, isMobile, onOpenPropertyPanel }: { 
+    onCanvasClick?: () => void;
+    isMobile?: boolean; // Added isMobile prop
+    onOpenPropertyPanel?: () => void;
+}) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { 
     nodes, 
@@ -302,7 +331,8 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
       getZoom,
       fitView,
       setViewport,
-      getViewport
+      getViewport,
+      zoomIn
   } = useReactFlow();
   const { t } = useTranslation();
   
@@ -320,17 +350,35 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
       return () => clearInterval(interval);
   }, [getZoom]);
 
+  // Fit view on mount
+  const hasFitted = useRef(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+      // Small delay to ensure dimensions are ready especially on mobile
+      const timeout = setTimeout(() => {
+          if (!hasFitted.current && nodes.length > 0) {
+              window.requestAnimationFrame(() => {
+                  fitView({ padding: 0.2 });
+                  hasFitted.current = true;
+                  setIsInitializing(false);
+              });
+          } else {
+             // If no nodes, or already fitted, just finish init
+             if (nodes.length === 0) setIsInitializing(false);
+          }
+      }, 500); 
+      return () => clearTimeout(timeout);
+  }, [nodes.length, fitView]);
+
   const setZoom = (newZoom: number) => {
       const { x, y } = getViewport();
       setViewport({ x, y, zoom: newZoom });
       setZoomState(newZoom);
   };
 
-  const onPaneClick = useCallback(() => {
-    setMenu(null);
-    onCanvasClick?.();
-    setSelectedNode(null);
-  }, [onCanvasClick, setSelectedNode]);
+  // Merged into handlePaneClick below
+  // const onPaneClick = useCallback(...)
 
   const handleAddSticky = useCallback((targetId?: string) => {
       // Temporarily enable connections/handles to ensure correct edge rendering
@@ -412,10 +460,13 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         return;
       }
 
-      const position = screenToFlowPosition({
+      const rawPosition = screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
+
+      // Center the node (approx 150x50)
+      const position = { x: rawPosition.x - 75, y: rawPosition.y - 25 };
 
       const newNode: ScenarioNode = {
         id: `${type}-${Date.now()}`,
@@ -440,10 +491,19 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   );
 
   const onNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
+      // In Play Mode, only Sticky nodes can be dragged.
+      // Other nodes have draggable=true to prevent zoom issues, but we block the drag here (or via store).
+      // Note: ReactFlow doesn't fully support preventing drag via event in callback easily without controlled position?
+      
+      if (mode === 'play' && node.type !== 'sticky') {
+          // Ideally we would stop drag here. But ReactFlow might continue visual drag.
+          // We rely on Store onNodesChange to block the actual position update.
+      }
+
       if (node.type === 'group') {
           bringNodeToFront(node.id);
       }
-  }, [bringNodeToFront]);
+  }, [bringNodeToFront, mode]);
 
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
       if (!node) return;
@@ -573,29 +633,65 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   }, [getNodes, pushHistory, screenToFlowPosition]);
 
   const onSelectionChange = useCallback(({ nodes }: { nodes: Node[] }) => {
-    setSelectedNode(nodes.length > 0 ? nodes[0].id : null);
+      const ids = nodes.map(n => n.id);
+      if (ids.length === 0) {
+          setSelectedNode(null);
+      } else if (ids.length === 1) {
+          setSelectedNode(ids[0]);
+      } else {
+          // Support multi-selection if store allows it
+          try {
+              setSelectedNode(ids); 
+          } catch (e) {
+              setSelectedNode(ids[0]);
+          }
+      }
   }, [setSelectedNode]);
 
   const lastClickTime = useRef<number>(0);
   const lastClickNodeId = useRef<string | null>(null);
 
-  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    // Explicitly set selection on click (needed for Play Mode where selection behavior might differ)
-    setSelectedNode(node.id);
+  // Stop propagation to prevent canvas click (deselection) and zoom
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    event.stopPropagation();
 
     if (mode === 'play') {
-         if ((node.type === 'character' || node.type === 'resource') && node.data.referenceId) {
-             setInfoModalData(node.data.referenceId);
-         }
-         return;
+          // Play Mode Logic
+          const currentTime = Date.now();
+          const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 300;
+          lastClickTime.current = currentTime;
+          lastClickNodeId.current = node.id;
+
+          if (isDoubleClick) {
+              if (node.type === 'sticky') {
+                  // Sticky: Open Property Panel on Double Click
+                  onOpenPropertyPanel?.();
+              }
+              // Char/Resource: Do NOTHING on double click (User request)
+              // Other nodes: Do nothing
+          }
+          
+          return;
     }
+    
+    // Explicitly set selection on click (needed for Play Mode where selection behavior might differ)
+    // REMOVED: setSelectedNode(node.id); 
+    // Handled by onSelectionChange to support multi-selection (Shift/Ctrl).
+    // If we force set here, it clears other selections.
 
     const currentTime = Date.now();
     const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 300;
+    
+    // Mobile double tap logic
+    if (isMobile && isDoubleClick && onOpenPropertyPanel) {
+        onOpenPropertyPanel();
+    }
+    
     lastClickTime.current = currentTime;
     lastClickNodeId.current = node.id;
 
     if (isDoubleClick && node.type === 'jump' && node.data.jumpTarget) {
+        // Jump Node Logic
         const targetId = node.data.jumpTarget;
         
         // Use setTimeout to ensure state updates and rendering settle before moving view
@@ -618,7 +714,7 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
     if (node.type === 'group') {
         bringNodeToFront(node.id);
     }
-  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode, mode]);
+  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode, mode, isMobile, onOpenPropertyPanel]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -912,8 +1008,70 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
       return getScore(a.type || '') - getScore(b.type || '');
   });
 
+  // Process nodes to handle selection rules in Play Mode
+  // USER Request: All nodes should be selectable (blue border).
+  // Control click behavior in onNodeClick instead.
+  // Process nodes to handle selection rules in Play Mode
+  // USER Request: All nodes should be selectable (blue border).
+  const processedNodes = useMemo(() => {
+    return sortedNodes.map(node => ({ ...node, selectable: true })); 
+  }, [sortedNodes]);
+
+  // Manual Pane Double Click for Zoom
+  const lastPaneClickTime = useRef(0);
+  const handlePaneClick = useCallback((event: React.MouseEvent) => {
+       const target = event.target as HTMLElement;
+       
+       // Double safety: ensure we are clicking the pane specifically
+       if (target.closest('.react-flow__node')) return;
+       // Triple safety: if we recently clicked a node (detected via onNodeClick), ignore pane click
+       if (Date.now() - lastClickTime.current < 500) return;
+
+       // STRICT CHECK: Only allow zoom if we clicked strictly on the pane or viewport background
+       const isPane = target.classList.contains('react-flow__pane') || 
+                      target.classList.contains('react-flow__renderer') ||
+                      target.classList.contains('react-flow__viewport'); // Sometimes events bubble to viewport
+       
+       // Also allow if it's the wrapper div ref (though ReactFlow catches that inside)
+       
+       if (!isPane) {
+           // If we are not sure it's the pane, do not zoom.
+           // However, we still want to deselect if it's "not a node".
+           // But for Zoom, be strict.
+       } else {
+           const now = Date.now();
+           if (now - lastPaneClickTime.current < 300) {
+               // Double click detected on Pane
+               zoomIn({ duration: 300 });
+           }
+           lastPaneClickTime.current = now;
+       }
+
+       
+       if (onCanvasClick) onCanvasClick();
+       
+       // Close menu/deselect
+       setMenu(null);
+       // Select null is handled by onSelectionChange if we click pane (deselection)
+       // But clicking pane doesn't always trigger onSelectionChange (if nothing was selected)?
+       // It does standard deselection.
+       // However, manually calling setSelectedNode(null) ensures consistency.
+       setSelectedNode(null);
+  }, [onCanvasClick, setSelectedNode, setMenu, zoomIn]);
+
+
+
   return (
     <div className="flex-1 h-full relative bg-background" ref={reactFlowWrapper}>
+      {isInitializing && (
+        <div className="absolute inset-0 z-[2000] bg-background flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <span className={isMobile ? 'inline' : 'hidden'}>{mode === 'edit' ? 'PLAY' : 'EDIT'}</span>
+                <div className="text-sm text-muted-foreground">Loading...</div>
+            </div>
+        </div>
+      )}
 
       {mode === 'play' && (
           <style>{`
@@ -923,8 +1081,21 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
             }
           `}</style>
       )}
+      {isMobile && (
+          <style>{`
+            .react-flow__handle {
+                width: 14px;
+                height: 14px;
+            }
+            .react-flow__handle-right { right: -7px; }
+            .react-flow__handle-left { left: -7px; }
+            .react-flow__handle-top { top: -7px; }
+            .react-flow__handle-bottom { bottom: -7px; }
+            .react-flow__node { touch-action: none !important; }
+          `}</style>
+      )}
       <ReactFlow
-        nodes={sortedNodes}
+        nodes={processedNodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -937,16 +1108,24 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
         onNodeDragStop={onNodeDragStop}
         onSelectionChange={onSelectionChange}
         onNodeClick={onNodeClick}
+        onNodeDoubleClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+        }}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
         onPaneContextMenu={onPaneContextMenu}
-        onPaneClick={onPaneClick}
+        onPaneClick={handlePaneClick}
         nodesDraggable={true}
         nodesConnectable={mode === 'edit'}
         elementsSelectable={true}
+        zoomOnDoubleClick={false} // Disable native double click zoom (handled manually for pane)
+        
         fitView
-        selectionKeyCode="Control"
+        selectionKeyCode="Shift" // Default behavior
         deleteKeyCode={null} // Disable default delete to handle it manually
+        minZoom={0.01}
+        className="select-none touch-none bg-background"
         defaultEdgeOptions={{
             type: edgeType || 'default',
             style: { strokeWidth: 2 },
@@ -960,52 +1139,54 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
       >
         <Background color="hsl(var(--muted-foreground) / 0.2)" gap={16} />
 
-        <Controls 
-            className="bg-card border-border fill-foreground flex flex-col items-center gap-0.5 p-1 w-auto shadow-sm !overflow-visible rounded-full group" 
-            showZoom={false} 
-            showFitView={false} 
-            showInteractive={false}
-        >
-            <ControlButton onClick={() => setZoom(Math.min(2, zoom + 0.05))} title="Zoom In (+5%)" className="!bg-transparent !border-none hover:!bg-accent hover:!text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
-                <Plus size={14} />
-            </ControlButton>
-            
-            <div className="relative flex items-center justify-center h-44 w-full my-0">
-                <input 
-                    type="range" 
-                    min="0.1" 
-                    max="2" 
-                    step="0.05" 
-                    value={zoom} 
-                    onChange={(e) => setZoom(parseFloat(e.target.value))}
-                    onWheel={(e) => {
-                        const delta = e.deltaY > 0 ? -0.01 : 0.01;
-                        const newZoom = Math.min(2, Math.max(0.1, zoom + delta));
-                        setZoom(newZoom);
-                    }}
-                    className="w-44 h-1.5 bg-secondary dark:bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90"
-                />
+        {!isMobile && (
+            <Controls 
+                className="bg-card border-border fill-foreground flex flex-col items-center gap-0.5 p-1 w-auto shadow-sm !overflow-visible rounded-full group" 
+                showZoom={false} 
+                showFitView={false} 
+                showInteractive={false}
+            >
+                <ControlButton onClick={() => setZoom(Math.min(2, zoom + 0.05))} title="Zoom In (+5%)" className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                    <Plus size={14} />
+                </ControlButton>
                 
-                <div 
-                    className="absolute left-full ml-4 px-2 py-1 bg-popover text-popover-foreground text-xs font-mono rounded shadow-md border border-border whitespace-nowrap pointer-events-none z-50 hidden group-hover:flex items-center"
-                    style={{ 
-                        bottom: `calc(50% - 80px + ${((zoom - 0.1) / 1.9) * 160}px)`,
-                        transform: 'translateY(50%)'
-                    }}
-                >
-                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-popover border-l-0"></div>
-                    {Math.round(zoom * 100)}%
+                <div className="relative flex items-center justify-center h-44 w-full my-0">
+                    <input 
+                        type="range" 
+                        min="0.01" 
+                        max="2" 
+                        step="0.01" 
+                        value={zoom} 
+                        onChange={(e) => setZoom(parseFloat(e.target.value))}
+                        onWheel={(e) => {
+                            const delta = e.deltaY > 0 ? -0.01 : 0.01;
+                            const newZoom = Math.min(2, Math.max(0.01, zoom + delta));
+                            setZoom(newZoom);
+                        }}
+                        className="w-44 h-1.5 bg-secondary dark:bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90"
+                    />
+                    
+                    <div 
+                        className="absolute left-full ml-4 px-2 py-1 bg-popover text-popover-foreground text-xs font-mono rounded shadow-md border border-border whitespace-nowrap pointer-events-none z-50 hidden group-hover:flex items-center"
+                        style={{ 
+                            bottom: `calc(50% - 80px + ${((zoom - 0.01) / 1.99) * 160}px)`,
+                            transform: 'translateY(50%)'
+                        }}
+                    >
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-popover border-l-0"></div>
+                        {Math.round(zoom * 100)}%
+                    </div>
                 </div>
-            </div>
 
-            <ControlButton onClick={() => setZoom(Math.max(0.1, zoom - 0.05))} title="Zoom Out (-5%)" className="!bg-transparent !border-none hover:!bg-accent hover:!text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
-                <Minus size={14} />
-            </ControlButton>
-            
-            <ControlButton onClick={() => fitView()} title="Fit View" className="!bg-transparent !border-none hover:!bg-accent hover:!text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
-                <Maximize size={14} />
-            </ControlButton>
-        </Controls> 
+                <ControlButton onClick={() => setZoom(Math.max(0.01, zoom - 0.05))} title="Zoom Out (-5%)" className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                    <Minus size={14} />
+                </ControlButton>
+                
+                <ControlButton onClick={() => fitView()} title="Fit View" className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                    <Maximize size={14} />
+                </ControlButton>
+            </Controls> 
+        )}
         <NodeInfoModal 
             referenceId={infoModalData} 
             onClose={() => setInfoModalData(null)} 
@@ -1043,10 +1224,16 @@ const CanvasContent = ({ onCanvasClick }: { onCanvasClick?: () => void }) => {
   );
 };
 
-export const Canvas = React.memo(({ onCanvasClick }: { onCanvasClick?: () => void }) => {
+export const Canvas = React.memo(({ onCanvasClick, isMobile, onOpenPropertyPanel }: { 
+    onCanvasClick?: () => void;
+    isMobile?: boolean; // Added prop
+    onOpenPropertyPanel?: () => void;
+}) => {
   return (
-    <ReactFlowProvider>
-      <CanvasContent onCanvasClick={onCanvasClick} />
-    </ReactFlowProvider>
+      <CanvasContent 
+        onCanvasClick={onCanvasClick} 
+        isMobile={isMobile}
+        onOpenPropertyPanel={onOpenPropertyPanel}
+      />
   );
 });

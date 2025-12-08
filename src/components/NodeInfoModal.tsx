@@ -8,6 +8,8 @@ interface NodeInfoModalProps {
   onClose: () => void;
 }
 
+import { createPortal } from 'react-dom';
+
 export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
   const { characters, resources } = useScenarioStore();
   const { t } = useTranslation();
@@ -41,9 +43,12 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
        return '';
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card text-card-foreground border border-border rounded-lg shadow-xl shadow-black/20 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div 
+        className="bg-card text-card-foreground border border-border rounded-lg shadow-xl shadow-black/20 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking content
+      >
         
         {/* Header */}
         <div className="p-4 border-b border-border flex justify-between items-start bg-muted/30">
@@ -149,6 +154,7 @@ export const NodeInfoModal = ({ referenceId, onClose }: NodeInfoModalProps) => {
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

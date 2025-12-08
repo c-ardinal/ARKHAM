@@ -5,9 +5,40 @@ import { Plus, Trash2, GripVertical, Users } from 'lucide-react';
 import { getIconForCharacterType } from '../utils/iconUtils';
 import type { CharacterType } from '../types';
 
-export const CharacterList = React.memo(() => {
+interface CharacterListProps {
+    onMobileDragStart?: (e: React.TouchEvent, id: string) => void;
+    onEdit?: () => void;
+}
+
+export const CharacterList = React.memo(({ onMobileDragStart, onEdit }: CharacterListProps) => {
   const { t } = useTranslation();
-  const { characters, addCharacter, deleteCharacter, setSelectedNode, selectedNodeId } = useScenarioStore();
+  const { characters, addCharacter, deleteCharacter, setSelectedNode, selectedNodeId, mode } = useScenarioStore();
+  const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent, id: string) => {
+      if (mode === 'play' || !onMobileDragStart) return;
+      // Start long press timer
+      longPressTimer.current = setTimeout(() => {
+          onMobileDragStart(e, id);
+          longPressTimer.current = null;
+      }, 300); // 300ms long press
+  };
+
+  const handleTouchEnd = () => {
+      if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+      }
+  };
+
+  const handleTouchMove = () => {
+      // If moved significantly? Sidebar logic handles move cancellation if we don't start it.
+      // But if we move before timer fires, we should cancel timer
+      if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+      }
+  };
 
   const handleAdd = () => {
     const newChar = {
@@ -25,23 +56,39 @@ export const CharacterList = React.memo(() => {
   };
 
   const onDragStart = (event: React.DragEvent, id: string) => {
+    if (mode === 'play') {
+        event.preventDefault();
+        return;
+    }
     event.dataTransfer.setData('application/reactflow', 'character');
     event.dataTransfer.setData('application/reactflow/referenceId', id);
     event.dataTransfer.effectAllowed = 'move';
   };
-
-
+  // Double tap handling
+  const lastTapRef = React.useRef(0);
+  const handleInteraction = (id: string, _e: React.MouseEvent | React.TouchEvent) => {
+      const now = Date.now();
+      const DOUBLE_TAP_DELAY = 300;
+      if (now - lastTapRef.current < DOUBLE_TAP_DELAY && selectedNodeId === id) {
+          if (onEdit) onEdit();
+      } else {
+          setSelectedNode(id);
+      }
+      lastTapRef.current = now;
+  };
 
   return (
     <div 
         className="flex flex-col h-full bg-card"
         onClick={() => setSelectedNode(null)} // Deselect on background click
+        onContextMenu={(e) => e.preventDefault()}
     >
         <div className="flex justify-between items-center mb-2 px-2 pt-2">
             <h3 className="text-sm font-semibold flex items-center gap-2">
                 <Users size={16} />
                 {t('characters.title')}
             </h3>
+            {mode === 'edit' && (
             <button 
                 onClick={(e) => { e.stopPropagation(); handleAdd(); }} 
                 className="p-1 hover:bg-muted rounded text-primary hover:text-primary/80" 
@@ -49,6 +96,7 @@ export const CharacterList = React.memo(() => {
             >
                 <Plus size={16} />
             </button>
+            )}
         </div>
         <div className="flex-1 overflow-y-auto space-y-1 px-2 pb-2">
             {characters.map(char => (
@@ -60,11 +108,23 @@ export const CharacterList = React.memo(() => {
                         ${selectedNodeId === char.id ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'}
                     `}
                     onClick={(e) => {
-                        e.stopPropagation(); // Prevent ensuring background click handler from firing
-                        setSelectedNode(char.id);
+                        e.stopPropagation();
+                        // Handle PC double click via native event? No, logic above covers both.
+                        // But for PC specifically we might want standard behavior.
+                        // Let's us standard onClick for selection and manual logic for double.
+                        handleInteraction(char.id, e);
                     }}
-                    draggable
+                    onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        if (onEdit) onEdit();
+                    }}
+                    draggable={mode === 'edit'}
                     onDragStart={(e) => onDragStart(e, char.id)}
+                    onTouchStart={(e) => handleTouchStart(e, char.id)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchMove={handleTouchMove}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'pan-y', WebkitTouchCallout: 'none', userSelect: 'none' }}
                 >
                     {/* Header */}
                     <div className="flex items-center gap-2 p-2 border-b border-border bg-muted/30">
@@ -83,6 +143,7 @@ export const CharacterList = React.memo(() => {
                                 {char.name || '(No Name)'}
                             </div>
                         </div>
+                        {mode === 'edit' && (
                         <button 
                             onClick={(e) => { e.stopPropagation(); deleteCharacter(char.id); }}
                             className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 hover:text-destructive rounded transition-all shrink-0"
@@ -90,6 +151,7 @@ export const CharacterList = React.memo(() => {
                         >
                             <Trash2 size={14} />
                         </button>
+                        )}
                     </div>
 
                     {/* Content Preview */}
