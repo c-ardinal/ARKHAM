@@ -460,8 +460,9 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                                     ) : (
                                                         <ul className="pl-6 space-y-1">
                                                             {displayItems.map(({name, quantity}) => (
-                                                                <li key={name} className="text-sm">
-                                                                     {name} <span className="text-muted-foreground text-xs">x{quantity}</span>
+                                                                <li key={name} className="text-sm flex justify-between items-center">
+                                                                    <span>{name}</span>
+                                                                    <span className="text-muted-foreground text-xs">x{quantity}</span>
                                                                 </li>
                                                             ))}
                                                         </ul>

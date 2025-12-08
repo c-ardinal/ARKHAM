@@ -8,7 +8,7 @@ export const ja: TranslationKeys = {
     load: '読込',
     nodes: 'ノード',
     properties: 'プロパティ',
-    gameState: 'ゲーム状態',
+    gameState: '状態',
     manual: 'マニュアル',
     close: '閉じる',
     revealAll: '全ノードを開示状態にする',
