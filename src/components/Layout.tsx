@@ -501,6 +501,25 @@ const menuActions = {
                         <MenuItem onClick={() => menuActions.onExport('text')} label={t('menu.exportSimple')} icon={Download} />
                         <MenuItem onClick={() => menuActions.onExport('markdown')} label={t('menu.exportMarkdown')} icon={Download} />
                     </SubMenu>
+                    <div className="my-1 border-t border-border" />
+                    <MenuItem 
+                        onClick={() => setConfirmModal({ 
+                            isOpen: true, 
+                            title: '消去', 
+                            message: 'すべてのノード、キャラクター、リソース、変数、ゲーム状態、履歴を削除して初期状態に戻します。設定は保持されます。よろしいですか？', 
+                            onConfirm: () => {
+                                useScenarioStore.getState().resetToInitialState();
+                                setTimeout(() => {
+                                    canvasRef.current?.fitView();
+                                    const zoom = canvasRef.current?.getZoom();
+                                    if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                                }, 100);
+                            } 
+                        })} 
+                        label="消去" 
+                        danger 
+                        icon={Trash2} 
+                    />
                 </MenuDropdown>
 
                 <MenuDropdown label={t('menu.edit')} isOpen={openMenuId === 'edit'} onToggle={() => setOpenMenuId(openMenuId === 'edit' ? null : 'edit')} onClose={closeMenu}>
