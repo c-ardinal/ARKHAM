@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useLayoutEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { Plus, Minus, Maximize } from 'lucide-react';
 import ReactFlow, { 
   Background, 
@@ -292,11 +292,11 @@ const ContextMenu = ({
   );
 };
 
-const CanvasContent = ({ onCanvasClick, isMobile, onOpenPropertyPanel }: { 
+const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }, { 
     onCanvasClick?: () => void;
     isMobile?: boolean; // Added isMobile prop
     onOpenPropertyPanel?: () => void;
-}) => {
+}>(({ onCanvasClick, isMobile, onOpenPropertyPanel }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { 
     nodes, 
@@ -331,10 +331,29 @@ const CanvasContent = ({ onCanvasClick, isMobile, onOpenPropertyPanel }: {
       getZoom,
       fitView,
       setViewport,
-      getViewport,
-      zoomIn
+      getViewport
   } = useReactFlow();
   const { t } = useTranslation();
+  
+  // Expose zoom functions to parent
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => {
+      const currentZoom = getZoom();
+      setViewport({ x: getViewport().x, y: getViewport().y, zoom: Math.min(2, currentZoom * 1.2) }, { duration: 200 });
+    },
+    zoomOut: () => {
+      const currentZoom = getZoom();
+      setViewport({ x: getViewport().x, y: getViewport().y, zoom: Math.max(0.1, currentZoom / 1.2) }, { duration: 200 });
+    },
+    fitView: () => {
+      fitView({ padding: 0.2, duration: 300 });
+    },
+    getZoom: () => getZoom(),
+    setZoom: (zoom: number) => {
+      const clampedZoom = Math.max(0.01, Math.min(2, zoom));
+      setViewport({ x: getViewport().x, y: getViewport().y, zoom: clampedZoom }, { duration: 200 });
+    }
+  }), [getZoom, setViewport, getViewport, fitView]);
   
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [zoom, setZoomState] = useState(1);
@@ -1017,7 +1036,7 @@ const CanvasContent = ({ onCanvasClick, isMobile, onOpenPropertyPanel }: {
     return sortedNodes.map(node => ({ ...node, selectable: true })); 
   }, [sortedNodes]);
 
-  // Manual Pane Double Click for Zoom
+  // Manual Pane Double Click - Behaves like Shift+Click (neutral, no zoom)
   const lastPaneClickTime = useRef(0);
   const handlePaneClick = useCallback((event: React.MouseEvent) => {
        const target = event.target as HTMLElement;
@@ -1042,7 +1061,8 @@ const CanvasContent = ({ onCanvasClick, isMobile, onOpenPropertyPanel }: {
            const now = Date.now();
            if (now - lastPaneClickTime.current < 300) {
                // Double click detected on Pane
-               zoomIn({ duration: 300 });
+               // Do nothing special - behaves neutrally (no zoom)
+               // User can use Shift+Drag for box selection or View menu for zoom
            }
            lastPaneClickTime.current = now;
        }
@@ -1057,7 +1077,7 @@ const CanvasContent = ({ onCanvasClick, isMobile, onOpenPropertyPanel }: {
        // It does standard deselection.
        // However, manually calling setSelectedNode(null) ensures consistency.
        setSelectedNode(null);
-  }, [onCanvasClick, setSelectedNode, setMenu, zoomIn]);
+  }, [onCanvasClick, setSelectedNode, setMenu]);
 
 
 
@@ -1222,18 +1242,17 @@ const CanvasContent = ({ onCanvasClick, isMobile, onOpenPropertyPanel }: {
       )}
     </div>
   );
-};
+});
 
-export const Canvas = React.memo(({ onCanvasClick, isMobile, onOpenPropertyPanel }: { 
+export const Canvas = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }, { 
     onCanvasClick?: () => void;
     isMobile?: boolean; // Added prop
     onOpenPropertyPanel?: () => void;
-}) => {
+}>((props, ref) => {
   return (
       <CanvasContent 
-        onCanvasClick={onCanvasClick} 
-        isMobile={isMobile}
-        onOpenPropertyPanel={onOpenPropertyPanel}
+        ref={ref}
+        {...props}
       />
   );
-});
+}));

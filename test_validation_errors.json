@@ -1,0 +1,122 @@
+{
+  "nodes": [
+    {
+      "id": "node-1",
+      "type": "event",
+      "position": { "x": 100, "y": 100 },
+      "data": { "label": "正常なノード" }
+    },
+    {
+      "type": "event",
+      "position": { "x": 200, "y": 100 },
+      "data": { "label": "idが欠落しているノード" }
+    },
+    {
+      "id": "node-3",
+      "type": "invalid_type",
+      "position": { "x": 300, "y": 100 },
+      "data": { "label": "不正なtypeのノード" }
+    },
+    {
+      "id": "node-4",
+      "type": "event",
+      "position": { "x": "invalid", "y": 100 },
+      "data": { "label": "positionが不正なノード" }
+    },
+    {
+      "id": "node-5",
+      "type": "event",
+      "position": { "x": 500, "y": 100 },
+      "data": "invalid_data"
+    },
+    {
+      "id": "node-6",
+      "type": "event",
+      "position": { "x": 600, "y": 100 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "node-1",
+      "target": "node-3"
+    },
+    {
+      "source": "node-1",
+      "target": "node-3"
+    },
+    {
+      "id": "edge-3",
+      "source": "nonexistent-node",
+      "target": "node-1"
+    },
+    {
+      "id": "edge-4",
+      "source": "node-1",
+      "target": "another-nonexistent-node"
+    }
+  ],
+  "gameState": {
+    "currentNodes": [],
+    "revealedNodes": [],
+    "inventory": {},
+    "equipment": {},
+    "knowledge": {},
+    "skills": {},
+    "stats": {},
+    "variables": {
+      "テスト変数1": {
+        "name": "テスト変数1",
+        "type": "number",
+        "value": "文字列"
+      },
+      "テスト変数2": {
+        "name": "テスト変数2",
+        "type": "string",
+        "value": 123
+      },
+      "テスト変数3": {
+        "name": "テスト変数3",
+        "type": "boolean",
+        "value": "true"
+      },
+      "重複変数": {
+        "name": "重複変数",
+        "type": "string",
+        "value": "値1"
+      },
+      "重複変数": {
+        "name": "重複変数",
+        "type": "string",
+        "value": "値2"
+      }
+    }
+  },
+  "characters": [
+    {
+      "id": "char-1",
+      "type": "npc",
+      "name": "正常なキャラクター"
+    },
+    {
+      "type": "npc",
+      "name": "idが欠落しているキャラクター"
+    },
+    {
+      "id": "char-3",
+      "name": "typeが欠落しているキャラクター"
+    }
+  ],
+  "resources": [
+    {
+      "id": "res-1",
+      "type": "item",
+      "name": "正常なリソース"
+    },
+    {
+      "type": "item",
+      "name": "idが欠落しているリソース"
+    }
+  ],
+  "edgeType": "invalid_edge_type"
+}

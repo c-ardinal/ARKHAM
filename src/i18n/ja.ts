@@ -26,8 +26,13 @@ export const ja: TranslationKeys = {
   menu: {
     file: 'ファイル',
     edit: '編集',
+    view: '表示',
     setting: '設定',
     help: 'ヘルプ',
+    zoomIn: '拡大',
+    zoomOut: '縮小',
+    fitView: '全ノードが収まるようにフィット',
+    zoomLevel: '拡大率',
     undo: '元に戻す',
     redo: 'やり直す',
     changeEdgeStyle: 'エッジスタイル変更',

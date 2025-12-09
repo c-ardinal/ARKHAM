@@ -26,8 +26,13 @@ export const en: TranslationKeys = {
   menu: {
     file: 'File',
     edit: 'Edit',
+    view: 'View',
     setting: 'Setting',
     help: 'Help',
+    zoomIn: 'Zoom In',
+    zoomOut: 'Zoom Out',
+    fitView: 'Fit All Nodes',
+    zoomLevel: 'Zoom Level',
     undo: 'Undo',
     redo: 'Redo',
     changeEdgeStyle: 'Change Edge Style',

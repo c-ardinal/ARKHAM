@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useReactFlow } from 'reactflow';
 import type { NodeType } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Package, Users, Zap, Variable as VariableIcon, Menu, Flag, GitBranch, Folder, StickyNote, Save, Upload, Download, Moon, Sun, Book, Info, ChevronDown, ChevronRight, Rabbit, Eye, EyeOff, Trash2, Check, Activity, ChartBarStacked, Minus, GitMerge, GripVertical, Shield, BookOpen } from 'lucide-react';
+import { Package, Users, Zap, Variable as VariableIcon, Menu, Flag, GitBranch, Folder, StickyNote, Save, Upload, Download, Moon, Sun, Book, Info, ChevronDown, ChevronRight, Rabbit, Eye, EyeOff, Trash2, Check, Activity, ChartBarStacked, Minus, GitMerge, GripVertical, Shield, BookOpen, Plus, Maximize } from 'lucide-react';
 import { getIconForCharacterType, getIconForResourceType } from '../utils/iconUtils';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableList } from './VariableList';
@@ -36,9 +36,12 @@ interface SidebarProps {
   isMobile?: boolean;
   menuActions: MenuActions;
   onOpenPropertyPanel?: () => void;
+  canvasRef?: React.RefObject<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void } | null>;
+  currentZoom?: number;
+  setCurrentZoom?: (zoom: number) => void;
 }
 
-export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({ width: _width, isOpen, onToggle, isMobile = false, menuActions, onOpenPropertyPanel }, ref) => {
+export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({ width: _width, isOpen, onToggle, isMobile = false, menuActions, onOpenPropertyPanel, canvasRef, currentZoom, setCurrentZoom }, ref) => {
   const { setSelectedNode, setEdgeType, edgeType, theme, language, characters, resources, mode, gameState } = useScenarioStore();
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -353,6 +356,81 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                     </div>
                                 )}
                             </div>
+
+                            {/* View Section */}
+                            {canvasRef && currentZoom !== undefined && setCurrentZoom && (
+                                <div className="border border-border rounded overflow-hidden">
+                                    <button onClick={() => toggleMenu('view')} className="w-full flex items-center justify-between p-2 bg-muted/30 hover:bg-muted/50 font-bold text-sm transition-colors">
+                                        <span className="flex items-center gap-2">{t('menu.view')}</span>
+                                        {openMenu === 'view' ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+                                    </button>
+                                    {openMenu === 'view' && (
+                                        <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
+                                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{t('menu.zoomLevel')}</div>
+                                            <div className="flex items-center gap-2 p-2">
+                                                <button 
+                                                    onClick={() => {
+                                                        canvasRef.current?.zoomOut();
+                                                        setTimeout(() => {
+                                                            const zoom = canvasRef.current?.getZoom();
+                                                            if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                                                        }, 50);
+                                                    }}
+                                                    className="p-1.5 hover:bg-accent rounded flex items-center justify-center"
+                                                    title={t('menu.zoomOut')}
+                                                >
+                                                    <Minus size={16}/>
+                                                </button>
+                                                <input
+                                                    type="number"
+                                                    value={currentZoom}
+                                                    onChange={(e) => {
+                                                        const value = parseInt(e.target.value) || 1;
+                                                        const clampedValue = Math.max(1, Math.min(200, value));
+                                                        setCurrentZoom(clampedValue);
+                                                        canvasRef.current?.setZoom(clampedValue / 100);
+                                                    }}
+                                                    onBlur={(e) => {
+                                                        const value = parseInt(e.target.value) || 1;
+                                                        const clampedValue = Math.max(1, Math.min(200, value));
+                                                        setCurrentZoom(clampedValue);
+                                                        canvasRef.current?.setZoom(clampedValue / 100);
+                                                    }}
+                                                    className="flex-1 text-center text-sm font-mono min-w-[60px] bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
+                                                    min="1"
+                                                    max="200"
+                                                />
+                                                <button 
+                                                    onClick={() => {
+                                                        canvasRef.current?.zoomIn();
+                                                        setTimeout(() => {
+                                                            const zoom = canvasRef.current?.getZoom();
+                                                            if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                                                        }, 50);
+                                                    }}
+                                                    className="p-1.5 hover:bg-accent rounded flex items-center justify-center"
+                                                    title={t('menu.zoomIn')}
+                                                >
+                                                    <Plus size={16}/>
+                                                </button>
+                                            </div>
+                                            <div className="h-px bg-border my-1" />
+                                            <button 
+                                                onClick={() => {
+                                                    canvasRef.current?.fitView();
+                                                    setTimeout(() => {
+                                                        const zoom = canvasRef.current?.getZoom();
+                                                        if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                                                    }, 350);
+                                                }}
+                                                className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"
+                                            >
+                                                <Maximize size={16}/> {t('menu.fitView')}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Settings Section */}
                             <div className="border border-border rounded overflow-hidden">

@@ -52,18 +52,29 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
 
       {/* Content Preview */}
       <div className="p-3 text-xs space-y-1">
-          {/* Tags for abilities/skills presence */}
-          {(character.abilities || character.skills) && (
-             <div className="pb-1 flex gap-1 flex-wrap">
-                 {character.abilities && <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-[10px]">{t('characters.abilities')}</span>}
-                 {character.skills && <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-[10px]">{t('characters.skills')}</span>}
-             </div>
-          )}
-
           {character.description && (
-              <div className="whitespace-pre-wrap break-words text-muted-foreground">
+              <div className="whitespace-pre-wrap break-words text-muted-foreground pb-1">
                   {character.description}
               </div>
+          )}
+          <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700"></div>
+
+          {/* Abilities and Skills content */}
+          {character.abilities && (
+             <div className="pb-1">
+                 <div className="text-[10px] font-semibold text-blue-800 dark:text-blue-300 mb-0.5">{t('characters.abilities')}</div>
+                 <div className="whitespace-pre-wrap break-words text-muted-foreground">
+                     {character.abilities}
+                 </div>
+             </div>
+          )}
+          {character.skills && (
+             <div className="pb-1">
+                 <div className="text-[10px] font-semibold text-green-800 dark:text-green-300 mb-0.5">{t('characters.skills')}</div>
+                 <div className="whitespace-pre-wrap break-words text-muted-foreground">
+                     {character.skills}
+                 </div>
+             </div>
           )}
       </div>
 

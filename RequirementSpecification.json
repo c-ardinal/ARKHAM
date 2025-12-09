@@ -1,0 +1,175 @@
+{
+    "general": {
+        "states": [
+            {
+                "name": "編集モード",
+                "description": "編集モードでは、ユーザーはコンテンツの追加・削除・変更が可能。",
+                "behaviors": [
+                    {
+                        "type": "entry",
+                        "condition": [],
+                        "actions": [
+                            {
+                                "label": "「編集モード」のボタン表示を「進行モード」に変更"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "do",
+                        "condition": [],
+                        "actions": []
+                    },
+                    {
+                        "type": "exit",
+                        "condition": [
+                            {
+                                "label": "「進行モード」のボタンを押下"
+                            }
+                        ],
+                        "actions": [
+                            {
+                                "label": "「進行モード」に状態遷移"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "進行モード",
+                "description": "進行モードでは、ユーザーはコンテンツの閲覧・変更が可能。",
+                "behaviors": [
+                    {
+                        "type": "entry",
+                        "condition": [],
+                        "actions": [
+                            {
+                                "label": "「進行モード」のボタン表示を「編集モード」に変更"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "do",
+                        "condition": [],
+                        "actions": []
+                    },
+                    {
+                        "type": "exit",
+                        "condition": [
+                            {
+                                "label": "「編集モード」のボタンを押下"
+                            }
+                        ],
+                        "actions": [
+                            {
+                                "label": "「編集モード」に状態遷移"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "user_interface": [
+            {
+                "name": "logo",
+                "description": "ツールのブランドやアイデンティティを表すロゴ",
+                "position": "画面左上",
+                "visibility": "常に表示"
+            },
+            {
+                "name": "Menu",
+                "description": "ファイル操作や設定など、ツールの副次的な操作を行うメニュー",
+                "position": "画面上部(logoの右隣)",
+                "visibility": "常に表示",
+                "items": [
+                    {
+                        "name": "File",
+                        "description": "新規作成、保存、読み込みなどのファイル操作を行う",
+                        "position": "左から1番目",
+                        "visibility": "常に表示",
+                        "items": [
+                            {
+                                "name": "Save (Ctrl+S)",
+                                "description": "現在のファイルを保存する",
+                                "position": "上から1番目",
+                                "visibility": "Fileボタン押下時に表示",
+                                "items": []
+                            },
+                            {
+                                "name": "Load",
+                                "description": "既存のファイルを開く",
+                                "position": "上から2番目",
+                                "visibility": "Fileボタン押下時に表示",
+                                "items": []
+                            },
+                            {
+                                "name": "Load Sample Data",
+                                "description": "サンプルデータを読み込む",
+                                "position": "上から3番目",
+                                "visibility": "Fileボタン押下時に表示",
+                                "items": [
+                                    {
+                                        "name": "Story",
+                                        "description": "サンプルシナリオを読み込む",
+                                        "position": "上から1番目",
+                                        "visibility": "Load Sample Data押下時に表示",
+                                        "items": []
+                                    },
+                                    {
+                                        "name": "Nested Group Nodes",
+                                        "description": "サンプルシナリオを読み込む",
+                                        "position": "上から2番目",
+                                        "visibility": "Load Sample Data押下時に表示",
+                                        "items": []
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "Export as Text",
+                                "description": "現在のデータをテキスト形式で出力する",
+                                "position": "上から4番目",
+                                "visibility": "Fileボタン押下時に表示",
+                                "items": []
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Undo/Redo Buttons",
+                "description": "操作の取り消し・やり直しを行う",
+                "position": "画面右上(Mode Switch Buttonの右隣)",
+                "visibility": "常に表示"
+            },
+            {
+                "name": "Mode Switch Button",
+                "description": "編集モードと進行モードを切り替える",
+                "position": "画面右上",
+                "visibility": "常に表示"
+            },
+            {
+                "name": "Side bar",
+                "description": "サイドウィンドウの表示・非表示を切り替える",
+                "position": "画面左(logoの下隣から画面最下部まで)",
+                "visibility": "常に表示"
+            },
+            {
+                "name": "Side Window",
+                "description": "主要なツールや機能へのアクセスを提供する",
+                "position": "画面左(Side barの右隣)",
+                "visibility": "サイドバーの操作で表示・非表示を切り替え"
+            },
+            {
+                "name": "Canvas",
+                "description": "コンテンツの作成・編集・表示を行う主要な作業領域",
+                "position": "画面中央(Side Windowの右隣からProperty Windowの左隣まで)",
+                "visibility": "常に表示"
+            },
+            {
+                "name": "Property Window",
+                "description": "選択したオブジェクトや要素の詳細情報や設定を表示・編集する",
+                "position": "画面右(Mode Switch Buttonの下隣。Canvasの右隣から画面最右端まで)",
+                "visibility": "オブジェクト選択時に表示"
+            }
+        ]
+    }
+}

@@ -24,8 +24,13 @@ export type TranslationKeys = {
   menu: {
     file: string;
     edit: string;
+    view: string;
     setting: string;
     help: string;
+    zoomIn: string;
+    zoomOut: string;
+    fitView: string;
+    zoomLevel: string;
     undo: string;
     redo: string;
     changeEdgeStyle: string;

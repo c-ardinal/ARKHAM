@@ -530,6 +530,13 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
            past: [], 
            future: [] 
        });
+       
+       // After loading, apply mode-specific behavior
+       const currentMode = get().mode;
+       if (currentMode === 'play') {
+           // In play mode, recalculate game state to ensure consistency
+           get().recalculateGameState();
+       }
   },
   setMode: (mode) => {
       const state = get();

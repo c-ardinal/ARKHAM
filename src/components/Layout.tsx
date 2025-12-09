@@ -5,8 +5,11 @@ import { PropertyPanel } from './PropertyPanel';
 import { Canvas } from './Canvas';
 import { ManualModal } from './ManualModal';
 import { AboutModal } from './AboutModal';
+import { ValidationErrorModal } from './ValidationErrorModal';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Save, Upload, Book, Folder, Download, StickyNote, Eye, EyeOff, Trash2, Sun, Moon, Languages, Activity, Minus, Info, Spline, CornerDownRight, Route } from 'lucide-react';
+import { validateScenarioData } from '../utils/scenarioValidator';
+import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Save, Upload, Book, Folder, Download, StickyNote, Eye, EyeOff, Trash2, Sun, Moon, Languages, Activity, Minus, Info, Spline, CornerDownRight, Route, Plus, Maximize } from 'lucide-react';
+
 import { useTranslation } from '../hooks/useTranslation';
 import { generateScenarioText } from '../utils/exportUtils';
 import sampleStory from '../../sample_Story.json';
@@ -227,6 +230,7 @@ export const Layout = () => {
   
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
+  const [validationError, setValidationError] = useState<{ errors: string[]; warnings: string[]; corrections?: string[]; jsonContent?: string } | null>(null);
 
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : false);
@@ -234,6 +238,8 @@ export const Layout = () => {
   const [isResizingProperty, setIsResizingProperty] = useState(false);
   const [mobilePropertyPanelOpen, setMobilePropertyPanelOpen] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const canvasRef = useRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }>(null);
+  const [currentZoom, setCurrentZoom] = useState(100);
 
   useEffect(() => {
     document.fonts.ready.then(() => {
@@ -264,6 +270,15 @@ export const Layout = () => {
       }
   }, [theme]);
 
+  // Update zoom display periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const zoom = canvasRef.current?.getZoom();
+      if (zoom) setCurrentZoom(Math.round(zoom * 100));
+    }, 200);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleSave = () => {
     const data = {
       nodes,
@@ -273,7 +288,12 @@ export const Layout = () => {
       resources,
       edgeType
     };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    
+    // Validate and correct the data before saving
+    const validation = validateScenarioData(data);
+    const dataToSave = validation.correctedData || data;
+    
+    const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     
     // Generate timestamp: YYYYMMDDHHmmssSSS
@@ -324,10 +344,43 @@ export const Layout = () => {
       try {
         const content = e.target?.result as string;
         const data = JSON.parse(content);
-        useScenarioStore.getState().loadScenario(data);
+        
+        // Validate the data
+        const validation = validateScenarioData(data);
+        
+        if (!validation.isValid) {
+          // Show errors in modal
+          setValidationError({
+            errors: validation.errors,
+            warnings: validation.warnings,
+            corrections: validation.corrections,
+            jsonContent: content // Pass full JSON content for parsing
+          });
+          return;
+        }
+        
+        // Show warnings if any
+        if (validation.warnings.length > 0) {
+          setValidationError({
+            errors: [],
+            warnings: validation.warnings,
+            corrections: validation.corrections,
+            jsonContent: content // Pass full JSON content for parsing
+          });
+          // Auto-load after showing warnings
+          setTimeout(() => {
+            useScenarioStore.getState().loadScenario(validation.correctedData);
+          }, 100);
+        } else {
+          // No warnings, load directly
+          useScenarioStore.getState().loadScenario(validation.correctedData || data);
+        }
       } catch (error) {
         console.error('Failed to load scenario:', error);
-        alert('Failed to load scenario. Invalid JSON.');
+        setValidationError({
+          errors: ['シナリオの読み込みに失敗しました。不正なJSONです。', error instanceof Error ? error.message : String(error)],
+          warnings: []
+        });
       }
     };
     reader.readAsText(file);
@@ -470,6 +523,71 @@ const menuActions = {
                     </SubMenu>
                 </MenuDropdown>
 
+                <MenuDropdown label={t('menu.view')} isOpen={openMenuId === 'view'} onToggle={() => setOpenMenuId(openMenuId === 'view' ? null : 'view')} onClose={closeMenu}>
+                    <div className="px-4 py-2">
+                        <div className="text-xs font-semibold text-muted-foreground mb-2">{t('menu.zoomLevel')}</div>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => {
+                                    canvasRef.current?.zoomOut();
+                                    setTimeout(() => {
+                                        const zoom = canvasRef.current?.getZoom();
+                                        if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                                    }, 50);
+                                }}
+                                className="p-2 hover:bg-accent rounded flex items-center justify-center transition-colors"
+                                title={t('menu.zoomOut')}
+                            >
+                                <Minus size={16}/>
+                            </button>
+                            <input
+                                type="number"
+                                value={currentZoom}
+                                onChange={(e) => {
+                                    const value = parseInt(e.target.value) || 1;
+                                    const clampedValue = Math.max(1, Math.min(200, value));
+                                    setCurrentZoom(clampedValue);
+                                    canvasRef.current?.setZoom(clampedValue / 100);
+                                }}
+                                onBlur={(e) => {
+                                    const value = parseInt(e.target.value) || 1;
+                                    const clampedValue = Math.max(1, Math.min(200, value));
+                                    setCurrentZoom(clampedValue);
+                                    canvasRef.current?.setZoom(clampedValue / 100);
+                                }}
+                                className="flex-1 text-center text-sm font-mono min-w-[60px] bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
+                                min="1"
+                                max="200"
+                            />
+                            <button 
+                                onClick={() => {
+                                    canvasRef.current?.zoomIn();
+                                    setTimeout(() => {
+                                        const zoom = canvasRef.current?.getZoom();
+                                        if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                                    }, 50);
+                                }}
+                                className="p-2 hover:bg-accent rounded flex items-center justify-center transition-colors"
+                                title={t('menu.zoomIn')}
+                            >
+                                <Plus size={16}/>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="h-px bg-border my-1 mx-2" />
+                    <MenuItem 
+                        onClick={() => {
+                            canvasRef.current?.fitView();
+                            setTimeout(() => {
+                                const zoom = canvasRef.current?.getZoom();
+                                if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                            }, 350);
+                        }}
+                        label={t('menu.fitView')}
+                        icon={Maximize}
+                    />
+                </MenuDropdown>
+
                 <MenuDropdown label={String(t('menu.setting') || 'Settings')} isOpen={openMenuId === 'setting'} onToggle={() => setOpenMenuId(openMenuId === 'setting' ? null : 'setting')} onClose={closeMenu}>
                     <MenuItem onClick={menuActions.onToggleTheme} label={theme === 'dark' ? t('menu.switchToLight' as any) : t('menu.switchToDark' as any)} icon={theme === 'dark' ? Sun : Moon} />
                     <MenuItem onClick={menuActions.onToggleLang} label={language === 'en' ? t('menu.switchToJa' as any) : t('menu.switchToEn' as any)} icon={Languages} />
@@ -525,6 +643,9 @@ const menuActions = {
             isMobile={isMobile}
             menuActions={menuActions}
             onOpenPropertyPanel={() => setMobilePropertyPanelOpen(true)}
+            canvasRef={canvasRef}
+            currentZoom={currentZoom}
+            setCurrentZoom={setCurrentZoom}
         />
         </div>
         
@@ -536,6 +657,7 @@ const menuActions = {
         )}
 
         <Canvas 
+            ref={canvasRef}
             onCanvasClick={() => {
                 if (isMobile && isSidebarOpen) setIsSidebarOpen(false);
                 if (isMobile && mobilePropertyPanelOpen) setMobilePropertyPanelOpen(false);
@@ -581,6 +703,14 @@ const menuActions = {
       )}
       <ManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
+      <ValidationErrorModal
+        isOpen={validationError !== null}
+        errors={validationError?.errors || []}
+        warnings={validationError?.warnings || []}
+        corrections={validationError?.corrections || []}
+        jsonContent={validationError?.jsonContent}
+        onClose={() => setValidationError(null)}
+      />
       </div>
     </ReactFlowProvider>
   );
