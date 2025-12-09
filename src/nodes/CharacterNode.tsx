@@ -5,6 +5,8 @@ import { useScenarioStore } from '../store/scenarioStore';
 import type { CharacterType, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 
+
+
 const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
   const characters = useScenarioStore((state) => state.characters);
@@ -32,6 +34,13 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       transition-colors duration-200
       ${selected ? 'border-primary ring-2 ring-primary/20' : 'border-border'}
     `}>
+      {/* Revealed/Unrevealed Indicator */}
+      {data.revealed && (
+          <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm z-10 border-2 border-background">
+              <span className="text-white font-bold text-xs">✓</span>
+          </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-2 p-2 border-b border-border bg-muted/30">
         <div className="p-1.5 rounded-full bg-primary/10 text-primary">

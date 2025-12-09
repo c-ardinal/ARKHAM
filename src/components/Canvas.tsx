@@ -850,33 +850,41 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
       const selectedNodes = getNodes().filter(n => n.selected && n.type !== 'sticky');
       const nodesToAddSticky = selectedNodes.length > 0 ? selectedNodes : (targetId ? getNodes().filter(n => n.id === targetId) : []);
       
-      for (const node of nodesToAddSticky) {
-          // Calculate absolute position manually to handle nested groups
-          let absX = node.position.x;
-          let absY = node.position.y;
-          let parentId = node.parentNode;
-          
-          while(parentId) {
-              const parent = getNodes().find(n => n.id === parentId);
-              if (parent) {
-                  absX += parent.position.x;
-                  absY += parent.position.y;
-                  parentId = parent.parentNode;
-              } else {
-                  break;
+      if (nodesToAddSticky.length > 0) {
+          for (const node of nodesToAddSticky) {
+              // Calculate absolute position manually to handle nested groups
+              let absX = node.position.x;
+              let absY = node.position.y;
+              let parentId = node.parentNode;
+              
+              while(parentId) {
+                  const parent = getNodes().find(n => n.id === parentId);
+                  if (parent) {
+                      absX += parent.position.x;
+                      absY += parent.position.y;
+                      parentId = parent.parentNode;
+                  } else {
+                      break;
+                  }
               }
-          }
 
-          // Position relative to target: Top-Right
-          const pos = { 
-              x: absX + (node.width || 150) + 20, 
-              y: absY - 20 
-          };
-          
-          addSticky(node.id, pos);
+              // Position relative to target: Top-Right
+              const pos = { 
+                  x: absX + (node.width || 150) + 20, 
+                  y: absY - 20 
+              };
+              
+              addSticky(node.id, pos);
+          }
+      } else {
+          // Add Free Sticky at Menu Position (if clicked on pane)
+          if (menu) {
+              const pos = screenToFlowPosition({ x: menu.left, y: menu.top });
+              addSticky(undefined, pos);
+          }
       }
       setMenu(null);
-  }, [getNodes, addSticky]);
+  }, [menu, getNodes, addSticky, screenToFlowPosition]);
 
   const handleToggleStickies = useCallback((targetId: string) => {
       // Get selected nodes

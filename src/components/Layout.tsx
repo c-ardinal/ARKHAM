@@ -8,7 +8,7 @@ import { AboutModal } from './AboutModal';
 import { ValidationErrorModal } from './ValidationErrorModal';
 import { useScenarioStore } from '../store/scenarioStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
-import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Save, Upload, Book, Folder, Download, StickyNote, Eye, EyeOff, Trash2, Sun, Moon, Languages, Activity, Minus, Info, Spline, CornerDownRight, Route, Plus, Maximize } from 'lucide-react';
+import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Save, Upload, Book, Folder, Download, StickyNote, Eye, EyeOff, Trash2, Sun, Moon, Languages, Activity, Minus, Info, Spline, CornerDownRight, Route, Plus, Maximize, FileText, Settings, HelpCircle } from 'lucide-react';
 
 import { useTranslation } from '../hooks/useTranslation';
 import { generateScenarioText } from '../utils/exportUtils';
@@ -118,6 +118,7 @@ const SubMenu = ({ label, children, onClose, icon: Icon }: SubMenuProps) => {
 const MenuDropdown = ({ label, children, isOpen, onToggle, onClose, icon: Icon }: { label: string, children: React.ReactNode, isOpen: boolean, onToggle: () => void, onClose: () => void, icon?: React.ElementType }) => {
     const ref = useRef<HTMLButtonElement>(null);
     const [position, setPosition] = useState({ top: 0, left: 0 });
+    const isCompactMenu = useMediaQuery('(max-width: 1150px)');
     
     useEffect(() => {
         if (isOpen && ref.current) {
@@ -128,14 +129,6 @@ const MenuDropdown = ({ label, children, isOpen, onToggle, onClose, icon: Icon }
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-             // For portal, we need to check if target is inside the dropdown content (which is now in body) or the button
-             // Since dropdown is portal, 'ref' (button) won't contain it.
-             // We can check if closest('.menu-dropdown-content') exists?
-             // Or use a ref for the dropdown content too.
-             // But simpler: just click anywhere closes it if logic in Layout handles it?
-             // Layout uses `openMenuId`.
-             // But we need to detect click *outside*.
-             // The Dropdown content needs a ref.
              const dropdownEl = document.getElementById(`menu-dropdown-${label}`);
              if (
                  ref.current && 
@@ -148,8 +141,8 @@ const MenuDropdown = ({ label, children, isOpen, onToggle, onClose, icon: Icon }
         };
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
         }
-        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen, onClose, label]);
 
     return (
@@ -157,23 +150,21 @@ const MenuDropdown = ({ label, children, isOpen, onToggle, onClose, icon: Icon }
             <button 
                 ref={ref}
                 onClick={onToggle}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground ${isOpen ? 'bg-accent text-accent-foreground' : ''}`}
-                 title={label}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground text-sm font-medium transition-colors ${isOpen ? 'bg-accent/50 text-accent-foreground' : ''}`}
+                title={isCompactMenu ? label : undefined}
             >
-                {Icon ? <Icon size={18} /> : (
-                  <>
-                    {label} <ChevronDown size={12} />
-                  </>
-                )}
+                {Icon && (isCompactMenu || !label) && <Icon size={18} />}
+                {!isCompactMenu && label}
+                {!isCompactMenu && <ChevronDown size={14} className="opacity-50" />}
             </button>
             {isOpen && createPortal(
                 <div 
                     id={`menu-dropdown-${label}`}
                     style={{ top: position.top, left: position.left }}
-                    className="fixed mt-1 w-max min-w-[14rem] rounded-md shadow-lg border border-border py-1 z-[100] bg-popover text-popover-foreground menu-dropdown-content"
+                    className="fixed mt-1 w-max min-w-[14rem] rounded-md shadow-lg border border-border py-1 z-[100] bg-popover text-popover-foreground menu-dropdown-content animate-in fade-in zoom-in-95 duration-100"
                 >
                     {React.Children.map(children, child => 
-                        React.isValidElement(child) 
+                         React.isValidElement(child) 
                             ? React.cloneElement(child as React.ReactElement<{ onClose?: () => void }>, { onClose }) 
                             : child
                     )}
@@ -232,8 +223,19 @@ export const Layout = () => {
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
   const [validationError, setValidationError] = useState<{ errors: string[]; warnings: string[]; corrections?: string[]; jsonContent?: string } | null>(null);
 
-  const isMobile = useMediaQuery('(max-width: 768px)');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : false);
+  // Mobile logic: 
+  // Use (pointer: coarse) to target primary input mechanism.
+  // - Smartphones/Tablets (Primary: Touch) -> Mobile Layout
+  // - PCs with Touchscreen (Primary: Mouse) -> PC Layout (pointer: fine)
+  const mobileQuery = '(max-width: 1366px) and (pointer: coarse)';
+  const isMobile = useMediaQuery(mobileQuery);
+  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+     if (typeof window !== 'undefined') {
+         return !window.matchMedia(mobileQuery).matches;
+     }
+     return false;
+  });
   const [propertyPanelWidth, setPropertyPanelWidth] = useState(320);
   const [isResizingProperty, setIsResizingProperty] = useState(false);
   const [mobilePropertyPanelOpen, setMobilePropertyPanelOpen] = useState(false);
@@ -475,13 +477,13 @@ const menuActions = {
       >
         <div className="flex items-center gap-4">
              <div className="flex flex-col items-center mr-4">
-                <h1 className={`text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-green-800 drop-shadow-sm tracking-wider transition-opacity duration-300 ${fontsLoaded ? 'opacity-100' : 'opacity-0'}`} style={{ fontFamily: '"Cinzel Decorative", cursive', lineHeight: '0.8' }}>ARKHAM</h1>
-                <span className="text-[0.6rem] tracking-widest mt-1 text-muted-foreground hidden md:block"><span className="text-purple-500 font-bold">A</span>dventure <span className="text-purple-500 font-bold">R</span>outing & <span className="text-purple-500 font-bold">K</span>eeper <span className="text-purple-500 font-bold">H</span>andling <span className="text-purple-500 font-bold">A</span>ssistant <span className="text-purple-500 font-bold">M</span>anager</span>
+                <h1 className={`text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-green-800 drop-shadow-sm tracking-wider transition-opacity duration-300 ${fontsLoaded ? 'opacity-100' : 'opacity-0'}`} style={{ fontFamily: '"Cinzel Decorative", cursive', lineHeight: '0.8' }}>ARKHAM</h1>
+                <span className="text-[0.6rem] tracking-widest mt-1 text-muted-foreground hidden lg:block"><span className="text-purple-500 font-bold">A</span>dventure <span className="text-purple-500 font-bold">R</span>outing & <span className="text-purple-500 font-bold">K</span>eeper <span className="text-purple-500 font-bold">H</span>andling <span className="text-purple-500 font-bold">A</span>ssistant <span className="text-purple-500 font-bold">M</span>anager</span>
              </div>
 
             {/* Desktop Menu */}
             <div className={`${isMobile ? 'hidden' : 'flex'} items-center gap-1`}>
-                <MenuDropdown label={t('menu.file')} isOpen={openMenuId === 'file'} onToggle={() => setOpenMenuId(openMenuId === 'file' ? null : 'file')} onClose={closeMenu}>
+                <MenuDropdown label={t('menu.file')} isOpen={openMenuId === 'file'} onToggle={() => setOpenMenuId(openMenuId === 'file' ? null : 'file')} onClose={closeMenu} icon={FileText}>
                     <MenuItem onClick={handleSave} label={t('common.save')} icon={Save} />
                     <MenuItem onClick={() => fileInputRef.current?.click()} label={t('common.load')} icon={Upload} />
                     <SubMenu label={t('menu.loadSample')} icon={Book}>
@@ -520,9 +522,10 @@ const menuActions = {
                         danger 
                         icon={Trash2} 
                     />
+
                 </MenuDropdown>
 
-                <MenuDropdown label={t('menu.edit')} isOpen={openMenuId === 'edit'} onToggle={() => setOpenMenuId(openMenuId === 'edit' ? null : 'edit')} onClose={closeMenu}>
+                <MenuDropdown label={t('menu.edit')} isOpen={openMenuId === 'edit'} onToggle={() => setOpenMenuId(openMenuId === 'edit' ? null : 'edit')} onClose={closeMenu} icon={Edit}>
                      <SubMenu label={t('menu.stickyNotes' as any) || "Sticky Notes"} icon={StickyNote}>
                         <MenuItem onClick={menuActions.onShowAllStickies} label={t('menu.showAllStickies')} icon={Eye} />
                         <MenuItem onClick={menuActions.onHideAllStickies} label={t('menu.hideAllStickies')} icon={EyeOff} />
@@ -542,7 +545,7 @@ const menuActions = {
                     </SubMenu>
                 </MenuDropdown>
 
-                <MenuDropdown label={t('menu.view')} isOpen={openMenuId === 'view'} onToggle={() => setOpenMenuId(openMenuId === 'view' ? null : 'view')} onClose={closeMenu}>
+                <MenuDropdown label={t('menu.view')} isOpen={openMenuId === 'view'} onToggle={() => setOpenMenuId(openMenuId === 'view' ? null : 'view')} onClose={closeMenu} icon={Eye}>
                     <div className="px-4 py-2">
                         <div className="text-xs font-semibold text-muted-foreground mb-2">{t('menu.zoomLevel')}</div>
                         <div className="flex items-center gap-2">
@@ -607,7 +610,7 @@ const menuActions = {
                     />
                 </MenuDropdown>
 
-                <MenuDropdown label={String(t('menu.setting') || 'Settings')} isOpen={openMenuId === 'setting'} onToggle={() => setOpenMenuId(openMenuId === 'setting' ? null : 'setting')} onClose={closeMenu}>
+                <MenuDropdown label={String(t('menu.setting') || 'Settings')} isOpen={openMenuId === 'setting'} onToggle={() => setOpenMenuId(openMenuId === 'setting' ? null : 'setting')} onClose={closeMenu} icon={Settings}>
                     <MenuItem onClick={menuActions.onToggleTheme} label={theme === 'dark' ? t('menu.switchToLight' as any) : t('menu.switchToDark' as any)} icon={theme === 'dark' ? Sun : Moon} />
                     <MenuItem onClick={menuActions.onToggleLang} label={language === 'en' ? t('menu.switchToJa' as any) : t('menu.switchToEn' as any)} icon={Languages} />
                      <SubMenu label={t('menu.changeEdgeStyle')} icon={Activity}>
@@ -618,7 +621,7 @@ const menuActions = {
                     </SubMenu>
                 </MenuDropdown>
 
-                <MenuDropdown label={t('menu.help')} isOpen={openMenuId === 'help'} onToggle={() => setOpenMenuId(openMenuId === 'help' ? null : 'help')} onClose={closeMenu}>
+                <MenuDropdown label={t('menu.help')} isOpen={openMenuId === 'help'} onToggle={() => setOpenMenuId(openMenuId === 'help' ? null : 'help')} onClose={closeMenu} icon={HelpCircle}>
                     <MenuItem onClick={menuActions.onOpenManual} label={t('common.manual')} icon={Book} />
                     <MenuItem onClick={menuActions.onOpenAbout} label={t('menu.about')} icon={Info} />
                 </MenuDropdown>

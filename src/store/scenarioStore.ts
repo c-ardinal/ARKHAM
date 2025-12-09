@@ -1098,7 +1098,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // 3. Update sticky status on nodes
       const stickyTargets = new Set<string>();
       state.nodes.forEach(n => {
-          if (n.type === 'sticky' && n.data.targetNodeId && !n.hidden) {
+          if (n.type === 'sticky' && n.data.targetNodeId) {
               stickyTargets.add(n.data.targetNodeId);
           }
       });

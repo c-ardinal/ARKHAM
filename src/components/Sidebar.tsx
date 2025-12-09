@@ -49,16 +49,11 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
   const toggleMenu = (section: string) => {
       setOpenMenu(prev => prev === section ? null : section);
   };
-  const [activeTab, setActiveTab] = useState<'nodes' | 'characters' | 'resources' | 'variables' | 'menu' | 'mobile_root'>(isMobile ? 'mobile_root' : 'nodes');
+  const [activeTab, setActiveTab] = useState<'nodes' | 'characters' | 'resources' | 'variables' | 'menu'>(isMobile ? 'menu' : 'nodes');
   const { screenToFlowPosition } = useReactFlow();
 
-  useEffect(() => {
-    if (isMobile) {
-        setActiveTab('mobile_root');
-    } else {
-        if (activeTab === 'mobile_root') setActiveTab('nodes');
-    }
-  }, [isMobile]);
+  // Reset tab on mobile switch is not necessary and causes loop issues.
+  // Instead, rely on user interaction.
 
   // --- Mobile Drag Support ---
   const [dragType, setDragType] = useState<NodeType | null>(null);
@@ -188,13 +183,36 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
     event.dataTransfer.effectAllowed = 'move';
   };
   
-  const handleAddNode = (_type: NodeType) => {
-      if (isMobile) return; 
+  const handleAddNode = (type: NodeType) => {
+      // Get center of viewport relative to window
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      
+      const position = screenToFlowPosition({ x: centerX, y: centerY });
+      
+      const newNode = {
+        id: `${type}-${Date.now()}`,
+        type: type,
+        position: { x: position.x - 75, y: position.y - 25 },
+        data: { 
+            label: t(`nodes.${type}` as any),
+            description: '',
+            referenceId: undefined
+        },
+      };
+
+      // @ts-ignore
+      useScenarioStore.getState().addNode(newNode);
+
+      // Close sidebar on mobile/tablet after adding
+      if (isMobile && isOpen) {
+          onToggle();
+      }
   };
 
   // TabButton component helper
   interface TabButtonProps {
-      id: 'nodes' | 'characters' | 'resources' | 'variables' | 'menu' | 'mobile_root';
+      id: 'nodes' | 'characters' | 'resources' | 'variables' | 'menu';
       label: string;
       icon: React.ElementType;
   }
@@ -321,6 +339,14 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                          </button>
                                          <button onClick={() => menuActions.onExport('markdown')} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
                                             <Download size={16} /> {t('menu.exportMarkdown' as any)}
+                                         </button>
+                                         <div className="h-px bg-border my-1" />
+                                         <button onClick={() => { 
+                                             if(window.confirm('すべてのノード、キャラクター、リソース、変数、ゲーム状態、履歴を削除して初期状態に戻します。設定は保持されます。よろしいですか？')) { 
+                                                 useScenarioStore.getState().resetToInitialState(); 
+                                             } 
+                                         }} className="flex items-center gap-2 p-2 rounded hover:bg-destructive/10 text-destructive w-full text-left text-sm">
+                                            <Trash2 size={16} /> 消去
                                          </button>
                                     </div>
                                 )}
