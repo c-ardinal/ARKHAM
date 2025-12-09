@@ -73,6 +73,30 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Enable text selection for all text content */
+  p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, pre, code {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+  
+  /* Disable text selection for interactive elements */
+  button, input, select, textarea {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+  
+  /* Re-enable text selection for input fields */
+  input, textarea {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
 }
 
 .react-flow__node {

@@ -988,6 +988,14 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
           
           // Ignore if input/textarea is focused
           if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return;
+          
+          // Ignore if inside a modal or dialog
+          const target = e.target as HTMLElement;
+          if (target.closest('[role="dialog"]') || target.closest('.modal')) return;
+          
+          // Ignore if text is selected (allow native copy)
+          const selection = window.getSelection();
+          if (selection && selection.toString().length > 0) return;
 
           if (e.key === 'Delete') {
               handleDelete();

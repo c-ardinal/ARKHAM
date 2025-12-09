@@ -482,7 +482,7 @@ export const ValidationErrorModal: React.FC<ValidationErrorModalProps> = ({
       />
       
       {/* Modal */}
-      <div className="relative bg-card border border-border rounded-lg shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div role="dialog" aria-modal="true" className="relative bg-card border border-border rounded-lg shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border bg-destructive/10">
           <h2 className="text-xl font-bold text-destructive flex items-center gap-2">
@@ -499,7 +499,7 @@ export const ValidationErrorModal: React.FC<ValidationErrorModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 select-text">
           {/* Errors */}
           {errors.length > 0 && (
             <div>
