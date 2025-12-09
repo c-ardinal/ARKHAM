@@ -121,3 +121,11 @@
 .dark .react-flow__controls-button svg {
   fill: hsl(var(--foreground));
 }
+
+/* Disable text selection in canvas to prevent text highlighting during drag selection */
+.react-flow, .react-flow__node, .react-flow__node * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}

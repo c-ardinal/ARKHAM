@@ -325,7 +325,8 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
   } = useScenarioStore();
   const { 
       setEdges, 
-      getNodes, 
+      getNodes,
+      setNodes,
       screenToFlowPosition, 
       setCenter, 
       getZoom,
@@ -398,68 +399,6 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
 
   // Merged into handlePaneClick below
   // const onPaneClick = useCallback(...)
-
-  const handleAddSticky = useCallback((targetId?: string) => {
-      // Temporarily enable connections/handles to ensure correct edge rendering
-      // This is a workaround for Play Mode where handles are normally hidden
-      // Temporarily enable connections/handles to ensure correct edge rendering
-      // This is a workaround for Play Mode where handles are normally hidden
-      let pos = { x: 0, y: 0 };
-      if (targetId) {
-          const targetNode = getNodes().find(n => n.id === targetId);
-          if (targetNode) {
-            
-            // Calculate absolute position manually to handle nested groups
-            let absX = targetNode.position.x;
-            let absY = targetNode.position.y;
-            let parentId = targetNode.parentNode;
-            
-            while(parentId) {
-                const parent = getNodes().find(n => n.id === parentId);
-                if (parent) {
-                    absX += parent.position.x;
-                    absY += parent.position.y;
-                    parentId = parent.parentNode;
-                } else {
-                    break;
-                }
-            }
-
-            // Position relative to target: Top-Right
-            pos = { 
-                x: absX + (targetNode.width || 150) + 20, 
-                y: absY - 20 
-            };
-          }
-      } else if (menu) {
-          // Free mode: use mouse position from menu state
-          const { x, y } = screenToFlowPosition({ x: menu.left, y: menu.top });
-          pos = { x, y };
-      }
-      
-      addSticky(targetId, pos);
-      
-      setMenu(null);
-  }, [addSticky, getNodes, menu, screenToFlowPosition]);
-
-  const handleToggleStickies = useCallback((targetId: string) => {
-
-      // Temporarily enable handles to ensure edge is drawn correctly when appearing
-      toggleStickies(targetId);
-      setMenu(null);
-  }, [toggleStickies]);
-
-  const handleDeleteStickies = useCallback((targetId: string) => {
-      deleteStickies(targetId);
-      setMenu(null);
-  }, [deleteStickies]);
-
-  const handleHideSticky = useCallback((stickyId: string) => {
-
-      // Temporarily enable handles to ensure correct state update
-      hideSticky(stickyId);
-      setMenu(null);
-  }, [hideSticky]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -738,23 +677,89 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
-      const stickies = getNodes().filter(n => n.type === 'sticky' && n.data.targetNodeId === node.id);
-      const hasSticky = stickies.length > 0;
-      const stickiesHidden = stickies.every(n => n.hidden);
+      
+      // Mimic left-click behavior: 
+      // - Normal right-click: select only this node (unless already selected)
+      // - Ctrl/Cmd + right-click: toggle selection (add/remove from multi-selection)
+      const isMultiSelect = event.ctrlKey || event.metaKey;
+      
+      if (isMultiSelect) {
+        // Toggle selection (like Ctrl+Click)
+        const updatedNodes = getNodes().map((n) => ({
+          ...n,
+          selected: n.id === node.id ? !n.selected : n.selected,
+        }));
+        setNodes(updatedNodes);
+        
+        // Update selected node if this node is now selected
+        if (!node.selected) {
+          setSelectedNode(node.id);
+        }
+      } else {
+        // Single selection (like normal Click)
+        // Only change selection if the node is not already selected
+        if (!node.selected) {
+          const updatedNodes = getNodes().map((n) => ({
+            ...n,
+            selected: n.id === node.id,
+          }));
+          setNodes(updatedNodes);
+          setSelectedNode(node.id);
+        }
+      }
+      
+      // Use setTimeout to ensure selection state is updated before showing menu
+      setTimeout(() => {
+        const stickies = getNodes().filter(n => n.type === 'sticky' && n.data.targetNodeId === node.id);
+        const hasSticky = stickies.length > 0;
+        const stickiesHidden = stickies.every(n => n.hidden);
 
-      setMenu({
-        id: node.id,
-        type: 'node',
-        top: event.clientY,
-        left: event.clientX,
-        data: node.data,
-        nodeType: node.type, // Pass node type
-        parentNode: node.parentNode,
-        hasSticky,
-        stickiesHidden
-      });
+        setMenu({
+          id: node.id,
+          type: 'node',
+          top: event.clientY,
+          left: event.clientX,
+          data: node.data,
+          nodeType: node.type, // Pass node type
+          parentNode: node.parentNode,
+          hasSticky,
+          stickiesHidden
+        });
+      }, 0);
     },
-    []
+    [getNodes, setNodes, setSelectedNode]
+  );
+
+  const onSelectionContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      
+      // Get selected nodes
+      const selectedNodes = getNodes().filter(n => n.selected);
+      if (selectedNodes.length === 0) return;
+      
+      // Use the first selected node as the menu target
+      const firstNode = selectedNodes[0];
+      
+      setTimeout(() => {
+        const stickies = getNodes().filter(n => n.type === 'sticky' && n.data.targetNodeId === firstNode.id);
+        const hasSticky = stickies.length > 0;
+        const stickiesHidden = stickies.every(n => n.hidden);
+
+        setMenu({
+          id: firstNode.id,
+          type: 'node',
+          top: event.clientY,
+          left: event.clientX,
+          data: firstNode.data,
+          nodeType: firstNode.type,
+          parentNode: firstNode.parentNode,
+          hasSticky,
+          stickiesHidden
+        });
+      }, 0);
+    },
+    [getNodes]
   );
 
   const onEdgeContextMenu = useCallback(
@@ -791,49 +796,114 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
   const handleDetachFromGroup = useCallback(() => {
       if (!menu?.id) return;
       
-      const node = getNodes().find(n => n.id === menu.id);
-      if (node && node.parentNode) {
-          // Find the top-level parent group
-          let topParent = getNodes().find(n => n.id === node.parentNode);
-          let currentParentId = topParent?.parentNode;
-          
-          while (currentParentId) {
-              const parent = getNodes().find(n => n.id === currentParentId);
-              if (parent) {
-                  topParent = parent;
-                  currentParentId = parent.parentNode;
-              } else {
-                  break;
-              }
-          }
-
-          if (topParent) {
-              // Calculate node's current absolute Y
-              let absY = node.position.y;
-              let pId: string | undefined = node.parentNode;
-              while(pId) {
-                  const p = getNodes().find(n => n.id === pId);
-                  if (p) {
-                      absY += p.position.y;
-                      pId = p.parentNode;
+      // Get selected nodes
+      const selectedNodes = getNodes().filter(n => n.selected && n.parentNode);
+      const nodesToDetach = selectedNodes.length > 0 ? selectedNodes : getNodes().filter(n => n.id === menu.id && n.parentNode);
+      
+      nodesToDetach.forEach(node => {
+          if (node.parentNode) {
+              // Find the top-level parent group
+              let topParent = getNodes().find(n => n.id === node.parentNode);
+              let currentParentId = topParent?.parentNode;
+              
+              while (currentParentId) {
+                  const parent = getNodes().find(n => n.id === currentParentId);
+                  if (parent) {
+                      topParent = parent;
+                      currentParentId = parent.parentNode;
                   } else {
                       break;
                   }
               }
 
-              // Top parent is at root, so its position is absolute
-              const topParentX = topParent.position.x;
-              const topParentWidth = topParent.width || 150;
+              if (topParent) {
+                  // Calculate node's current absolute Y
+                  let absY = node.position.y;
+                  let pId: string | undefined = node.parentNode;
+                  while(pId) {
+                      const p = getNodes().find(n => n.id === pId);
+                      if (p) {
+                          absY += p.position.y;
+                          pId = p.parentNode;
+                      } else {
+                          break;
+                      }
+                  }
 
-              // New Position: Right of the top parent with some margin
-              const newX = topParentX + topParentWidth + 50;
-              const newY = absY;
+                  // Top parent is at root, so its position is absolute
+                  const topParentX = topParent.position.x;
+                  const topParentWidth = topParent.width || 150;
 
-              useScenarioStore.getState().setNodeParent(node.id, undefined, { x: newX, y: newY });
+                  // New Position: Right of the top parent with some margin
+                  const newX = topParentX + topParentWidth + 50;
+                  const newY = absY;
+
+                  useScenarioStore.getState().setNodeParent(node.id, undefined, { x: newX, y: newY });
+              }
           }
-      }
+      });
       setMenu(null);
   }, [menu, getNodes]);
+
+  const handleAddSticky = useCallback((targetId?: string) => {
+      // Get selected nodes
+      const selectedNodes = getNodes().filter(n => n.selected && n.type !== 'sticky');
+      const nodesToAddSticky = selectedNodes.length > 0 ? selectedNodes : (targetId ? getNodes().filter(n => n.id === targetId) : []);
+      
+      for (const node of nodesToAddSticky) {
+          // Calculate absolute position manually to handle nested groups
+          let absX = node.position.x;
+          let absY = node.position.y;
+          let parentId = node.parentNode;
+          
+          while(parentId) {
+              const parent = getNodes().find(n => n.id === parentId);
+              if (parent) {
+                  absX += parent.position.x;
+                  absY += parent.position.y;
+                  parentId = parent.parentNode;
+              } else {
+                  break;
+              }
+          }
+
+          // Position relative to target: Top-Right
+          const pos = { 
+              x: absX + (node.width || 150) + 20, 
+              y: absY - 20 
+          };
+          
+          addSticky(node.id, pos);
+      }
+      setMenu(null);
+  }, [getNodes, addSticky]);
+
+  const handleToggleStickies = useCallback((targetId: string) => {
+      // Get selected nodes
+      const selectedNodes = getNodes().filter(n => n.selected && n.type !== 'sticky');
+      const nodesToToggle = selectedNodes.length > 0 ? selectedNodes : getNodes().filter(n => n.id === targetId);
+      
+      nodesToToggle.forEach(node => {
+          toggleStickies(node.id);
+      });
+      setMenu(null);
+  }, [getNodes, toggleStickies]);
+
+  const handleDeleteStickies = useCallback((targetId: string) => {
+      // Get selected nodes
+      const selectedNodes = getNodes().filter(n => n.selected && n.type !== 'sticky');
+      const nodesToDelete = selectedNodes.length > 0 ? selectedNodes : getNodes().filter(n => n.id === targetId);
+      
+      nodesToDelete.forEach(node => {
+          deleteStickies(node.id);
+      });
+      setMenu(null);
+  }, [getNodes, deleteStickies]);
+
+  const handleHideSticky = useCallback((stickyId: string) => {
+      hideSticky(stickyId);
+      setMenu(null);
+  }, [hideSticky]);
 
   const handleDelete = useCallback(() => {
     const selectedNodes = getNodes().filter(n => n.selected);
@@ -919,56 +989,66 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
 
   const handleCopyText = useCallback((type: 'all' | 'label' | 'description' | 'value' | 'condition' | 'cases') => {
     if (!menu || !menu.data) return;
-    let text = '';
-    const data = menu.data;
-    const variables = gameState.variables;
     
+    // Get selected nodes
+    const selectedNodes = getNodes().filter(n => n.selected);
+    const nodesToCopy = selectedNodes.length > 0 ? selectedNodes : getNodes().filter(n => n.id === menu.id);
+    
+    const variables = gameState.variables;
     const process = (t: string) => substituteVariables(t, variables);
-
-    switch (type) {
-        case 'all':
-            text = `[${menu.nodeType?.toUpperCase()}] ${process(data.label)}`;
-            if (data.description) text += `\n${process(data.description)}`;
-            
-            if (menu.nodeType === 'element') {
-                text += `\nType: ${data.infoType || 'knowledge'}`;
-                text += `\nValue: ${process(data.infoValue || '')}`;
-                text += `\nQuantity: ${data.quantity || 1}`;
-                text += `\nAction: ${data.actionType || 'obtain'}`;
-            } else if (menu.nodeType === 'variable') {
-                text += `\nTarget: ${data.targetVariable || ''}`;
-                text += `\nValue: ${process(data.variableValue || '')}`;
-            } else if (menu.nodeType === 'branch') {
-                text += `\nType: ${data.branchType || 'if_else'}`;
-                text += `\nCondition: ${data.conditionVariable || ''} ${process(data.conditionValue || '')}`;
-                if (data.branches) {
-                    text += `\nCases:\n${data.branches.map((b) => `- ${process(b.label)}`).join('\n')}`;
-                }
-            }
-            break;
-        case 'label':
-            text = process(data.label);
-            break;
-        case 'description':
-            text = process(data.description || '');
-            break;
-        case 'value':
-            if (menu.nodeType === 'element') text = process(data.infoValue || '');
-            else if (menu.nodeType === 'variable') text = process(data.variableValue || '');
-            else text = process(data.infoValue || '');
-            break;
-        case 'condition':
-            text = `${data.conditionVariable || ''} ${process(data.conditionValue || '')}`;
-            break;
-        case 'cases':
-            if (data.branches) {
-                text = data.branches.map((b) => process(b.label)).join('\n');
-            }
-            break;
-    }
-    navigator.clipboard.writeText(text);
+    
+    const texts = nodesToCopy.map(node => {
+      let text = '';
+      const data = node.data;
+      const nodeType = node.type;
+      
+      switch (type) {
+          case 'all':
+              text = `[${nodeType?.toUpperCase()}] ${process(data.label)}`;
+              if (data.description) text += `\n${process(data.description)}`;
+              
+              if (nodeType === 'element') {
+                  text += `\nType: ${data.infoType || 'knowledge'}`;
+                  text += `\nValue: ${process(data.infoValue || '')}`;
+                  text += `\nQuantity: ${data.quantity || 1}`;
+                  text += `\nAction: ${data.actionType || 'obtain'}`;
+              } else if (nodeType === 'variable') {
+                  text += `\nTarget: ${data.targetVariable || ''}`;
+                  text += `\nValue: ${process(data.variableValue || '')}`;
+              } else if (nodeType === 'branch') {
+                  text += `\nType: ${data.branchType || 'if_else'}`;
+                  text += `\nCondition: ${data.conditionVariable || ''} ${process(data.conditionValue || '')}`;
+                  if (data.branches) {
+                      text += `\nCases:\n${data.branches.map((b: any) => `- ${process(b.label)}`).join('\n')}`;
+                  }
+              }
+              break;
+          case 'label':
+              text = process(data.label);
+              break;
+          case 'description':
+              text = process(data.description || '');
+              break;
+          case 'value':
+              if (nodeType === 'element') text = process(data.infoValue || '');
+              else if (nodeType === 'variable') text = process(data.variableValue || '');
+              else text = process(data.infoValue || '');
+              break;
+          case 'condition':
+              text = `${data.conditionVariable || ''} ${process(data.conditionValue || '')}`;
+              break;
+          case 'cases':
+              if (data.branches) {
+                  text = data.branches.map((b: any) => process(b.label)).join('\n');
+              }
+              break;
+      }
+      return text;
+    });
+    
+    navigator.clipboard.writeText(texts.join('\n\n'));
     setMenu(null);
-  }, [menu, gameState.variables]);
+  }, [menu, gameState.variables, getNodes]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -1141,6 +1221,7 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
             e.preventDefault();
         }}
         onNodeContextMenu={onNodeContextMenu}
+        onSelectionContextMenu={onSelectionContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
         onPaneContextMenu={onPaneContextMenu}
         onPaneClick={handlePaneClick}

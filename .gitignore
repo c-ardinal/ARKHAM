@@ -151,3 +151,5 @@ vite.config.ts.timestamp-*
 *.njsproj
 *.sln
 *.sw?
+
+RequirementSpecification.json

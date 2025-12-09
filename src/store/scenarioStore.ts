@@ -552,7 +552,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   addSticky: (targetNodeId, position) => {
       const state = get();
       state.pushHistory();
-      const id = `sticky-${Date.now()}`;
+      const id = `sticky-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
       const newNode: ScenarioNode = {
           id,
