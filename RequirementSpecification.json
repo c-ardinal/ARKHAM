@@ -4,385 +4,323 @@
     "layout_matrix": "RequirementSpecification_Image_Graph.md#layout-interaction-matrix"
   },
   "visuals": {
-    "color_palette_hsl": {
+    "color_palette_hsl_definitions": {
       "light": {
         "background": "210 40% 98% (Slate-50)",
         "foreground": "222 47% 11% (Slate-900)",
         "card": "0 0% 100% (White)",
+        "popover": "0 0% 100% (White)",
         "primary": "221 83% 53% (Blue-600)",
+        "secondary": "210 40% 96.1% (Slate-100)",
+        "muted": "210 40% 96.1% (Slate-100)",
+        "accent": "210 40% 96.1% (Slate-100)",
         "destructive": "0 84.2% 60.2% (Red-500)",
         "border": "214.3 31.8% 91.4% (Slate-200)",
-        "muted": "210 40% 96.1% (Slate-100)"
+        "input": "214.3 31.8% 91.4% (Slate-200)",
+        "ring": "221 83% 53% (Blue-600)"
       },
       "dark": {
         "background": "222 47% 11% (Slate-900)",
         "foreground": "210 40% 98% (Slate-50)",
         "card": "215 28% 17% (Slate-800)",
+        "popover": "215 28% 17% (Slate-800)",
         "primary": "217 91% 60% (Blue-500)",
+        "secondary": "215 28% 17% (Slate-800)",
+        "muted": "215 28% 17% (Slate-800)",
+        "accent": "215 25% 27% (Slate-700)",
         "destructive": "0 62.8% 30.6% (Red-900)",
         "border": "215 25% 27% (Slate-700)",
-        "muted": "215 28% 17% (Slate-800)"
+        "input": "215 25% 27% (Slate-700)",
+        "ring": "224 76% 48% (Blue-700)"
       }
     },
+    "node_colors_hardcoded": {
+      "event": "orange-100 / orange-900 (テキスト: orange-700/100)",
+      "element": "blue-100 / blue-900 (テキスト: blue-700/100)",
+      "branch": "purple-100 / purple-900 (テキスト: purple-700/100)",
+      "variable": "red-100 / red-900 (テキスト: red-700/100)",
+      "group": "slate-200 / slate-700 (テキスト: slate-700/200)",
+      "jump": "yellow-100 / yellow-900 (テキスト: yellow-700/100)",
+      "memo": "white / gray-800 (テキスト: gray-700/200)",
+      "character": "yellow-100 / yellow-900 (テキスト: yellow-700/100)",
+      "resource": "green-100 / green-900 (テキスト: green-700/100)",
+      "default": "gray-100 / gray-800"
+    },
     "z_indices": {
-      "mobile_drag_ghost (モバイルドラッグ中のゴースト)": 2500,
-      "sticky_nodes (付箋ノード - 最前面)": 2001,
-      "sticky_edges (付箋エッジ - ノード前面)": 2000,
-      "modals (各種モーダル)": 150,
-      "confirmation_modal (確認モーダル)": 100,
-      "mobile_property_panel (モバイルプロパティパネル)": 60,
-      "mobile_sidebar (モバイルオーバーレイサイドバー)": 60,
-      "header (ヘッダー)": 50,
-      "context_menu (コンテキストメニュー)": 50,
-      "sidebar (デスクトップサイドバー)": 40,
-      "canvas_nodes (通常ノード - 中層)": 0,
-      "canvas_group_nodes (グループノード - 最背面)": -1
+      "mobile_drag_ghost": 2500,
+      "sticky_nodes": 2001,
+      "sticky_edges": 2000,
+      "modals": 150,
+      "confirmation_modal": 100,
+      "mobile_property_panel": 60,
+      "mobile_sidebar": 60,
+      "header": 50,
+      "context_menu": 50,
+      "sidebar": 40,
+      "canvas_nodes": 0,
+      "canvas_group_nodes": -1
     },
     "visual_indicators": {
       "node_status": [
         {
-          "state": "Revealed (公開済)",
+          "state": "公開済み (Revealed)",
           "condition": "data.revealed == true",
-          "position": "Top Left (絶対位置: top: -8px, left: -8px)",
-          "visual": "緑色の円 (bg-green-500), 白色の枠線, 影付き (shadow-sm), z-index 10",
-          "icon": "白色のチェックマーク (✓)"
+          "position": "左上 (-8px, -8px)",
+          "visual": "緑の円 (bg-green-500) に白いチェックマーク"
         },
         {
-          "state": "Has Sticky (付箋あり)",
+          "state": "付箋あり (Has Sticky)",
           "condition": "data.hasSticky == true",
-          "position": "Top Right (絶対位置: top: -20px, right: -20px)",
-          "visual": "黄色の正方形 (bg-yellow-400), 枠線あり (border-yellow-600), 6度回転 (rotate-6), 影付き (shadow-md)",
-          "icon": "StickyNoteアイコン (Lucide, size 14)"
+          "position": "右上 (-20px, -20px)",
+          "visual": "黄色の正方形 (bg-yellow-400), 6度回転, 影付き (Shadow-md)"
         },
         {
-          "state": "Start Node (開始ノード)",
+          "state": "開始ノード (Start Node)",
           "condition": "data.isStart == true",
-          "position": "Label Prefix (ラベルの左側)",
-          "visual": "黄色の星マーク (★, text-yellow-500)"
-        }
-      ],
-      "edges": [
-        {
-          "type": "Sticky Edge (付箋エッジ)",
-          "visual": "直線 (Straight Path), ストローク幅2px",
-          "behavior": "開始点を15pxオフセット (アイコンとの重なり回避)",
-          "connection": "ノードの 'sticky-origin' ハンドル (絶対位置 top: -7, right: -7) から付箋へ接続"
+          "position": "ラベルの左",
+          "visual": "金色の星 (text-yellow-500)"
         }
       ]
+    },
+    "mobile_specific_styles": {
+      "react_flow_handle": "幅/高さを14pxに強制（標準より拡大）、ヒットエリアを拡張",
+      "touch_action": "ノード上で 'none !important' を指定し、スクロールを防止",
+      "text_selection": "入力フィールドを除くほぼすべてのUI要素で無効化"
     }
   },
-  "general": {
-    "states": [
-      {
-        "label": "Edit Mode (編集モード)",
-        "description": "シナリオの構成要素（ノード、エッジ、リソース、キャラクター等）を自由に追加・変種・削除・接続できる状態。",
-        "conditions": {
-          "entry": "ヘッダーの「モード切替ボタン（Playアイコン）」を押下",
-          "exit": "ヘッダーの「モード切替ボタン（Editアイコン）」を押下"
-        },
-        "capabilities": [
-          "ノードパレットからのドラッグ＆ドロップによるノード追加",
-          "ノード間の接続（エッジ作成）および接続解除",
-          "ノード位置のドラッグ移動",
-          "プロパティパネルでのノード詳細編集",
-          "コンテキストメニューからの複製・削除・グループ化操作",
-          "付箋（Sticky）の添付・表示切替",
-          "キャラクター・リソースリストの項目編集・削除"
+  "logic": {
+    "game_state_calculation": {
+      "resource_mapping": {
+        "logic": "すべての要素(Element)/情報(Information)ノードをスキャン。リソースを参照している場合、タイプを状態カテゴリにマッピング。",
+        "mappings": [
+          { "resource_type": "Item", "target_state": "inventory" },
+          { "resource_type": "Equipment", "target_state": "equipment" },
+          { "resource_type": "Knowledge", "target_state": "knowledge" },
+          { "resource_type": "Skill", "target_state": "skills" },
+          { "resource_type": "Status", "target_state": "stats" },
+          { "default": "knowledge" }
         ]
       },
-      {
-        "label": "Play Mode (進行モード)",
-        "description": "作成したシナリオの進行をシミュレートするモード。構成の破壊を防ぐため、多くの編集操作が制限される。",
-        "capabilities": [
-          "サイドバーでのゲーム状態（Inventory/Status等）の閲覧（リソース定義と連動）",
-          "付箋（Sticky）の移動・追加・編集（例外的に許可されている）",
-          "Jumpノードのダブルクリックによる画面遷移",
-          "コンテキストメニューからの「公開/非公開（Reveal）」切り替え (Ctrl+R)"
-        ],
-        "restrictions": [
-          "一般ノード（Sticky以外）のドラッグ移動不可",
-          "ノード間の接続・接続解除不可",
-          "ノード・キャラクター・リソースの削除不可",
-          "ダブルクリックによる詳細編集の無効化（Jump/Sticky以外）"
-        ]
-      }
-    ],
-    "layouts": [
-      {
-        "label": "Desktop Layout (デスクトップレイアウト)",
-        "trigger": "画面幅 > 1366px または ポインティングデバイスがマウス（Fine）",
-        "components": {
-          "header_menu": "常時表示（トップバー内にFile/Edit/View/Settings/Helpを展開）",
-          "sidebar": "左側固定表示（幅320px）。アイコンタブによる切り替え。",
-          "sidebar_tabs": "垂直アイコンリスト（Menuタブは非表示）",
-          "property_panel": "右側固定表示（幅変更可能 250px-600px）。ノード選択時のみ表示。"
-        }
+      "variable_evaluation": {
+        "mechanism": "再帰的な正規表現による置換 (${var}) -> 数式チェック -> new Function() の実行 (比較的安全な方法)",
+        "limits": "最大再帰深度 10, 最大文字列長 100,000"
       },
-      {
-        "label": "Mobile Layout (モバイルレイアウト)",
-        "trigger": "画面幅 <= 1366px かつ ポインティングデバイスがタッチ（Coarse）",
-        "components": {
-          "header_menu": "非表示（サイドバー内の「Menu」タブにアコーディオン形式で格納）",
-          "sidebar": "オーバーレイ表示（絶対配置、z-index 60）。デフォルトは非表示で、トグルボタンで開閉。",
-          "sidebar_tabs": "最上部に「Menu」タブを追加表示。",
-          "property_panel": "オーバーレイまたは全画面表示（下部または前面に表示）。背景タップで閉じる。"
-        }
+      "variable_nodes": {
+        "reveal_behavior": "現在の変数値を 'previousValue' に保存し、新しい値の式を評価して変数を更新。",
+        "unreveal_behavior": "'previousValue' から変数値を復元し、'previousValue' をクリア。"
       }
-    ]
+    },
+    "grouping_logic": {
+      "creation": {
+        "padding": "選択されたノードのバウンディングボックスの周囲20px",
+        "restriction": "付箋ノードはグループ化から除外"
+      },
+      "drag_drop": {
+        "detection": "すべてのグループとの交差面積を計算。",
+        "priority": "グループ面積の昇順でソート（最も内側のグループにドロップ）。",
+        "action": "ノードの親を変更(Reparent)し、グループサイズを更新し、内部の重なりを解決。"
+      },
+      "overlap_resolution": {
+        "algorithm": "反復プッシュ (最大500回)。",
+        "direction": "重なりの中心ベクトルに基づいて下(+Y)または右(+X)を優先。",
+        "cascade": "プッシュされるノードと共に子孫ノードと付箋も移動。"
+      },
+      "collapse_expand": {
+        "collapse": "子ノードを非表示にし、グループサイズをコンテンツサイズ（または最小150x50）に設定。外部接続用に「仮想エッジ（破線）」を作成。",
+        "expand": "子ノードの表示を復元し、サイズを再計算し、重なっている兄弟ノードを押しのける（プッシュダウン/ライトロジック）。"
+      }
+    }
   },
   "user_interface": {
     "header": {
       "elements": [
+        { "label": "ロゴ (Logo)", "type": "branding", "shortcut": "", "action": "ホームへ戻る (将来的な機能)", "visual": "紫から緑へのグラデーションテキスト (Cinzel Decorative)" },
         { 
-            "label": "Logo", 
-            "shortcut": "", 
-            "action": "タイトルの表示（Cinzel Decorativeフォント、紫から緑へのグラデーション）", 
-            "children": [] 
-        },
-        { 
-          "label": "Desktop Menu Bar (デスクトップ用メニューバー)",
+          "label": "デスクトップメニューバー (Desktop Menu Bar)",
+          "type": "menu_bar",
           "shortcut": "",
-          "action": "メニュー項目の表示（デスクトップレイアウトのみ）",
+          "action": "",
           "children": [
-            { 
-              "label": "File", 
-              "shortcut": "", 
-              "action": "", 
+            {
+              "label": "File",
+              "shortcut": "",
+              "action": "",
               "children": [
-                { "label": "Save", "shortcut": "Ctrl+S", "action": "JSONファイルとしてダウンロード（タイムスタンプ付き）", "children": [] },
-                { "label": "Load", "shortcut": "", "action": "ファイル選択ダイアログを開く -> JSON検証 -> 読み込み", "children": [] },
+                { "label": "Save", "shortcut": "Ctrl+S", "action": "現在のシナリオをJSONファイルとして保存", "children": [] },
+                { "label": "Load", "shortcut": "", "action": "JSONファイルを読み込んでシナリオを展開", "children": [] },
                 { 
                   "label": "Load Sample", 
                   "shortcut": "", 
                   "action": "", 
                   "children": [
-                    { "label": "Story", "shortcut": "", "action": "物語形式のサンプル（sample_Story.json）を読み込む", "children": [] },
-                    { "label": "Nested Group Nodes", "shortcut": "", "action": "入れ子グループのサンプル（sample_NestedGroupNodes.json）を読み込む", "children": [] }
-                  ]
+                    { "label": "Story (物語形式)", "shortcut": "", "action": "物語形式のサンプルシナリオをロード", "children": [] },
+                    { "label": "Nested Group Nodes (入れ子グループ)", "shortcut": "", "action": "複雑なグループ構造のサンプルをロード", "children": [] }
+                  ] 
                 },
                 { 
                   "label": "Export", 
                   "shortcut": "", 
                   "action": "", 
                   "children": [
-                    { "label": "Export Simple Text", "shortcut": "", "action": "ノード内容をテキストファイル(.txt)としてエクスポート", "children": [] },
-                    { "label": "Export Markdown", "shortcut": "", "action": "ノード内容をマークダウンファイル(.md)としてエクスポート", "children": [] }
-                  ]
+                    { "label": "Export Simple Text (.txt)", "shortcut": "", "action": "プレーンテキストとしてエクスポート", "children": [] },
+                    { "label": "Export Markdown (.md)", "shortcut": "", "action": "Markdown形式でエクスポート", "children": [] }
+                  ] 
                 },
-                { "label": "Reset", "shortcut": "", "action": "確認ダイアログ -> 全データ初期化", "children": [] }
+                { "label": "Reset", "shortcut": "", "danger": true, "action": "全データを削除して初期状態に戻す", "children": [] }
               ]
             },
             {
               "label": "Edit",
-              "shortcut": "", 
-              "action": "", 
+              "shortcut": "",
+              "action": "",
               "children": [
                 { 
                   "label": "Sticky Notes", 
                   "shortcut": "", 
                   "action": "", 
                   "children": [
-                    { "label": "Show All Stickies", "shortcut": "", "action": "全ての付箋を表示状態にする", "children": [] },
-                    { "label": "Hide All Stickies", "shortcut": "", "action": "全ての付箋を非表示状態にする", "children": [] },
+                    { "label": "Show All Stickies", "shortcut": "", "action": "全ての付箋を表示する", "children": [] },
+                    { "label": "Hide All Stickies", "shortcut": "", "action": "全ての付箋を非表示にする", "children": [] },
                     { "label": "Delete All Stickies", "shortcut": "", "action": "全ての付箋を削除する", "children": [] },
-                    { "label": "Show Free Stickies", "shortcut": "", "action": "フリー付箋（ノード未接続）を表示", "children": [] },
-                    { "label": "Hide Free Stickies", "shortcut": "", "action": "フリー付箋を非表示", "children": [] },
-                    { "label": "Delete Free Stickies", "shortcut": "", "action": "フリー付箋を削除", "children": [] },
-                    { "label": "Show Node Stickies", "shortcut": "", "action": "ノード接続付箋を表示", "children": [] },
-                    { "label": "Hide Node Stickies", "shortcut": "", "action": "ノード接続付箋を非表示", "children": [] },
-                    { "label": "Delete Node Stickies", "shortcut": "", "action": "ノード接続付箋を削除", "children": [] }
-                  ]
+                    { "label": "Delete Free Stickies", "shortcut": "", "action": "ノードに紐付かない付箋を削除", "children": [] },
+                    { "label": "Delete Node Stickies", "shortcut": "", "action": "ノードに紐付く付箋を削除", "children": [] }
+                  ] 
                 },
                 { 
-                  "label": "Bulk Reveal Operations", 
+                  "label": "Bulk Reveal", 
                   "shortcut": "", 
                   "action": "", 
                   "children": [
-                    { "label": "Reveal All", "shortcut": "", "action": "全てのノードを公開状態にする", "children": [] },
-                    { "label": "Unreveal All", "shortcut": "", "action": "全てのノードを非公開状態にする", "children": [] }
-                  ]
+                    { "label": "Reveal All Nodes", "shortcut": "", "action": "全ノードを公開状態にする", "children": [] },
+                    { "label": "Unreveal All Nodes", "shortcut": "", "action": "全ノードを非公開状態にする", "children": [] }
+                  ] 
                 }
               ]
             },
             {
               "label": "View",
-              "shortcut": "", 
-              "action": "", 
+              "shortcut": "",
+              "action": "",
               "children": [
-                { "label": "Zoom Level", "shortcut": "", "action": "ズームレベルの調整（[-ボタン] [数値入力(%)] [+ボタン]）", "children": [] },
-                { "label": "Fit View", "shortcut": "", "action": "全ノードが画面に収まるようズーム調整", "children": [] }
+                { "label": "Zoom In", "shortcut": "", "action": "ズームレベルを上げる (+)", "children": [] },
+                { "label": "Zoom Out", "shortcut": "", "action": "ズームレベルを下げる (-)", "children": [] },
+                { "label": "Fit View", "shortcut": "", "action": "全体が収まるように表示", "children": [] }
               ]
             },
             {
               "label": "Settings",
-              "shortcut": "", 
-              "action": "", 
+              "shortcut": "",
+              "action": "",
               "children": [
-                { "label": "Switch to [Light/Dark] Mode", "shortcut": "", "action": "外観テーマ（ライト/ダーク）の切り替え", "children": [] },
-                { "label": "Switch to [English/Japanese]", "shortcut": "", "action": "表示言語の切り替え", "children": [] },
+                { "label": "Switch Theme", "shortcut": "", "action": "ライト/ダークテーマの切り替え", "children": [] },
+                { "label": "Switch Language", "shortcut": "", "action": "英語/日本語の切り替え", "children": [] },
                 { 
-                  "label": "Change Edge Style", 
+                  "label": "Edge Style", 
                   "shortcut": "", 
-                  "action": "", 
+                  "action": "エッジの描画スタイル変更", 
                   "children": [
-                    { "label": "Default", "shortcut": "", "action": "エッジスタイルをベジェ曲線(Default)に変更", "children": [] },
-                    { "label": "Straight", "shortcut": "", "action": "エッジスタイルを直線(Straight)に変更", "children": [] },
-                    { "label": "Step", "shortcut": "", "action": "エッジスタイルを階段(Step)に変更", "children": [] },
-                    { "label": "SmoothStep", "shortcut": "", "action": "エッジスタイルを滑らかな階段(SmoothStep)に変更", "children": [] }
+                    { "label": "Default (Bezier)", "shortcut": "", "action": "ベジェ曲線", "children": [] },
+                    { "label": "Straight", "shortcut": "", "action": "直線", "children": [] },
+                    { "label": "Step", "shortcut": "", "action": "直角", "children": [] },
+                    { "label": "SmoothStep", "shortcut": "", "action": "丸みのある直角", "children": [] }
                   ] 
                 }
               ]
             },
             {
               "label": "Help",
-              "shortcut": "", 
-              "action": "", 
+              "shortcut": "",
+              "action": "",
               "children": [
-                { "label": "Manual", "shortcut": "", "action": "マニュアルモーダルを表示", "children": [] },
-                { "label": "Update History", "shortcut": "", "action": "更新履歴モーダルを表示（ChangeLog.mdをパース）", "children": [] },
-                { "label": "About", "shortcut": "", "action": "Aboutモーダルを表示", "children": [] }
+                { "label": "Manual", "shortcut": "", "action": "操作マニュアルを開く", "children": [] },
+                { "label": "Update History", "shortcut": "", "action": "更新履歴モーダルを開く", "children": [] },
+                { "label": "About", "shortcut": "", "action": "アプリ情報を表示", "children": [] }
               ]
             }
           ]
         },
         { 
-            "label": "Undo Button", 
-            "shortcut": "", 
-            "action": "操作の取り消し・Global Shortcuts参照", 
-            "children": [] 
-        },
-        { 
-            "label": "Redo Button", 
-            "shortcut": "", 
-            "action": "操作のやり直し・Global Shortcuts参照", 
-            "children": [] 
-        },
-        { 
-            "label": "Mode Switch Button", 
-            "shortcut": "", 
-            "action": "モード切替（青色=Edit, 緑色=Play）", 
-            "children": [] 
+          "label": "右側コントロール (Right Controls)", 
+          "type": "control_group", 
+          "shortcut": "", 
+          "action": "", 
+          "children": [
+            { "label": "Undo", "shortcut": "Ctrl+Z", "action": "操作を取り消す", "children": [] },
+            { "label": "Redo", "shortcut": "Ctrl+Y", "action": "取り消した操作をやり直す", "children": [] },
+            { "label": "Mode Switch", "shortcut": "", "action": "編集(Edit) / プレイ(Play) モードの切り替え", "children": [] }
+          ]
         }
       ]
     },
     "sidebar": {
-      "width": { "desktop": "320px", "mobile": "約256px" },
+      "width": { "desktop": "320px", "mobile": "オーバーレイ (約256px)" },
       "tabs": [
-        { 
-          "label": "Menu", 
-          "shortcut": "",
-          "action": "アコーディオン形式のメニュー表示（モバイルレイアウトのみ）。注：「Update History」などの一部項目が欠損。",
-          "children": [] 
-        },
-        { 
-          "label": "Nodes / Game State", 
-          "shortcut": "",
-          "action": "編集モード時は「ノードパレット」。進行モード時は「ゲーム状態ビュー」。",
-          "children": []
-        },
-        { 
-          "label": "Characters", 
-          "shortcut": "",
-          "action": "キャラクターリスト管理",
-          "children": [
-              { "label": "Add Button", "shortcut": "", "action": "新規キャラクター追加", "children": [] },
-              { "label": "List Item", "shortcut": "", "action": "キャラ情報の表示・編集（ダブルクリック/Editボタン）・削除（スワイプ）", "children": [] }
-          ]
-        },
-        { 
-          "label": "Resources", 
-          "shortcut": "",
-          "action": "リソースリスト管理",
-          "children": [
-              { "label": "Add Button", "shortcut": "", "action": "新規リソース追加", "children": [] },
-              { "label": "List Item", "shortcut": "", "action": "リソース情報の表示・編集（ダブルクリック/Editボタン）・削除（スワイプ）", "children": [] }
-          ]
-        },
-        { 
-          "label": "Variables", 
-          "shortcut": "",
-          "action": "変数リスト管理",
-          "children": [
-              { "label": "Add Button", "shortcut": "", "action": "新規変数追加", "children": [] },
-              { "label": "Delete Button", "shortcut": "", "action": "変数削除", "children": [] }
-          ]
-        }
-      ]
-    }
-  },
-  "nodes": {
-    "definitions": [
-      { "label": "Event (イベント)", "type": "event", "shortcut": "", "action": "イベントノード。Flagsアイコン。オレンジ系。", "children": [] },
-      { "label": "Element (要素/情報)", "type": "element", "shortcut": "", "action": "情報ノード。Packageアイコン。青系。", "children": [] },
-      { "label": "Branch (分岐)", "type": "branch", "shortcut": "", "action": "分岐ノード。GitBranchアイコン。紫系。", "children": [] },
-      { "label": "Variable (変数操作)", "type": "variable", "shortcut": "", "action": "変数操作ノード。Variableアイコン。赤系。", "children": [] },
-      { "label": "Group (グループ)", "type": "group", "shortcut": "", "action": "範囲グループ。背景ハッチング。", "children": [] },
-      { "label": "Jump (ジャンプ)", "type": "jump", "shortcut": "", "action": "ジャンプノード。ダブルクリックで移動。Rabbitアイコン。黄色系。", "children": [] },
-      { "label": "Memo (メモ)", "type": "memo", "shortcut": "", "action": "メモ書き。StickyNoteアイコン。白系。", "children": [] },
-      { "label": "Sticky (付箋)", "type": "sticky", "shortcut": "", "action": "付箋。黄色。進行モードでも操作可能。", "children": [] },
-      { "label": "Character (キャラクター)", "type": "character", "shortcut": "", "action": "キャラクター参照カード。Usersアイコン。", "children": [] },
-      { "label": "Resource (リソース)", "type": "resource", "shortcut": "", "action": "リソース参照カード。Zap/Shield/Bookアイコン。", "children": [] }
-    ]
-  },
-  "interactions": {
-    "context_menu": {
-      "trigger": "右クリック (デスクトップ) / 0.5秒以上の長押し (モバイル)",
-      "items": [
-        { "label": "Duplicate (複製)", "shortcut": "Ctrl+C", "action": "ノードを複製する", "condition": "モード==編集 かつ ノードタイプ!=Sticky", "children": [] },
-        { "label": "Copy Text (テキストコピー)", "shortcut": "", "action": "テキストをクリップボードにコピー", "condition": "常時表示", "children": [
-            { "label": "All", "shortcut": "", "action": "全テキストコピー", "children": [] },
-            { "label": "Label", "shortcut": "", "action": "ラベルのみコピー", "children": [] },
-            { "label": "Description", "shortcut": "", "action": "説明のみコピー", "children": [] }
-        ] },
-        { "label": "Toggle Reveal (公開/非公開切替)", "shortcut": "Ctrl+R", "action": "公開状態を切り替える", "condition": "ノードタイプ!=Sticky", "children": [] },
-        { "label": "Add Sticky (付箋を追加)", "shortcut": "", "action": "選択ノードに付箋を添付する", "condition": "ノードタイプ!=Sticky", "children": [] },
-        { "label": "Show/Hide/Delete Stickies (付箋操作)", "shortcut": "", "action": "添付された付箋を一括操作する", "condition": "ノードタイプ!=Sticky かつ 付箋添付済み", "children": [] },
-        { "label": "Hide Sticky (付箋を隠す)", "shortcut": "", "action": "この付箋を非表示にする", "condition": "ノードタイプ==Sticky", "children": [] },
-        { "label": "Ungroup (グループ解除)", "shortcut": "", "action": "グループ化を解除する", "condition": "モード==編集 かつ ノードタイプ==Group", "children": [] },
-        { "label": "Detach from Group (グループから離脱)", "shortcut": "", "action": "親グループから離脱させる", "condition": "モード==編集 かつ 親グループが存在", "children": [] },
-        { "label": "Delete (削除)", "shortcut": "Delete", "action": "要素を削除する", "condition": "モード==編集 または ノードタイプ==Sticky", "children": [] },
-        { "label": "Add Free Sticky (フリー付箋追加)", "shortcut": "", "action": "背景に付箋を追加する", "condition": "ターゲット==キャンバス背景", "children": [] },
-        { "label": "Reduplicate (再複製)", "shortcut": "Ctrl+V", "action": "最後に複製したノードを貼り付ける", "condition": "ターゲット==キャンバス背景 かつ モード==編集", "children": [] }
+        { "id": "menu", "label": "メニュー", "condition": "モバイルのみ", "shortcut": "", "action": "モバイルメニューを表示", "children": [] },
+        { "id": "nodes", "label": "ノード / ゲームステート", "shortcut": "", "action": "ノード一覧またはステータスビューを表示", "children": [] },
+        { "id": "characters", "label": "キャラクター", "shortcut": "", "action": "キャラクターリストを表示", "children": [] },
+        { "id": "resources", "label": "リソース", "shortcut": "", "action": "リソースリストを表示", "children": [] },
+        { "id": "variables", "label": "変数", "shortcut": "", "action": "変数リストを表示", "children": [] }
       ]
     },
-    "shortcuts": [
-      { "label": "Undo (取り消し)", "keys": "Ctrl+Z", "action": "直前の操作を取り消す", "children": [] },
-      { "label": "Redo (やり直し)", "keys": "Ctrl+Y", "action": "取り消した操作をやり直す", "children": [] },
-      { "label": "Save Project (JSON保存)", "keys": "Ctrl+S", "action": "プロジェクトをJSONファイルとして保存", "children": [] },
-      { "label": "Toggle Reveal (公開切替)", "keys": "Ctrl+R", "action": "選択ノードの公開/非公開状態を切り替える", "children": [] },
-      { "label": "Delete (削除)", "keys": "Delete", "action": "選択中の要素を削除する", "children": [] },
-      { "label": "Duplicate (複製)", "keys": "Ctrl+C", "action": "選択中のノードを複製する", "children": [] },
-      { "label": "Reduplicate (再複製)", "keys": "Ctrl+V", "action": "最後に複製したノードと同じものを配置する", "children": [] }
-    ],
-    "mobile_gestures": [
-      { 
-        "label": "Swipe to Delete (リスト項目の削除)", 
-        "shortcut": "",
-        "action": "左方向に35px以上スワイプして削除メニューを表示",
-        "condition": "サイドバーのキャラクター/リソースリスト項目",
-        "children": [
-            { "label": "Delete Button", "shortcut": "", "action": "タップして削除実行", "children": [] }
+    "canvas_interaction": {
+      "selection": [
+        { "label": "Click Node", "shortcut": "Click", "action": "単一ノードを選択 (他は選択解除)", "children": [] },
+        { "label": "Multi Select", "shortcut": "Ctrl+Click / Cmd+Click", "action": "選択状態をトグル (複数選択)", "children": [] },
+        { "label": "Deselect All", "shortcut": "Click Pane", "action": "全ての選択を解除", "children": [] }
+      ],
+      "double_click": {
+        "play_mode": [
+          { "target": "Sticky Node", "action": "プロパティパネルを開く", "shortcut": "Double Click" },
+          { "target": "Jump Node", "action": "ジャンプ先へ移動", "shortcut": "Double Click" }
+        ],
+        "edit_mode": [
+          { "target": "Any Node (Mobile)", "action": "プロパティパネルを開く", "shortcut": "Double Tap" },
+          { "target": "Jump Node", "action": "ジャンプ先へ移動", "shortcut": "Double Click" }
         ]
       },
-      {
-        "label": "Drag to Add Node (ノード追加)",
-        "shortcut": "",
-        "action": "タッチ＆ドラッグでノードをキャンバスに追加",
-        "condition": "サイドバー内のノードパレット",
-        "children": []
+      "context_menu": {
+        "trigger": [
+          { "device": "Desktop", "action": "コンテキストメニューを開く", "shortcut": "Right Click" },
+          { "device": "Mobile", "action": "コンテキストメニューを開く", "shortcut": "Long Press (500ms)" }
+        ],
+        "items": [
+          { "label": "Duplicate", "shortcut": "", "condition": "編集モード & 付箋以外", "action": "ノードを複製する", "children": [] },
+          { 
+            "label": "Copy Text", 
+            "shortcut": "", 
+            "action": "", 
+            "children": [
+               { "label": "All", "shortcut": "", "action": "全テキストをコピー", "children": [] },
+               { "label": "Label", "shortcut": "", "action": "ラベルをコピー", "children": [] },
+               { "label": "Description", "shortcut": "", "action": "説明文をコピー", "children": [] },
+               { "label": "Value", "shortcut": "", "action": "値をコピー", "children": [] },
+               { "label": "Condition", "shortcut": "", "action": "条件式をコピー", "children": [] },
+               { "label": "Cases", "shortcut": "", "action": "分岐ケースをコピー", "children": [] }
+            ] 
+          },
+          { "label": "Mark Revealed/Unrevealed", "shortcut": "", "condition": "付箋以外", "action": "公開/非公開状態を切り替える", "children": [] },
+          { "label": "Hide Sticky", "shortcut": "", "condition": "付箋である & ターゲットがある", "action": "付箋を非表示にする", "children": [] },
+          { "label": "Add Sticky", "shortcut": "", "condition": "付箋以外", "action": "ノードに付箋を追加する", "children": [] },
+          { "label": "Show/Hide/Delete Stickies", "shortcut": "", "condition": "付箋が添付されている", "action": "添付された付箋の操作", "children": [] },
+          { "label": "Ungroup", "shortcut": "", "condition": "グループである", "action": "グループを解除する", "children": [] },
+          { "label": "Detach from Group", "shortcut": "", "condition": "親グループがある", "action": "グループから離脱する", "children": [] },
+          { "label": "Delete", "shortcut": "Delete / Backspace", "condition": "編集モード OR 付箋", "action": "削除する", "children": [] },
+          { "label": "Add Free Sticky", "shortcut": "", "condition": "空白部分(Pane)", "action": "その場にフリー付箋を追加", "children": [] },
+          { "label": "Reduplicate", "shortcut": "", "condition": "空白部分(Pane) & 編集モード", "action": "直前に複製したノードを再度複製", "children": [] }
+        ]
       }
-    ]
+    }
   },
   "implementation_report_inconsistencies": [
     {
-      "feature": "Update History Modal (更新履歴)",
-      "issue": "デスクトップ版のヘッダーメニュー「Help」内には存在するが、モバイル版サイドバーメニュー「Help」内には実装コードが存在しないため表示されない。",
-      "location": "Sidebar.tsx vs Layout.tsx"
+      "feature": "更新履歴モーダル (Update History Modal)",
+      "issue": "デスクトップの「Help」メニューには存在するが、モバイルの「Menu」タブ > Help セクションでは適切にリンクされていないか、特定のレスポンシブ状態で表示されない (Sidebar.tsx のモバイルメニュー構造で確認: Manual と About は存在するが、Update History が欠落している)。",
+      "location": "Sidebar.tsx (Line 549)"
     },
     {
-      "feature": "Double Click Interaction (ダブルクリック)",
-      "issue": "デスクトップ版の編集モードではリスト項目のダブルクリックで編集画面が開くが、モバイル版ではダブルクリックイベントが無効化されている（代わりに編集ボタンが提供されている）。仕様としての差異として認識済み。",
-      "location": "CharacterList.tsx / ResourceList.tsx"
+      "feature": "変数の型変更 (Variable Type Change)",
+      "issue": "`updateVariableMetadata` 内のコードで、名前変更時の型変更を明示的に防止している (コメントに 'Just type change - DISALLOWED by user request' とある)。UIはこの制限を反映する必要がある。",
+      "location": "scenarioStore.ts"
     }
   ]
 }
