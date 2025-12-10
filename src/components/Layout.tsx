@@ -13,8 +13,8 @@ import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Save, Upload,
 
 import { useTranslation } from '../hooks/useTranslation';
 import { generateScenarioText } from '../utils/exportUtils';
-import sampleStory from '../../sample_Story.json';
-import sampleNestedGroup from '../../sample_NestedGroupNodes.json';
+import sampleStory from '../../sample/sample_Story.json';
+import sampleNestedGroup from '../../sample/sample_NestedGroupNodes.json';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { createPortal } from 'react-dom'; // Import createPortal
 
