@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { ReactFlowProvider } from 'reactflow';
 import { Sidebar } from './Sidebar';
 import { PropertyPanel } from './PropertyPanel';
@@ -117,13 +117,16 @@ const SubMenu = ({ label, children, onClose, icon: Icon }: SubMenuProps) => {
 
 const MenuDropdown = ({ label, children, isOpen, onToggle, onClose, icon: Icon }: { label: string, children: React.ReactNode, isOpen: boolean, onToggle: () => void, onClose: () => void, icon?: React.ElementType }) => {
     const ref = useRef<HTMLButtonElement>(null);
-    const [position, setPosition] = useState({ top: 0, left: 0 });
+    const [position, setPosition] = useState<{top: number, left: number} | null>(null);
     const isCompactMenu = useMediaQuery('(max-width: 1150px)');
     
-    useEffect(() => {
+    // Use useLayoutEffect to calculate position before paint to avoid flicker
+    useLayoutEffect(() => {
         if (isOpen && ref.current) {
             const rect = ref.current.getBoundingClientRect();
             setPosition({ top: rect.bottom + 4, left: rect.left });
+        } else if (!isOpen) {
+            setPosition(null);
         }
     }, [isOpen]);
 
@@ -157,7 +160,7 @@ const MenuDropdown = ({ label, children, isOpen, onToggle, onClose, icon: Icon }
                 {!isCompactMenu && label}
                 {!isCompactMenu && <ChevronDown size={14} className="opacity-50" />}
             </button>
-            {isOpen && createPortal(
+            {isOpen && position && createPortal(
                 <div 
                     id={`menu-dropdown-${label}`}
                     style={{ top: position.top, left: position.left }}
@@ -230,7 +233,13 @@ export const Layout = () => {
   const mobileQuery = '(max-width: 1366px) and (pointer: coarse)';
   const isMobile = useMediaQuery(mobileQuery);
   
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+      // Initialize synchronously to prevent delay/flash
+      if (typeof window !== 'undefined') {
+          return !window.matchMedia('(max-width: 1366px) and (pointer: coarse)').matches;
+      }
+      return true; 
+  });
   const [propertyPanelWidth, setPropertyPanelWidth] = useState(320);
   const [isResizingProperty, setIsResizingProperty] = useState(false);
   const [mobilePropertyPanelOpen, setMobilePropertyPanelOpen] = useState(false);
@@ -248,9 +257,7 @@ export const Layout = () => {
       setMode(mode === 'edit' ? 'play' : 'edit');
   }, [mode, setMode]);
 
-  // Sync sidebar open state with screen size initially or on change if desired, 
-  // currently we just set initial state. 
-  // We might want to auto-close sidebar when switching to mobile.
+  // Sync sidebar only when isMobile actually changes (e.g. resizing window)
   useEffect(() => {
     if (isMobile) {
         setIsSidebarOpen(false);
@@ -660,7 +667,8 @@ const menuActions = {
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <div className={`h-full ${isMobile ? 'absolute inset-y-0 left-0 z-40' : ''}`} onClick={() => setSelectedNode(null)}>
+        {/* Main Content Area */}
+        <div className={`h-full`} style={{ display: 'flex', flexDirection: 'column' }}>
         <Sidebar 
             width={320} 
             isOpen={isSidebarOpen} 

@@ -278,12 +278,12 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
       <div 
         className={`flex flex-col h-full bg-card overflow-hidden transition-all duration-300 ${isOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'}`}
         style={{ 
-            position: isMobile ? 'fixed' : 'relative',
-            left: isMobile ? '60px' : 'auto', 
-            zIndex: isMobile ? 40 : 'auto',
-            top: isMobile ? '4rem' : 'auto',
-            bottom: isMobile ? 0 : 'auto',
-            height: isMobile ? 'auto' : '100%',
+            position: 'relative',
+            left: 'auto', 
+            zIndex: 'auto',
+            top: 'auto',
+            bottom: 'auto',
+            height: '100%',
             // Remove shadow on mobile to match PC flat look as requested, or keep minimal
             boxShadow: 'none' 
         }}
