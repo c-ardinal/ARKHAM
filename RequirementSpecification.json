@@ -147,6 +147,52 @@
         "collapse": "子ノードを非表示にし、グループサイズをコンテンツサイズ（または最小150x50）に設定。外部接続用に「仮想エッジ（破線）」を作成。",
         "expand": "子ノードの表示を復元し、サイズを再計算し、重なっている兄弟ノードを押しのける（プッシュダウン/ライトロジック）。"
       }
+    },
+    "validation_logic": {
+      "scenario_validation": {
+        "mandatory_checks": ["nodes array exists", "edges array exists", "gameState object exists"],
+        "node_correction": "不正なtypeは 'event' に、欠落したpositionは {0,0} に、欠落したdataは {} に自動補正される。",
+        "edge_correction": "存在しないsource/targetを参照するエッジは削除される。"
+      },
+      "variable_validation": {
+        "type_consistency": "定義された型(number/boolean/string)と値の整合性をチェックし、不整合があれば自動変換を試みる (例: 'true' -> true)。"
+      }
+    }
+  },
+  "data_structures": {
+    "character": {
+      "interface": "CharacterData",
+      "fields": [
+        { "key": "id", "type": "string", "required": true },
+        { "key": "type", "type": "enum", "options": ["Person", "Participant", "Monster", "Other"], "required": true },
+        { "key": "name", "type": "string", "required": true },
+        { "key": "reading", "type": "string", "required": false },
+        { "key": "description", "type": "string", "required": false },
+        { "key": "abilities", "type": "string", "required": false },
+        { "key": "skills", "type": "string", "required": false },
+        { "key": "note", "type": "string", "required": false }
+      ]
+    },
+    "resource": {
+      "interface": "ResourceData",
+      "fields": [
+        { "key": "id", "type": "string", "required": true },
+        { "key": "type", "type": "enum", "options": ["Item", "Equipment", "Knowledge", "Skill", "Status"], "required": true },
+        { "key": "name", "type": "string", "required": true },
+        { "key": "reading", "type": "string", "required": false },
+        { "key": "description", "type": "string", "required": false },
+        { "key": "cost", "type": "string", "required": false },
+        { "key": "effect", "type": "string", "required": false },
+        { "key": "note", "type": "string", "required": false }
+      ]
+    },
+    "variable": {
+      "interface": "Variable",
+      "fields": [
+        { "key": "name", "type": "string", "required": true },
+        { "key": "type", "type": "enum", "options": ["boolean", "number", "string"], "required": true },
+        { "key": "value", "type": "any", "required": true }
+      ]
     }
   },
   "node_definitions": {
@@ -192,8 +238,8 @@
       "properties": [
         { "key": "label", "type": "string", "description": "タイトル" },
         { "key": "actionType", "type": "enum", "options": ["obtain", "consume"], "description": "アクション (獲得/消費)" },
-        { "key": "referenceId", "type": "string", "description": "リソースID (未選択時エラー)" },
-        { "key": "infoValue", "type": "string", "description": "リソース名 (自動更新)" },
+        { "key": "referenceId", "type": "string", "description": "リソースID (選択時にinfoValueも自動更新される)" },
+        { "key": "infoValue", "type": "string", "description": "リソース名 (自動更新, Read Only in context of properties)" },
         { "key": "quantity", "type": "number", "description": "数量 (Default: 1)" }
       ]
     },
@@ -237,7 +283,7 @@
       "properties": [
         { "key": "label", "type": "string", "description": "タイトル" },
         { "key": "targetVariable", "type": "string", "description": "対象変数 (未選択時エラー)" },
-        { "key": "variableValue", "type": "string", "description": "代入・計算式 (Boolean時はSelect, Number時はバリデーションあり)" },
+        { "key": "variableValue", "type": "dynamic", "description": "入力UIは対象変数の型に依存 (Boolean: Select, Number/String: Input/Suggest)", "details": "Number時は ${Var} 置換または数値のみ許容" },
         { "key": "previousValue", "type": "any", "description": "一時保存値 (内部用)" }
       ]
     },
@@ -565,17 +611,5 @@
         ]
       }
     }
-  },
-  "implementation_report_inconsistencies": [
-    {
-      "feature": "更新履歴モーダル (Update History Modal)",
-      "issue": "デスクトップの「Help」メニューには存在するが、モバイルの「Menu」タブ > Help セクションでは適切にリンクされていないか、特定のレスポンシブ状態で表示されない (Sidebar.tsx のモバイルメニュー構造で確認: Manual と About は存在するが、Update History が欠落している)。",
-      "location": "Sidebar.tsx (Line 549)"
-    },
-    {
-      "feature": "変数の型変更 (Variable Type Change)",
-      "issue": "`updateVariableMetadata` 内のコードで、名前変更時の型変更を明示的に防止している (コメントに 'Just type change - DISALLOWED by user request' とある)。UIはこの制限を反映する必要がある。",
-      "location": "scenarioStore.ts"
-    }
-  ]
+  }
 }
