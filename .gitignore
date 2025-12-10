@@ -152,5 +152,5 @@ vite.config.ts.timestamp-*
 *.sln
 *.sw?
 
-RequirementSpecification.json
+
 .agent
