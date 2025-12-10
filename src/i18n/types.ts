@@ -2,6 +2,8 @@ export type TranslationKeys = {
   common: {
     playMode: string;
     editMode: string;
+    playModeShort: string;
+    editModeShort: string;
     save: string;
     load: string;
     nodes: string;

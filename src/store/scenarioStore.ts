@@ -122,7 +122,21 @@ const loadInitialState = () => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Sanitize nodes to prevent crash due to invalid data
+      if (parsed && Array.isArray(parsed.nodes)) {
+          parsed.nodes = parsed.nodes.filter((n: any) => 
+               n && 
+               typeof n.id === 'string' && 
+               n.position && 
+               typeof n.position.x === 'number' && !isNaN(n.position.x) &&
+               typeof n.position.y === 'number' && !isNaN(n.position.y)
+          ).map((n: any) => ({
+              ...n,
+              selected: false // Reset selection to prevent infinite loop on reload
+          }));
+      }
+      return parsed;
     }
   } catch (error) {
     console.error('Failed to load from LocalStorage:', error);

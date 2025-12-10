@@ -4,6 +4,8 @@ export const ja: TranslationKeys = {
   common: {
     playMode: '進行モード',
     editMode: '編集モード',
+    playModeShort: '進行',
+    editModeShort: '編集',
     save: '保存 (Ctrl+S)',
     load: '読込',
     nodes: 'ノード',

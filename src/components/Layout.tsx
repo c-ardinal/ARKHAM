@@ -230,12 +230,7 @@ export const Layout = () => {
   const mobileQuery = '(max-width: 1366px) and (pointer: coarse)';
   const isMobile = useMediaQuery(mobileQuery);
   
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-     if (typeof window !== 'undefined') {
-         return !window.matchMedia(mobileQuery).matches;
-     }
-     return false;
-  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [propertyPanelWidth, setPropertyPanelWidth] = useState(320);
   const [isResizingProperty, setIsResizingProperty] = useState(false);
   const [mobilePropertyPanelOpen, setMobilePropertyPanelOpen] = useState(false);
@@ -650,14 +645,22 @@ const menuActions = {
                 }`}
               >
                 {mode === 'edit' ? <Play size={16} /> : <Edit size={16} />}
-                <span className={isMobile ? 'hidden' : 'inline'}>{mode === 'edit' ? t('common.playMode') : t('common.editMode')}</span>
-                <span className={isMobile ? 'inline' : 'hidden'}>{mode === 'edit' ? t('common.playMode') : t('common.editMode')}</span>
+                
+                {/* Large screens: Full text */}
+                <span className="hidden lg:inline">
+                    {mode === 'edit' ? t('common.playMode') : t('common.editMode')}
+                </span>
+                
+                {/* Medium screens: Short text */}
+                <span className="hidden md:inline lg:hidden">
+                    {mode === 'edit' ? t('common.playModeShort') : t('common.editModeShort')}
+                </span>
             </button>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <div className="h-full" onClick={() => setSelectedNode(null)}>
+        <div className={`h-full ${isMobile ? 'absolute inset-y-0 left-0 z-40' : ''}`} onClick={() => setSelectedNode(null)}>
         <Sidebar 
             width={320} 
             isOpen={isSidebarOpen} 
@@ -733,6 +736,7 @@ const menuActions = {
         jsonContent={validationError?.jsonContent}
         onClose={() => setValidationError(null)}
       />
+
       </div>
     </ReactFlowProvider>
   );

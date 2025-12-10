@@ -4,6 +4,8 @@ export const en: TranslationKeys = {
   common: {
     playMode: 'Play Mode',
     editMode: 'Edit Mode',
+    playModeShort: 'Play',
+    editModeShort: 'Edit',
     save: 'Save (Ctrl+S)',
     load: 'Load',
     nodes: 'Nodes',

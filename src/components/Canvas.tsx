@@ -292,7 +292,7 @@ const ContextMenu = ({
   );
 };
 
-const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }, { 
+const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }, { 
     onCanvasClick?: () => void;
     isMobile?: boolean; // Added isMobile prop
     onOpenPropertyPanel?: () => void;
@@ -1106,31 +1106,21 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
   // Sort nodes so groups are rendered first (bottom)
   // Ensure correct z-index and render order
   // Sticky Node (2000) > Sticky Edge (1000) > Target Node (0) > Group Node (-1)
-  const sortedNodes = nodes.map(node => {
-      if (node.type === 'sticky') {
-          return { ...node, zIndex: 1500 };
-      }
-      if (node.type === 'group') {
-          return { ...node, zIndex: -10 }; 
-      }
-      return node;
-  }).sort((a, b) => {
-      const getScore = (type: string) => {
-          if (type === 'group') return -1;
-          if (type === 'sticky') return 1;
-          return 0;
-      };
-      return getScore(a.type || '') - getScore(b.type || '');
-  });
-
-  // Process nodes to handle selection rules in Play Mode
-  // USER Request: All nodes should be selectable (blue border).
-  // Control click behavior in onNodeClick instead.
-  // Process nodes to handle selection rules in Play Mode
-  // USER Request: All nodes should be selectable (blue border).
-  const processedNodes = useMemo(() => {
-    return sortedNodes.map(node => ({ ...node, selectable: true })); 
-  }, [sortedNodes]);
+  // Sort nodes so groups are rendered first (bottom)
+  const sortedNodes = useMemo(() => {
+      // Sort in place copy
+      return [...nodes].sort((a, b) => {
+        const getScore = (type: string) => {
+            if (type === 'group') return -1;
+            if (type === 'sticky') return 1;
+            return 0;
+        };
+        return getScore(a.type || '') - getScore(b.type || '');
+      });
+  }, [nodes]);
+  
+  // Use sortedNodes directly. Removed processedNodes to avoid object reference changes.
+  const processedNodes = sortedNodes;
 
   // Manual Pane Double Click - Behaves like Shift+Click (neutral, no zoom)
   const lastPaneClickTime = useRef(0);
@@ -1197,19 +1187,7 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
             }
           `}</style>
       )}
-      {isMobile && (
-          <style>{`
-            .react-flow__handle {
-                width: 14px;
-                height: 14px;
-            }
-            .react-flow__handle-right { right: -7px; }
-            .react-flow__handle-left { left: -7px; }
-            .react-flow__handle-top { top: -7px; }
-            .react-flow__handle-bottom { bottom: -7px; }
-            .react-flow__node { touch-action: none !important; }
-          `}</style>
-      )}
+      {/* Mobile styles moved to index.css */}
       <ReactFlow
         nodes={processedNodes}
         edges={edges}
@@ -1339,7 +1317,7 @@ const CanvasContent = forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitV
       )}
     </div>
   );
-});
+}));
 
 export const Canvas = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }, { 
     onCanvasClick?: () => void;

@@ -138,3 +138,16 @@
   -ms-user-select: none !important;
   -webkit-touch-callout: none !important; /* iOS specific */
 }
+
+/* Mobile Optimizations from Canvas.tsx */
+@media (max-width: 1366px) and (pointer: coarse) {
+  .react-flow__handle {
+      width: 14px !important;
+      height: 14px !important;
+  }
+  .react-flow__handle-right { right: -7px !important; }
+  .react-flow__handle-left { left: -7px !important; }
+  .react-flow__handle-top { top: -7px !important; }
+  .react-flow__handle-bottom { bottom: -7px !important; }
+  .react-flow__node { touch-action: none !important; }
+}
