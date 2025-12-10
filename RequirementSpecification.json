@@ -131,110 +131,214 @@
       }
     }
   },
+  "node_definitions": {
+    "event": {
+      "label": "イベント (Event)",
+      "description": "シナリオの基本単位となるノード。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "タイトル" },
+        { "key": "description", "type": "string", "description": "詳細テキスト" },
+        { "key": "isStart", "type": "boolean", "description": "開始ノードフラグ" }
+      ]
+    },
+    "element": {
+      "label": "要素 (Element / Information)",
+      "description": "アイテムや知識の獲得・消費を扱うノード。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "タイトル" },
+        { "key": "infoType", "type": "enum", "options": ["knowledge", "item", "skill", "stat", "equipment"], "description": "リソースタイプ" },
+        { "key": "infoValue", "type": "string", "description": "リソース名 (値)" },
+        { "key": "quantity", "type": "number", "description": "数量" },
+        { "key": "actionType", "type": "enum", "options": ["obtain", "consume"], "description": "アクション (獲得/消費)" }
+      ]
+    },
+    "branch": {
+      "label": "分岐 (Branch)",
+      "description": "条件によってストーリーを分岐させるノード。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "タイトル" },
+        { "key": "branchType", "type": "enum", "options": ["if_else", "switch"], "description": "分岐タイプ" },
+        { "key": "branches", "type": "array", "description": "分岐先リスト (Switch用)" },
+        { "key": "conditionVariable", "type": "string", "description": "条件変数" },
+        { "key": "conditionValue", "type": "string", "description": "比較値" }
+      ]
+    },
+    "variable": {
+      "label": "変数操作 (Variable)",
+      "description": "変数の値を更新するノード。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "タイトル" },
+        { "key": "targetVariable", "type": "string", "description": "対象変数" },
+        { "key": "variableValue", "type": "string", "description": "代入・計算式" },
+        { "key": "previousValue", "type": "any", "description": "一時保存値 (内部用)" }
+      ]
+    },
+    "group": {
+      "label": "グループ (Group)",
+      "description": "複数のノードをまとめるコンテナ。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "グループ名" },
+        { "key": "expanded", "type": "boolean", "description": "展開/折りたたみ状態" },
+        { "key": "contentWidth", "type": "number", "description": "コンテンツ幅" },
+        { "key": "contentHeight", "type": "number", "description": "コンテンツ高さ" }
+      ]
+    },
+    "jump": {
+      "label": "ジャンプ (Jump)",
+      "description": "別のノードへ接続線なしで移動するノード。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "タイトル" },
+        { "key": "jumpTarget", "type": "string", "description": "移動先ノードID" }
+      ]
+    },
+    "memo": {
+      "label": "メモ (Memo / Note)",
+      "description": "シナリオに影響しないメモ書き。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "タイトル" },
+        { "key": "description", "type": "string", "description": "メモ内容" }
+      ]
+    },
+    "sticky": {
+      "label": "付箋 (Sticky)",
+      "description": "キャンバスやノードに自由に貼れる付箋。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "テキスト内容" },
+        { "key": "targetNodeId", "type": "string", "description": "添付先ノードID (あれば)" }
+      ]
+    },
+    "character": {
+      "label": "キャラクター (Character)",
+      "description": "キャラクター定義への参照を持つノード。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "表示名" },
+        { "key": "referenceId", "type": "string", "description": "キャラクターデータID" }
+      ]
+    },
+    "resource": {
+      "label": "リソース (Resource)",
+      "description": "リソース定義への参照を持つノード。",
+      "properties": [
+        { "key": "label", "type": "string", "description": "表示名" },
+        { "key": "referenceId", "type": "string", "description": "リソースデータID" }
+      ]
+    }
+  },
   "user_interface": {
     "header": {
       "elements": [
-        { "label": "ロゴ (Logo)", "type": "branding", "shortcut": "", "action": "ホームへ戻る (将来的な機能)", "visual": "紫から緑へのグラデーションテキスト (Cinzel Decorative)" },
+        { "label": "ロゴ (Logo)", "type": "branding", "trigger": "Click", "shortcut": "", "action": "ホームへ戻る (将来的な機能)", "visual": "紫から緑へのグラデーションテキスト (Cinzel Decorative)", "children": [] },
         { 
           "label": "デスクトップメニューバー (Desktop Menu Bar)",
           "type": "menu_bar",
+          "trigger": "",
           "shortcut": "",
           "action": "",
           "children": [
             {
               "label": "File",
+              "trigger": "Click",
               "shortcut": "",
-              "action": "",
+              "action": "ファイルメニューを開く",
               "children": [
-                { "label": "Save", "shortcut": "Ctrl+S", "action": "現在のシナリオをJSONファイルとして保存", "children": [] },
-                { "label": "Load", "shortcut": "", "action": "JSONファイルを読み込んでシナリオを展開", "children": [] },
+                { "label": "Save", "trigger": "Click", "shortcut": "Ctrl+S", "action": "現在のシナリオをJSONファイルとして保存", "children": [] },
+                { "label": "Load", "trigger": "Click", "shortcut": "", "action": "JSONファイルを読み込んでシナリオを展開", "children": [] },
                 { 
                   "label": "Load Sample", 
+                  "trigger": "Hover / Click", 
                   "shortcut": "", 
-                  "action": "", 
+                  "action": "サンプルサブメニューを開く", 
                   "children": [
-                    { "label": "Story (物語形式)", "shortcut": "", "action": "物語形式のサンプルシナリオをロード", "children": [] },
-                    { "label": "Nested Group Nodes (入れ子グループ)", "shortcut": "", "action": "複雑なグループ構造のサンプルをロード", "children": [] }
+                    { "label": "Story (物語形式)", "trigger": "Click", "shortcut": "", "action": "物語形式のサンプルシナリオをロード", "children": [] },
+                    { "label": "Nested Group Nodes (入れ子グループ)", "trigger": "Click", "shortcut": "", "action": "複雑なグループ構造のサンプルをロード", "children": [] }
                   ] 
                 },
                 { 
                   "label": "Export", 
+                  "trigger": "Hover / Click", 
                   "shortcut": "", 
-                  "action": "", 
+                  "action": "エクスポートサブメニューを開く", 
                   "children": [
-                    { "label": "Export Simple Text (.txt)", "shortcut": "", "action": "プレーンテキストとしてエクスポート", "children": [] },
-                    { "label": "Export Markdown (.md)", "shortcut": "", "action": "Markdown形式でエクスポート", "children": [] }
+                    { "label": "Export Simple Text (.txt)", "trigger": "Click", "shortcut": "", "action": "プレーンテキストとしてエクスポート", "children": [] },
+                    { "label": "Export Markdown (.md)", "trigger": "Click", "shortcut": "", "action": "Markdown形式でエクスポート", "children": [] }
                   ] 
                 },
-                { "label": "Reset", "shortcut": "", "danger": true, "action": "全データを削除して初期状態に戻す", "children": [] }
+                { "label": "Reset", "trigger": "Click", "shortcut": "", "danger": true, "action": "全データを削除して初期状態に戻す", "children": [] }
               ]
             },
             {
               "label": "Edit",
+              "trigger": "Click",
               "shortcut": "",
-              "action": "",
+              "action": "編集メニューを開く",
               "children": [
                 { 
                   "label": "Sticky Notes", 
+                  "trigger": "Hover / Click", 
                   "shortcut": "", 
-                  "action": "", 
+                  "action": "付箋サブメニューを開く", 
                   "children": [
-                    { "label": "Show All Stickies", "shortcut": "", "action": "全ての付箋を表示する", "children": [] },
-                    { "label": "Hide All Stickies", "shortcut": "", "action": "全ての付箋を非表示にする", "children": [] },
-                    { "label": "Delete All Stickies", "shortcut": "", "action": "全ての付箋を削除する", "children": [] },
-                    { "label": "Delete Free Stickies", "shortcut": "", "action": "ノードに紐付かない付箋を削除", "children": [] },
-                    { "label": "Delete Node Stickies", "shortcut": "", "action": "ノードに紐付く付箋を削除", "children": [] }
+                    { "label": "Show All Stickies", "trigger": "Click", "shortcut": "", "action": "全ての付箋を表示する", "children": [] },
+                    { "label": "Hide All Stickies", "trigger": "Click", "shortcut": "", "action": "全ての付箋を非表示にする", "children": [] },
+                    { "label": "Delete All Stickies", "trigger": "Click", "shortcut": "", "action": "全ての付箋を削除する", "children": [] },
+                    { "label": "Delete Free Stickies", "trigger": "Click", "shortcut": "", "action": "ノードに紐付かない付箋を削除", "children": [] },
+                    { "label": "Delete Node Stickies", "trigger": "Click", "shortcut": "", "action": "ノードに紐付く付箋を削除", "children": [] }
                   ] 
                 },
                 { 
                   "label": "Bulk Reveal", 
+                  "trigger": "Hover / Click", 
                   "shortcut": "", 
-                  "action": "", 
+                  "action": "公開設定サブメニューを開く", 
                   "children": [
-                    { "label": "Reveal All Nodes", "shortcut": "", "action": "全ノードを公開状態にする", "children": [] },
-                    { "label": "Unreveal All Nodes", "shortcut": "", "action": "全ノードを非公開状態にする", "children": [] }
+                    { "label": "Reveal All Nodes", "trigger": "Click", "shortcut": "", "action": "全ノードを公開状態にする", "children": [] },
+                    { "label": "Unreveal All Nodes", "trigger": "Click", "shortcut": "", "action": "全ノードを非公開状態にする", "children": [] }
                   ] 
                 }
               ]
             },
             {
               "label": "View",
+              "trigger": "Click",
               "shortcut": "",
-              "action": "",
+              "action": "表示メニューを開く",
               "children": [
-                { "label": "Zoom In", "shortcut": "", "action": "ズームレベルを上げる (+)", "children": [] },
-                { "label": "Zoom Out", "shortcut": "", "action": "ズームレベルを下げる (-)", "children": [] },
-                { "label": "Fit View", "shortcut": "", "action": "全体が収まるように表示", "children": [] }
+                { "label": "Zoom In", "trigger": "Click", "shortcut": "", "action": "ズームレベルを上げる (+)", "children": [] },
+                { "label": "Zoom Out", "trigger": "Click", "shortcut": "", "action": "ズームレベルを下げる (-)", "children": [] },
+                { "label": "Fit View", "trigger": "Click", "shortcut": "", "action": "全体が収まるように表示", "children": [] }
               ]
             },
             {
               "label": "Settings",
+              "trigger": "Click",
               "shortcut": "",
-              "action": "",
+              "action": "設定メニューを開く",
               "children": [
-                { "label": "Switch Theme", "shortcut": "", "action": "ライト/ダークテーマの切り替え", "children": [] },
-                { "label": "Switch Language", "shortcut": "", "action": "英語/日本語の切り替え", "children": [] },
+                { "label": "Switch Theme", "trigger": "Click", "shortcut": "", "action": "ライト/ダークテーマの切り替え", "children": [] },
+                { "label": "Switch Language", "trigger": "Click", "shortcut": "", "action": "英語/日本語の切り替え", "children": [] },
                 { 
                   "label": "Edge Style", 
+                  "trigger": "Hover / Click", 
                   "shortcut": "", 
                   "action": "エッジの描画スタイル変更", 
                   "children": [
-                    { "label": "Default (Bezier)", "shortcut": "", "action": "ベジェ曲線", "children": [] },
-                    { "label": "Straight", "shortcut": "", "action": "直線", "children": [] },
-                    { "label": "Step", "shortcut": "", "action": "直角", "children": [] },
-                    { "label": "SmoothStep", "shortcut": "", "action": "丸みのある直角", "children": [] }
+                    { "label": "Default (Bezier)", "trigger": "Click", "shortcut": "", "action": "ベジェ曲線", "children": [] },
+                    { "label": "Straight", "trigger": "Click", "shortcut": "", "action": "直線", "children": [] },
+                    { "label": "Step", "trigger": "Click", "shortcut": "", "action": "直角", "children": [] },
+                    { "label": "SmoothStep", "trigger": "Click", "shortcut": "", "action": "丸みのある直角", "children": [] }
                   ] 
                 }
               ]
             },
             {
               "label": "Help",
+              "trigger": "Click",
               "shortcut": "",
-              "action": "",
+              "action": "ヘルプメニューを開く",
               "children": [
-                { "label": "Manual", "shortcut": "", "action": "操作マニュアルを開く", "children": [] },
-                { "label": "Update History", "shortcut": "", "action": "更新履歴モーダルを開く", "children": [] },
-                { "label": "About", "shortcut": "", "action": "アプリ情報を表示", "children": [] }
+                { "label": "Manual", "trigger": "Click", "shortcut": "", "action": "操作マニュアルを開く", "children": [] },
+                { "label": "Update History", "trigger": "Click", "shortcut": "", "action": "更新履歴モーダルを開く", "children": [] },
+                { "label": "About", "trigger": "Click", "shortcut": "", "action": "アプリ情報を表示", "children": [] }
               ]
             }
           ]
@@ -242,12 +346,13 @@
         { 
           "label": "右側コントロール (Right Controls)", 
           "type": "control_group", 
+          "trigger": "", 
           "shortcut": "", 
           "action": "", 
           "children": [
-            { "label": "Undo", "shortcut": "Ctrl+Z", "action": "操作を取り消す", "children": [] },
-            { "label": "Redo", "shortcut": "Ctrl+Y", "action": "取り消した操作をやり直す", "children": [] },
-            { "label": "Mode Switch", "shortcut": "", "action": "編集(Edit) / プレイ(Play) モードの切り替え", "children": [] }
+            { "label": "Undo", "trigger": "Click", "shortcut": "Ctrl+Z", "action": "操作を取り消す", "children": [] },
+            { "label": "Redo", "trigger": "Click", "shortcut": "Ctrl+Y", "action": "取り消した操作をやり直す", "children": [] },
+            { "label": "Mode Switch", "trigger": "Click", "shortcut": "", "action": "編集(Edit) / プレイ(Play) モードの切り替え", "children": [] }
           ]
         }
       ]
@@ -255,58 +360,59 @@
     "sidebar": {
       "width": { "desktop": "320px", "mobile": "オーバーレイ (約256px)" },
       "tabs": [
-        { "id": "menu", "label": "メニュー", "condition": "モバイルのみ", "shortcut": "", "action": "モバイルメニューを表示", "children": [] },
-        { "id": "nodes", "label": "ノード / ゲームステート", "shortcut": "", "action": "ノード一覧またはステータスビューを表示", "children": [] },
-        { "id": "characters", "label": "キャラクター", "shortcut": "", "action": "キャラクターリストを表示", "children": [] },
-        { "id": "resources", "label": "リソース", "shortcut": "", "action": "リソースリストを表示", "children": [] },
-        { "id": "variables", "label": "変数", "shortcut": "", "action": "変数リストを表示", "children": [] }
+        { "id": "menu", "label": "メニュー", "condition": "モバイルのみ", "trigger": "Tap", "shortcut": "", "action": "モバイルメニューを表示", "children": [] },
+        { "id": "nodes", "label": "ノード / ゲームステート", "trigger": "Click", "shortcut": "", "action": "ノード一覧またはステータスビューを表示", "children": [] },
+        { "id": "characters", "label": "キャラクター", "trigger": "Click", "shortcut": "", "action": "キャラクターリストを表示", "children": [] },
+        { "id": "resources", "label": "リソース", "trigger": "Click", "shortcut": "", "action": "リソースリストを表示", "children": [] },
+        { "id": "variables", "label": "変数", "trigger": "Click", "shortcut": "", "action": "変数リストを表示", "children": [] }
       ]
     },
     "canvas_interaction": {
       "selection": [
-        { "label": "Click Node", "shortcut": "Click", "action": "単一ノードを選択 (他は選択解除)", "children": [] },
-        { "label": "Multi Select", "shortcut": "Ctrl+Click / Cmd+Click", "action": "選択状態をトグル (複数選択)", "children": [] },
-        { "label": "Deselect All", "shortcut": "Click Pane", "action": "全ての選択を解除", "children": [] }
+        { "label": "Click Node", "trigger": "Click", "shortcut": "", "action": "単一ノードを選択 (他は選択解除)", "children": [] },
+        { "label": "Multi Select", "trigger": "Click", "shortcut": "Ctrl+Click / Cmd+Click", "action": "選択状態をトグル (複数選択)", "children": [] },
+        { "label": "Deselect All", "trigger": "Click Pane", "shortcut": "", "action": "全ての選択を解除", "children": [] }
       ],
       "double_click": {
         "play_mode": [
-          { "target": "Sticky Node", "action": "プロパティパネルを開く", "shortcut": "Double Click" },
-          { "target": "Jump Node", "action": "ジャンプ先へ移動", "shortcut": "Double Click" }
+          { "label": "Sticky Property", "trigger": "Double Click", "shortcut": "", "action": "プロパティパネルを開く", "target": "Sticky Node", "children": [] },
+          { "label": "Jump Navigation", "trigger": "Double Click", "shortcut": "", "action": "ジャンプ先へ移動", "target": "Jump Node", "children": [] }
         ],
         "edit_mode": [
-          { "target": "Any Node (Mobile)", "action": "プロパティパネルを開く", "shortcut": "Double Tap" },
-          { "target": "Jump Node", "action": "ジャンプ先へ移動", "shortcut": "Double Click" }
+          { "label": "Mobile Node Property", "trigger": "Double Tap", "shortcut": "", "action": "プロパティパネルを開く", "target": "Any Node (Mobile)", "children": [] },
+          { "label": "Jump Navigation", "trigger": "Double Click", "shortcut": "", "action": "ジャンプ先へ移動", "target": "Jump Node", "children": [] }
         ]
       },
       "context_menu": {
         "trigger": [
-          { "device": "Desktop", "action": "コンテキストメニューを開く", "shortcut": "Right Click" },
-          { "device": "Mobile", "action": "コンテキストメニューを開く", "shortcut": "Long Press (500ms)" }
+          { "device": "Desktop", "trigger": "Right Click", "shortcut": "", "action": "コンテキストメニューを開く", "children": [] },
+          { "device": "Mobile", "trigger": "Long Press (500ms)", "shortcut": "", "action": "コンテキストメニューを開く", "children": [] }
         ],
         "items": [
-          { "label": "Duplicate", "shortcut": "", "condition": "編集モード & 付箋以外", "action": "ノードを複製する", "children": [] },
+          { "label": "Duplicate", "trigger": "Click", "shortcut": "", "condition": "編集モード & 付箋以外", "action": "ノードを複製する", "children": [] },
           { 
             "label": "Copy Text", 
+            "trigger": "Hover / Click", 
             "shortcut": "", 
-            "action": "", 
+            "action": "テキストコピーサブメニュー", 
             "children": [
-               { "label": "All", "shortcut": "", "action": "全テキストをコピー", "children": [] },
-               { "label": "Label", "shortcut": "", "action": "ラベルをコピー", "children": [] },
-               { "label": "Description", "shortcut": "", "action": "説明文をコピー", "children": [] },
-               { "label": "Value", "shortcut": "", "action": "値をコピー", "children": [] },
-               { "label": "Condition", "shortcut": "", "action": "条件式をコピー", "children": [] },
-               { "label": "Cases", "shortcut": "", "action": "分岐ケースをコピー", "children": [] }
+               { "label": "All", "trigger": "Click", "shortcut": "", "action": "全テキストをコピー", "children": [] },
+               { "label": "Label", "trigger": "Click", "shortcut": "", "action": "ラベルをコピー", "children": [] },
+               { "label": "Description", "trigger": "Click", "shortcut": "", "action": "説明文をコピー", "children": [] },
+               { "label": "Value", "trigger": "Click", "shortcut": "", "action": "値をコピー", "children": [] },
+               { "label": "Condition", "trigger": "Click", "shortcut": "", "action": "条件式をコピー", "children": [] },
+               { "label": "Cases", "trigger": "Click", "shortcut": "", "action": "分岐ケースをコピー", "children": [] }
             ] 
           },
-          { "label": "Mark Revealed/Unrevealed", "shortcut": "", "condition": "付箋以外", "action": "公開/非公開状態を切り替える", "children": [] },
-          { "label": "Hide Sticky", "shortcut": "", "condition": "付箋である & ターゲットがある", "action": "付箋を非表示にする", "children": [] },
-          { "label": "Add Sticky", "shortcut": "", "condition": "付箋以外", "action": "ノードに付箋を追加する", "children": [] },
-          { "label": "Show/Hide/Delete Stickies", "shortcut": "", "condition": "付箋が添付されている", "action": "添付された付箋の操作", "children": [] },
-          { "label": "Ungroup", "shortcut": "", "condition": "グループである", "action": "グループを解除する", "children": [] },
-          { "label": "Detach from Group", "shortcut": "", "condition": "親グループがある", "action": "グループから離脱する", "children": [] },
-          { "label": "Delete", "shortcut": "Delete / Backspace", "condition": "編集モード OR 付箋", "action": "削除する", "children": [] },
-          { "label": "Add Free Sticky", "shortcut": "", "condition": "空白部分(Pane)", "action": "その場にフリー付箋を追加", "children": [] },
-          { "label": "Reduplicate", "shortcut": "", "condition": "空白部分(Pane) & 編集モード", "action": "直前に複製したノードを再度複製", "children": [] }
+          { "label": "Mark Revealed/Unrevealed", "trigger": "Click", "shortcut": "", "condition": "付箋以外", "action": "公開/非公開状態を切り替える", "children": [] },
+          { "label": "Hide Sticky", "trigger": "Click", "shortcut": "", "condition": "付箋である & ターゲットがある", "action": "付箋を非表示にする", "children": [] },
+          { "label": "Add Sticky", "trigger": "Click", "shortcut": "", "condition": "付箋以外", "action": "ノードに付箋を追加する", "children": [] },
+          { "label": "Show/Hide/Delete Stickies", "trigger": "Click", "shortcut": "", "condition": "付箋が添付されている", "action": "添付された付箋の操作", "children": [] },
+          { "label": "Ungroup", "trigger": "Click", "shortcut": "", "condition": "グループである", "action": "グループを解除する", "children": [] },
+          { "label": "Detach from Group", "trigger": "Click", "shortcut": "", "condition": "親グループがある", "action": "グループから離脱する", "children": [] },
+          { "label": "Delete", "trigger": "Click", "shortcut": "Delete / Backspace", "condition": "編集モード OR 付箋", "action": "削除する", "children": [] },
+          { "label": "Add Free Sticky", "trigger": "Click", "shortcut": "", "condition": "空白部分(Pane)", "action": "その場にフリー付箋を追加", "children": [] },
+          { "label": "Reduplicate", "trigger": "Click", "shortcut": "", "condition": "空白部分(Pane) & 編集モード", "action": "直前に複製したノードを再度複製", "children": [] }
         ]
       }
     }
