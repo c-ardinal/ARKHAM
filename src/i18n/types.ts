@@ -22,6 +22,7 @@ export type TranslationKeys = {
     variables: string;
     reset: string;
     confirmReset: string;
+    deleteConfirm: string;
   };
   menu: {
     file: string;

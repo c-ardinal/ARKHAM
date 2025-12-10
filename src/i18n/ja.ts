@@ -24,6 +24,7 @@ export const ja: TranslationKeys = {
     variables: '変数',
     reset: 'リセット',
     confirmReset: 'シナリオをリセットしますか？',
+    deleteConfirm: '削除してよろしいですか？',
   },
   menu: {
     file: 'ファイル',

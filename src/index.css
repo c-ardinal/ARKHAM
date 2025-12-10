@@ -151,3 +151,9 @@
   .react-flow__handle-bottom { bottom: -7px !important; }
   .react-flow__node { touch-action: none !important; }
 }
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

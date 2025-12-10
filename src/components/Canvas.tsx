@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState, useEffect, useLayoutEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { Plus, Minus, Maximize } from 'lucide-react';
 import ReactFlow, { 
   Background, 
@@ -21,10 +21,11 @@ import JumpNode from '../nodes/JumpNode';
 import StickyNode from '../nodes/StickyNode';
 import CharacterNode from '../nodes/CharacterNode';
 import ResourceNode from '../nodes/ResourceNode';
-import type { NodeType, ScenarioNode, ScenarioNodeData } from '../types';
+import type { NodeType, ScenarioNode } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
 import { NodeInfoModal } from './NodeInfoModal';
+import { ContextMenu, type ContextMenuState } from './ContextMenu';
 
 const nodeTypes = {
   event: EventNode,
@@ -42,255 +43,7 @@ const nodeTypes = {
 
 
 
-interface ContextMenuState {
-  id: string;
-  type: 'node' | 'edge' | 'pane';
-  top: number;
-  left: number;
-  data?: ScenarioNodeData;
-  nodeType?: string;
-  parentNode?: string;
-  hasSticky?: boolean;
-  stickiesHidden?: boolean;
-}
 
-const ContextMenu = ({ 
-  menu, 
-  onClose, 
-  onDelete, 
-  onDuplicate, 
-  onReduplicate,
-  onCopyText,
-  onToggleState,
-  onUngroup,
-  onDetachFromGroup,
-  onAddSticky,
-  onToggleStickies,
-  onDeleteStickies,
-  onHideSticky,
-}: { 
-  menu: ContextMenuState & { nodeType?: string; parentNode?: string }; 
-  onClose: () => void;
-  onDelete: () => void;
-  onDuplicate?: () => void;
-  onReduplicate?: () => void;
-  onCopyText?: (type: 'all' | 'label' | 'description' | 'value' | 'condition' | 'cases') => void;
-  onToggleState?: () => void;
-  onGroup?: () => void;
-  onUngroup?: () => void;
-  onDetachFromGroup?: () => void;
-  onAddSticky?: (targetId?: string) => void;
-  onToggleStickies?: (targetId: string) => void;
-  onDeleteStickies?: (targetId: string) => void;
-  onHideSticky?: (stickyId: string) => void;
-  isRevealed?: boolean;
-}) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation();
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as globalThis.Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
-
-  const { mode } = useScenarioStore();
-  
-  // Boundary check
-  const [safePos, setSafePos] = useState({ top: menu.top, left: menu.left });
-
-  useLayoutEffect(() => {
-     if (ref.current) {
-         const { width, height } = ref.current.getBoundingClientRect();
-         const screenW = window.innerWidth;
-         const screenH = window.innerHeight;
-         
-         let newLeft = menu.left;
-         let newTop = menu.top;
-
-         // Shift left if overflowing right edge
-         if (newLeft + width > screenW) {
-             newLeft = screenW - width - 10;
-         }
-         
-         // Shift up if overflowing bottom edge
-         if (newTop + height > screenH) {
-             newTop = screenH - height - 10;
-         }
-
-         setSafePos({ top: Math.max(0, newTop), left: Math.max(0, newLeft) });
-     }
-  }, [menu.top, menu.left]);
-
-  return (
-    <div 
-      ref={ref}
-      style={{ top: safePos.top, left: safePos.left }} 
-      className="fixed z-50 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[160px] flex flex-col text-sm text-popover-foreground transition-opacity animate-in fade-in zoom-in-95 duration-75"
-    >
-      {/* Node Actions */}
-      {menu.type === 'node' && (
-        <>
-            {/* Edit Mode Only Actions */}
-            {mode === 'edit' && menu.nodeType !== 'sticky' && (
-                <button 
-                  onClick={onDuplicate}
-                  className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-                >
-                  {t('contextMenu.duplicate')}
-                </button>
-            )}
-
-            {/* Common Actions (Copy, Toggle Reveal) */}
-            <div className="relative group">
-                <button 
-                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full flex justify-between items-center"
-                >
-                {t('contextMenu.copyText')} <span>▶</span>
-                </button>
-                <div className="absolute left-full top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] hidden group-hover:flex flex-col">
-                    <button onClick={() => onCopyText?.('all')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.all')}</button>
-                    <button onClick={() => onCopyText?.('label')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.label')}</button>
-                    <button onClick={() => onCopyText?.('description')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.description')}</button>
-                    {['element', 'variable'].includes(menu.nodeType || '') && (
-                        <button onClick={() => onCopyText?.('value')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.value')}</button>
-                    )}
-                    {menu.nodeType === 'branch' && (
-                        <>
-                            <button onClick={() => onCopyText?.('condition')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.condition')}</button>
-                            <button onClick={() => onCopyText?.('cases')} className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground">{t('contextMenu.cases')}</button>
-                        </>
-                    )}
-                </div>
-            </div>
-
-            {/* Sticky don't have revealed state usually, but node sticky might if we want? Spec says "hide" for sticky, "mark revealed" for nodes. */}
-            {menu.nodeType !== 'sticky' && (
-                <button 
-                    onClick={onToggleState}
-                    className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-                >
-                    {menu.data?.revealed ? t('contextMenu.markUnrevealed') : t('contextMenu.markRevealed')}
-                </button>
-            )}
-
-            {/* Sticky Actions: Hide (for attached stickies) */}
-            {menu.nodeType === 'sticky' && menu.data?.targetNodeId && (
-                <button 
-                  onClick={() => onHideSticky?.(menu.id)}
-                  className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-                >
-                  {t('contextMenu.hideSticky')}
-                </button>
-            )}
-
-            {/* Sticky Management on Parent Node - Available in Play Mode too! */}
-            {menu.nodeType !== 'sticky' && (
-                <>
-                    <div className="h-px bg-border my-1" />
-                    <button 
-                        onClick={() => onAddSticky?.(menu.id)}
-                        className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-                    >
-                        {t('contextMenu.addSticky')}
-                    </button>
-                    {menu.hasSticky && (
-                        <>
-                            <button 
-                                onClick={() => onToggleStickies?.(menu.id)}
-                                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-                            >
-                                {menu.stickiesHidden ? t('contextMenu.showStickies') : t('contextMenu.hideStickies')}
-                            </button>
-                            <button 
-                                onClick={() => onDeleteStickies?.(menu.id)}
-                                className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
-                            >
-                                {t('contextMenu.deleteStickies')}
-                            </button>
-                        </>
-                    )}
-                 </>
-            )}
-            
-            {/* Edit Mode Grouping/Deletion */}
-            {mode === 'edit' && menu.nodeType !== 'sticky' && (
-                <>
-                    {menu.nodeType === 'group' && (
-                      <>
-                        <div className="h-px bg-border my-1" />
-                        <button 
-                            onClick={onUngroup}
-                            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-                        >
-                            {t('contextMenu.ungroup')}
-                        </button>
-                      </>
-                    )}
-
-                    {menu.parentNode && (
-                        <button 
-                            onClick={onDetachFromGroup}
-                            className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-                        >
-                            {t('contextMenu.detachFromGroup')}
-                        </button>
-                    )}
-                </>
-            )}
-            
-            {/* Delete Option: Always for Sticky, otherwise Edit mode only */}
-            {(mode === 'edit' || (menu.nodeType === 'sticky')) && (
-                <>
-                    <div className="h-px bg-border my-1" />
-                    <button 
-                        onClick={onDelete}
-                        className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
-                    >
-                        {menu.nodeType === 'sticky' ? t('contextMenu.deleteSticky') : t('contextMenu.delete')}
-                    </button>
-                </>
-            )}
-        </>
-      )}
-
-      {/* Pane Actions (Background) */}
-      {menu.type === 'pane' && (
-          <>
-            <button 
-                onClick={() => onAddSticky?.()}
-                className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-            >
-                {t('contextMenu.addFreeSticky')}
-            </button>
-            
-            {mode === 'edit' && (
-                <button 
-                    onClick={onReduplicate}
-                    className="px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground w-full"
-                >
-                    {t('contextMenu.reduplicate')}
-                </button>
-            )}
-          </>
-      )}
-
-      {/* Edge Actions */}
-      {mode === 'edit' && menu.type === 'edge' && (
-          <button 
-            onClick={onDelete}
-            className="px-4 py-2 text-left hover:bg-destructive/20 text-red-600 dark:text-red-400 w-full"
-          >
-            {t('contextMenu.delete')}
-          </button>
-      )}
-    </div>
-  );
-};
 
 const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }, { 
     onCanvasClick?: () => void;
@@ -616,7 +369,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     if (mode === 'play') {
           // Play Mode Logic
           const currentTime = Date.now();
-          const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 300;
+          const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 500;
           lastClickTime.current = currentTime;
           lastClickNodeId.current = node.id;
 
@@ -638,7 +391,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     // If we force set here, it clears other selections.
 
     const currentTime = Date.now();
-    const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 300;
+    const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 500;
     
     // Mobile double tap logic
     if (isMobile && isDoubleClick && onOpenPropertyPanel) {
@@ -730,6 +483,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     [getNodes, setNodes, setSelectedNode]
   );
 
+
+
   const onSelectionContextMenu = useCallback(
     (event: React.MouseEvent) => {
       event.preventDefault();
@@ -790,6 +545,100 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     },
     [mode]
   );
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    
+    if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+    }
+
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    isLongPressTriggered.current = false;
+    
+    e.persist();
+
+    longPressTimer.current = setTimeout(() => {
+        isLongPressTriggered.current = true;
+        
+        const clientX = touch.clientX;
+        const clientY = touch.clientY;
+        const element = document.elementFromPoint(clientX, clientY);
+        const nodeElement = element?.closest('.react-flow__node');
+        
+        let targetNodeId: string | null = null;
+        if (nodeElement) {
+             targetNodeId = nodeElement.getAttribute('data-id');
+        }
+
+        const fakeEvent = {
+            preventDefault: () => {},
+            ctrlKey: false,
+            metaKey: false,
+            clientX: clientX,
+            clientY: clientY,
+        } as any;
+
+        if (targetNodeId) {
+            const node = getNodes().find(n => n.id === targetNodeId);
+            if (node) {
+                if (!node.selected) setSelectedNode(node.id);
+                onNodeContextMenu(fakeEvent, node);
+                return;
+            }
+        }
+        
+        onPaneContextMenu(fakeEvent);
+        
+    }, 500);
+  }, [getNodes, onNodeContextMenu, onPaneContextMenu, setSelectedNode]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStartPos.current.x;
+    const dy = touch.clientY - touchStartPos.current.y;
+    
+    // Tolerance 10px (100px^2)
+    if (dx*dx + dy*dy > 100) {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+    }
+    
+    if (isLongPressTriggered.current) {
+        if (e.cancelable) e.preventDefault();
+        return;
+    }
+    
+    // Manual Double Tap Check for Nodes
+    const touch = e.changedTouches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    const nodeElement = element?.closest('.react-flow__node');
+    
+    if (nodeElement) {
+        const nodeId = nodeElement.getAttribute('data-id');
+        if (nodeId) {
+             const currentTime = Date.now();
+             // Check against lastClickNodeId (shared with click handler)
+             if (nodeId === lastClickNodeId.current && (currentTime - lastClickTime.current) < 500) {
+                 if (onOpenPropertyPanel) onOpenPropertyPanel();
+             }
+             lastClickNodeId.current = nodeId;
+             lastClickTime.current = currentTime;
+        }
+    }
+  }, [onOpenPropertyPanel]);
 
 
 
@@ -1124,6 +973,10 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
   // Manual Pane Double Click - Behaves like Shift+Click (neutral, no zoom)
   const lastPaneClickTime = useRef(0);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartPos = useRef({ x: 0, y: 0 });
+  const isLongPressTriggered = useRef(false);
+
   const handlePaneClick = useCallback((event: React.MouseEvent) => {
        const target = event.target as HTMLElement;
        
@@ -1167,8 +1020,15 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
 
 
+
   return (
-    <div className="flex-1 h-full relative bg-background" ref={reactFlowWrapper}>
+    <div 
+        className="flex-1 h-full w-full relative" 
+        ref={reactFlowWrapper}
+        onTouchStartCapture={handleTouchStart}
+        onTouchMoveCapture={handleTouchMove}
+        onTouchEndCapture={handleTouchEnd}
+    >
       {isInitializing && (
         <div className="absolute inset-0 z-[2000] bg-background flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">

@@ -24,6 +24,7 @@ export const en: TranslationKeys = {
     variables: 'Variables',
     reset: 'Reset',
     confirmReset: 'Are you sure you want to reset the scenario?',
+    deleteConfirm: 'Are you sure you want to delete this?',
   },
   menu: {
     file: 'File',

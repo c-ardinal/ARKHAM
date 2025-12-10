@@ -210,6 +210,30 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
       }
   };
 
+  const MenuButton = ({ onClick, icon: Icon, label, className = "", children, ...props }: any) => (
+      <button
+          onClick={(e) => { e.stopPropagation(); onClick?.(e); }}
+          onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onClick?.(e); }}
+          className={`flex items-center gap-2 p-2 rounded w-full text-left text-sm transition-colors active:bg-accent md:hover:bg-accent ${className}`}
+          style={{ touchAction: 'manipulation' }}
+          {...props}
+      >
+          {Icon && <Icon size={16} />} {label} {children}
+      </button>
+  );
+
+  const MenuHeader = ({ onClick, expanded, label }: any) => (
+      <button 
+          onClick={(e) => { e.stopPropagation(); onClick(e); }}
+          onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onClick(e); }}
+          className="w-full flex items-center justify-between p-2 bg-muted/30 active:bg-muted/50 md:hover:bg-muted/50 font-bold text-sm transition-colors"
+          style={{ touchAction: 'manipulation' }}
+      >
+          <span className="flex items-center gap-2">{label}</span>
+          {expanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+      </button>
+  );
+
   // TabButton component helper
   interface TabButtonProps {
       id: 'nodes' | 'characters' | 'resources' | 'variables' | 'menu';
@@ -217,23 +241,33 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
       icon: React.ElementType;
   }
   
-  const TabButton = ({ id, label, icon: Icon }: TabButtonProps) => (
+  const TabButton = ({ id, label, icon: Icon }: TabButtonProps) => {
+      const handleTap = () => {
+        if (activeTab === id && isOpen) {
+            onToggle();
+        } else {
+            setActiveTab(id);
+            if (!isOpen) onToggle();
+        }
+      };
+
+      return (
       <button
-        onClick={() => {
-            if (activeTab === id && isOpen) {
-                onToggle();
-            } else {
-                setActiveTab(id);
-                if (!isOpen) onToggle();
-            }
+        onClick={handleTap}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => {
+            e.preventDefault(); 
+            e.stopPropagation();
+            handleTap();
         }}
-        className={`p-1 w-12 h-12 rounded-md transition-colors flex flex-col items-center justify-center gap-1 shrink-0 ${activeTab === id && isOpen ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-accent-foreground'}`}
-        title={label}
+        className={`p-1 w-12 h-12 rounded-md transition-colors flex flex-col items-center justify-center gap-1 shrink-0 ${activeTab === id && isOpen ? 'bg-primary text-primary-foreground' : 'text-accent-foreground active:bg-accent'}`}
+        style={{ touchAction: 'manipulation' }}
       >
         <Icon size={24} />
         <span className="text-[10px] font-medium leading-none truncate max-w-full">{label}</span>
       </button>
       );
+  };
 
     // Helper for colors
     const getNodeColor = (type: NodeType) => {
@@ -258,6 +292,7 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
         className={`flex h-full shrink-0 z-40 bg-card border-r border-border transition-all duration-300 relative`}
         style={{ width: 'auto' }}
         onClick={(e) => {
+            e.stopPropagation();
             if (e.target === e.currentTarget) {
                 setSelectedNode(null);
             }
@@ -310,75 +345,55 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                         <div className="flex flex-col gap-2 pb-10">
                             {/* File Section */}
                             <div className="border border-border rounded overflow-hidden">
-                                <button onClick={() => toggleMenu('file')} className="w-full flex items-center justify-between p-2 bg-muted/30 hover:bg-muted/50 font-bold text-sm transition-colors">
-                                    <span className="flex items-center gap-2">{t('menu.file')}</span>
-                                    {openMenu === 'file' ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
-                                </button>
+                                <MenuHeader onClick={() => toggleMenu('file')} expanded={openMenu === 'file'} label={t('menu.file')} />
                                 {openMenu === 'file' && (
                                     <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
-                                         <button onClick={menuActions.onSave} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            <Save size={16} /> {t('common.save')}
-                                         </button>
-                                         <button onClick={menuActions.onLoadClick} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            <Upload size={16} /> {t('common.load')}
-                                         </button>
+                                         <MenuButton onClick={menuActions.onSave} icon={Save} label={t('common.save')} />
+                                         <MenuButton onClick={menuActions.onLoadClick} icon={Upload} label={t('common.load')} />
                                          
                                          <div className="h-px bg-border my-1" />
                                          <div className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">{t('menu.loadSample' as any)}</div>
-                                         <button onClick={() => menuActions.onLoadSample('story')} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            <Book size={16} /> {t('menu.loadStory' as any)}
-                                         </button>
-                                         <button onClick={() => menuActions.onLoadSample('nested')} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            <Folder size={16} /> {t('menu.loadNestedGroup' as any)}
-                                         </button>
+                                         <MenuButton onClick={() => menuActions.onLoadSample('story')} icon={Book} label={t('menu.loadStory' as any)} />
+                                         <MenuButton onClick={() => menuActions.onLoadSample('nested')} icon={Folder} label={t('menu.loadNestedGroup' as any)} />
                                          
                                          <div className="h-px bg-border my-1" />
                                          <div className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">{t('menu.export')}</div>
-                                         <button onClick={() => menuActions.onExport('text')} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            <Download size={16} /> {t('menu.exportSimple' as any)}
-                                         </button>
-                                         <button onClick={() => menuActions.onExport('markdown')} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            <Download size={16} /> {t('menu.exportMarkdown' as any)}
-                                         </button>
+                                         <MenuButton onClick={() => menuActions.onExport('text')} icon={Download} label={t('menu.exportSimple' as any)} />
+                                         <MenuButton onClick={() => menuActions.onExport('markdown')} icon={Download} label={t('menu.exportMarkdown' as any)} />
                                          <div className="h-px bg-border my-1" />
-                                         <button onClick={() => { 
+                                         <MenuButton onClick={() => { 
                                              if(window.confirm('すべてのノード、キャラクター、リソース、変数、ゲーム状態、履歴を削除して初期状態に戻します。設定は保持されます。よろしいですか？')) { 
                                                  useScenarioStore.getState().resetToInitialState(); 
                                              } 
-                                         }} className="flex items-center gap-2 p-2 rounded hover:bg-destructive/10 text-destructive w-full text-left text-sm">
-                                            <Trash2 size={16} /> 消去
-                                         </button>
+                                         }} icon={Trash2} label="消去" className="hover:bg-destructive/10 text-destructive active:bg-destructive/10" />
                                     </div>
                                 )}
                             </div>
 
                             {/* Edit Section */}
                             <div className="border border-border rounded overflow-hidden">
-                                <button onClick={() => toggleMenu('edit')} className="w-full flex items-center justify-between p-2 bg-muted/30 hover:bg-muted/50 font-bold text-sm transition-colors">
-                                    <span className="flex items-center gap-2">{t('menu.edit')}</span>
-                                    {openMenu === 'edit' ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
-                                </button>
+                                <MenuHeader onClick={() => toggleMenu('edit')} expanded={openMenu === 'edit'} label={t('menu.edit')} />
                                 {openMenu === 'edit' && (
                                     <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
                                         <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{t('menu.stickyNotes')}</div>
-                                        <button onClick={menuActions.onShowAllStickies} className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"><Eye size={16}/> {t('menu.showAllStickies')}</button>
-                                        <button onClick={menuActions.onHideAllStickies} className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"><EyeOff size={16}/> {t('menu.hideAllStickies')}</button>
-                                        <button onClick={() => { if(window.confirm(t('menu.deleteAllStickies') + '?')) { useScenarioStore.getState().deleteAllFreeStickies(); useScenarioStore.getState().deleteAllNodeStickies(); } }} className="w-full text-left p-2 hover:bg-destructive/10 text-destructive rounded flex items-center gap-2 text-sm"><Trash2 size={16}/> {t('menu.deleteAllStickies')}</button>
+                                        <MenuButton onClick={menuActions.onShowAllStickies} icon={Eye} label={t('menu.showAllStickies')} />
+                                        <MenuButton onClick={menuActions.onHideAllStickies} icon={EyeOff} label={t('menu.hideAllStickies')} />
+                                        <MenuButton onClick={() => { if(window.confirm(t('menu.deleteAllStickies') + '?')) { useScenarioStore.getState().deleteAllFreeStickies(); useScenarioStore.getState().deleteAllNodeStickies(); } }} icon={Trash2} label={t('menu.deleteAllStickies')} className="hover:bg-destructive/10 text-destructive active:bg-destructive/10" />
                                         
                                         <div className="h-px bg-border my-1" />
-                                        <button onClick={() => useScenarioStore.getState().showAllFreeStickies()} className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"><Eye size={16}/> {t('menu.showFreeStickies' as any)}</button>
-                                        <button onClick={() => useScenarioStore.getState().hideAllFreeStickies()} className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"><EyeOff size={16}/> {t('menu.hideFreeStickies' as any)}</button>
-                                        <button onClick={() => { if(window.confirm(t('menu.confirmDeleteFreeStickies' as any))) useScenarioStore.getState().deleteAllFreeStickies(); }} className="w-full text-left p-2 hover:bg-destructive/10 text-destructive rounded flex items-center gap-2 text-sm"><Trash2 size={16}/> {t('menu.deleteFreeStickies' as any)}</button>
+                                        <MenuButton onClick={() => useScenarioStore.getState().showAllFreeStickies()} icon={Eye} label={t('menu.showFreeStickies' as any)} />
+                                        <MenuButton onClick={() => useScenarioStore.getState().hideAllFreeStickies()} icon={EyeOff} label={t('menu.hideFreeStickies' as any)} />
+                                        <MenuButton onClick={() => { if(window.confirm(t('menu.confirmDeleteFreeStickies' as any))) useScenarioStore.getState().deleteAllFreeStickies(); }} icon={Trash2} label={t('menu.deleteFreeStickies' as any)} className="hover:bg-destructive/10 text-destructive active:bg-destructive/10" />
                                         
                                         <div className="h-px bg-border my-1" />
-                                        <button onClick={() => useScenarioStore.getState().showAllNodeStickies()} className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"><Eye size={16}/> {t('menu.showNodeStickies' as any)}</button>
-                                        <button onClick={() => useScenarioStore.getState().hideAllNodeStickies()} className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"><EyeOff size={16}/> {t('menu.hideNodeStickies' as any)}</button>
-                                        <button onClick={() => { if(window.confirm(t('menu.confirmDeleteNodeStickies' as any))) useScenarioStore.getState().deleteAllNodeStickies(); }} className="w-full text-left p-2 hover:bg-destructive/10 text-destructive rounded flex items-center gap-2 text-sm"><Trash2 size={16}/> {t('menu.deleteNodeStickies' as any)}</button>
+                                        <MenuButton onClick={() => useScenarioStore.getState().showAllNodeStickies()} icon={Eye} label={t('menu.showNodeStickies' as any)} />
+                                        <MenuButton onClick={() => useScenarioStore.getState().hideAllNodeStickies()} icon={EyeOff} label={t('menu.hideNodeStickies' as any)} />
+                                        <MenuButton onClick={() => { if(window.confirm(t('menu.confirmDeleteNodeStickies' as any))) useScenarioStore.getState().deleteAllNodeStickies(); }} icon={Trash2} label={t('menu.deleteNodeStickies' as any)} className="hover:bg-destructive/10 text-destructive active:bg-destructive/10" />
                                         
                                         <div className="h-px bg-border my-1" />
                                         <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{t('menu.bulkRevealOperations' as any)}</div>
-                                        <button onClick={menuActions.onRevealAll} className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"><Sun size={16}/> {t('common.revealAll')}</button>
-                                        <button onClick={menuActions.onUnrevealAll} className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"><Moon size={16}/> {t('common.unrevealAll')}</button>
+                                        <MenuButton onClick={menuActions.onRevealAll} icon={Sun} label={t('common.revealAll')} />
+                                        <MenuButton onClick={menuActions.onUnrevealAll} icon={Moon} label={t('common.unrevealAll')} />
                                     </div>
                                 )}
                             </div>
@@ -386,24 +401,32 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                             {/* View Section */}
                             {canvasRef && currentZoom !== undefined && setCurrentZoom && (
                                 <div className="border border-border rounded overflow-hidden">
-                                    <button onClick={() => toggleMenu('view')} className="w-full flex items-center justify-between p-2 bg-muted/30 hover:bg-muted/50 font-bold text-sm transition-colors">
-                                        <span className="flex items-center gap-2">{t('menu.view')}</span>
-                                        {openMenu === 'view' ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
-                                    </button>
+                                    <MenuHeader onClick={() => toggleMenu('view')} expanded={openMenu === 'view'} label={t('menu.view')} />
                                     {openMenu === 'view' && (
                                         <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
                                             <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{t('menu.zoomLevel')}</div>
                                             <div className="flex items-center gap-2 p-2">
                                                 <button 
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         canvasRef.current?.zoomOut();
                                                         setTimeout(() => {
                                                             const zoom = canvasRef.current?.getZoom();
                                                             if (zoom) setCurrentZoom(Math.round(zoom * 100));
                                                         }, 50);
                                                     }}
-                                                    className="p-1.5 hover:bg-accent rounded flex items-center justify-center"
-                                                    title={t('menu.zoomOut')}
+                                                    onTouchEnd={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        canvasRef.current?.zoomOut();
+                                                        setTimeout(() => {
+                                                            const zoom = canvasRef.current?.getZoom();
+                                                            if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                                                        }, 50);
+                                                    }}
+                                                    className="p-1.5 md:hover:bg-accent active:bg-accent rounded flex items-center justify-center"
+                                                    style={{ touchAction: 'manipulation' }}
+                                                    // title={t('menu.zoomOut')} // Tooltip removed for mobile
                                                 >
                                                     <Minus size={16}/>
                                                 </button>
@@ -427,29 +450,51 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                                     max="200"
                                                 />
                                                 <button 
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         canvasRef.current?.zoomIn();
                                                         setTimeout(() => {
                                                             const zoom = canvasRef.current?.getZoom();
                                                             if (zoom) setCurrentZoom(Math.round(zoom * 100));
                                                         }, 50);
                                                     }}
-                                                    className="p-1.5 hover:bg-accent rounded flex items-center justify-center"
-                                                    title={t('menu.zoomIn')}
+                                                    onTouchEnd={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        canvasRef.current?.zoomIn();
+                                                        setTimeout(() => {
+                                                            const zoom = canvasRef.current?.getZoom();
+                                                            if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                                                        }, 50);
+                                                    }}
+                                                    className="p-1.5 md:hover:bg-accent active:bg-accent rounded flex items-center justify-center"
+                                                    style={{ touchAction: 'manipulation' }}
+                                                    // title={t('menu.zoomIn')} // Tooltip removed for mobile
                                                 >
                                                     <Plus size={16}/>
                                                 </button>
                                             </div>
                                             <div className="h-px bg-border my-1" />
                                             <button 
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     canvasRef.current?.fitView();
                                                     setTimeout(() => {
                                                         const zoom = canvasRef.current?.getZoom();
                                                         if (zoom) setCurrentZoom(Math.round(zoom * 100));
                                                     }, 350);
                                                 }}
-                                                className="w-full text-left p-2 hover:bg-accent rounded flex items-center gap-2 text-sm"
+                                                onTouchEnd={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    canvasRef.current?.fitView();
+                                                    setTimeout(() => {
+                                                        const zoom = canvasRef.current?.getZoom();
+                                                        if (zoom) setCurrentZoom(Math.round(zoom * 100));
+                                                    }, 350);
+                                                }}
+                                                className="w-full text-left p-2 md:hover:bg-accent active:bg-accent rounded flex items-center gap-2 text-sm"
+                                                style={{ touchAction: 'manipulation' }}
                                             >
                                                 <Maximize size={16}/> {t('menu.fitView')}
                                             </button>
@@ -460,18 +505,11 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
 
                             {/* Settings Section */}
                             <div className="border border-border rounded overflow-hidden">
-                                <button onClick={() => toggleMenu('setting')} className="w-full flex items-center justify-between p-2 bg-muted/30 hover:bg-muted/50 font-bold text-sm transition-colors">
-                                    <span className="flex items-center gap-2">{t('menu.setting')}</span>
-                                    {openMenu === 'setting' ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
-                                </button>
+                                <MenuHeader onClick={() => toggleMenu('setting')} expanded={openMenu === 'setting'} label={t('menu.setting')} />
                                 {openMenu === 'setting' && (
                                     <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
-                                         <button onClick={menuActions.onToggleTheme} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            {theme === 'dark' ? <Sun size={16}/> : <Moon size={16}/>} {theme === 'dark' ? t('menu.switchToLight' as any) : t('menu.switchToDark' as any)}
-                                         </button>
-                                         <button onClick={menuActions.onToggleLang} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            <Flag size={16} /> {language === 'en' ? t('menu.switchToJa' as any) : t('menu.switchToEn' as any)}
-                                         </button>
+                                         <MenuButton onClick={menuActions.onToggleTheme} icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? t('menu.switchToLight' as any) : t('menu.switchToDark' as any)} />
+                                         <MenuButton onClick={menuActions.onToggleLang} icon={Flag} label={language === 'en' ? t('menu.switchToJa' as any) : t('menu.switchToEn' as any)} />
                                          
                                          <div className="mt-1 flex flex-col gap-1">
                                             <div className="text-xs text-muted-foreground mb-1">{t('menu.changeEdgeStyle')}</div>
@@ -479,8 +517,10 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                                 {['default', 'straight', 'step', 'smoothstep'].map((type) => (
                                                     <button 
                                                         key={type}
-                                                        onClick={() => setEdgeType(type)}
-                                                        className={`flex items-center gap-2 p-2 rounded w-full justify-start text-sm transition-colors ${edgeType === type ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+                                                        onClick={(e) => { e.stopPropagation(); setEdgeType(type as any); }}
+                                                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setEdgeType(type as any); }}
+                                                        className={`flex items-center gap-2 p-2 rounded w-full justify-start text-sm transition-colors ${edgeType === type ? 'bg-primary text-primary-foreground' : 'md:hover:bg-accent active:bg-accent'}`}
+                                                        style={{ touchAction: 'manipulation' }}
                                                     >
                                                         {type === 'default' && <Activity size={16} />}
                                                         {type === 'straight' && <Minus size={16} />}
@@ -498,18 +538,11 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
 
                             {/* Help Section */}
                             <div className="border border-border rounded overflow-hidden">
-                                <button onClick={() => toggleMenu('help')} className="w-full flex items-center justify-between p-2 bg-muted/30 hover:bg-muted/50 font-bold text-sm transition-colors">
-                                    <span className="flex items-center gap-2">{t('menu.help')}</span>
-                                    {openMenu === 'help' ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
-                                </button>
+                                <MenuHeader onClick={() => toggleMenu('help')} expanded={openMenu === 'help'} label={t('menu.help')} />
                                 {openMenu === 'help' && (
                                     <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
-                                        <button onClick={menuActions.onOpenManual} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            <Book size={16} /> {t('common.manual')}
-                                        </button>
-                                        <button onClick={menuActions.onOpenAbout} className="flex items-center gap-2 p-2 rounded hover:bg-accent w-full text-left text-sm">
-                                            <Info size={16} /> {t('menu.about')}
-                                        </button>
+                                        <MenuButton onClick={menuActions.onOpenManual} icon={Book} label={t('common.manual')} />
+                                        <MenuButton onClick={menuActions.onOpenAbout} icon={Info} label={t('menu.about')} />
                                     </div>
                                 )}
                             </div>
@@ -581,12 +614,12 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                     {['event', 'element', 'branch', 'variable', 'group', 'jump', 'memo'].map(type => (
                                         <div 
                                             key={type}
-                                            className="p-2 border rounded cursor-move hover:bg-accent flex flex-col items-center gap-2 text-center text-xs touch-none select-none"
-                                            style={{ WebkitTapHighlightColor: 'transparent' }}
-                                            onDragStart={(event) => onDragStart(event, type as NodeType)}
                                             draggable={!isMobile}
+                                            onDragStart={(e) => onDragStart(e, type as NodeType)}
                                             onClick={() => handleAddNode(type as NodeType)}
                                             {...getTouchProps(type as NodeType)}
+                                            style={isMobile ? { touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' } : undefined}
+                                            className={`flex flex-col items-center justify-center gap-1 p-2 rounded cursor-grab active:cursor-grabbing border text-xs text-center h-20 transition-colors hover:bg-accent touch-none select-none`}
                                         >
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 shadow-sm border-2 border-muted-foreground/20 ${getNodeColor(type as NodeType)}`}>
                                                 {type === 'event' && <Flag size={20} />}
