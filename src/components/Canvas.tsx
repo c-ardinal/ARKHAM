@@ -41,8 +41,11 @@ const nodeTypes = {
   resource: ResourceNode,
 };
 
+import StickyEdge from '../edges/StickyEdge';
 
-
+const edgeTypes = {
+  sticky: StickyEdge,
+};
 
 
 const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }, { 
@@ -1056,6 +1059,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         onConnect={onConnect}
         onReconnect={onReconnect}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onDragOver={onDragOver}
         onDrop={onDrop}
         onNodeDragStart={onNodeDragStart}

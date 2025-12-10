@@ -107,7 +107,7 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           id="sticky-origin" 
           position={Position.Right} 
           className="!w-1 !h-1 !bg-transparent !border-none !min-w-0 !min-h-0" 
-          style={{ top: -6, right: -6, position: 'absolute' }}  
+          style={{ top: -7, right: -7, position: 'absolute' }}   
           isConnectable={false} 
       />
     </div>

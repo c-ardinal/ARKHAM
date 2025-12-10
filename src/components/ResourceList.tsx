@@ -232,7 +232,14 @@ const ResourceListItem = React.memo(({
 
 export const ResourceList = React.memo(({ onMobileDragStart, onEdit }: ResourceListProps) => {
   const { t } = useTranslation();
-  const { resources, addResource, deleteResource, setSelectedNode, selectedNodeId, mode } = useScenarioStore();
+  // Optimize selectors
+  const resources = useScenarioStore((state) => state.resources);
+  const addResource = useScenarioStore((state) => state.addResource);
+  const deleteResource = useScenarioStore((state) => state.deleteResource);
+  const setSelectedNode = useScenarioStore((state) => state.setSelectedNode);
+  const selectedNodeId = useScenarioStore((state) => state.selectedNodeId);
+  const mode = useScenarioStore((state) => state.mode);
+
   const [swipedId, setSwipedId] = useState<string | null>(null);
 
   useEffect(() => {

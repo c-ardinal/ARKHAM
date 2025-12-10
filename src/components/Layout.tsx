@@ -6,9 +6,10 @@ import { Canvas } from './Canvas';
 import { ManualModal } from './ManualModal';
 import { AboutModal } from './AboutModal';
 import { ValidationErrorModal } from './ValidationErrorModal';
+import { UpdateHistoryModal } from './UpdateHistoryModal';
 import { useScenarioStore } from '../store/scenarioStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
-import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Save, Upload, Book, Folder, Download, StickyNote, Eye, EyeOff, Trash2, Sun, Moon, Languages, Activity, Minus, Info, Spline, CornerDownRight, Route, Plus, Maximize, FileText, Settings, HelpCircle } from 'lucide-react';
+import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Save, Upload, Book, Folder, Download, StickyNote, Eye, EyeOff, Trash2, Sun, Moon, Languages, Activity, Minus, Info, Spline, CornerDownRight, Route, Plus, Maximize, FileText, Settings, HelpCircle, History } from 'lucide-react';
 
 import { useTranslation } from '../hooks/useTranslation';
 import { generateScenarioText } from '../utils/exportUtils';
@@ -221,6 +222,7 @@ export const Layout = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
@@ -459,6 +461,7 @@ const menuActions = {
     onToggleLang: () => setLanguage(language === 'en' ? 'ja' : 'en'),
     onOpenManual: () => setIsManualOpen(true),
     onOpenAbout: () => setIsAboutOpen(true),
+    onOpenHistory: () => setIsHistoryOpen(true),
     onShowAllStickies: () => useScenarioStore.getState().showAllStickies(),
     onHideAllStickies: () => useScenarioStore.getState().hideAllStickies(),
     onDeleteAllStickies: () => useScenarioStore.getState().deleteAllStickiesGlobal(),
@@ -625,6 +628,7 @@ const menuActions = {
 
                 <MenuDropdown label={t('menu.help')} isOpen={openMenuId === 'help'} onToggle={() => setOpenMenuId(openMenuId === 'help' ? null : 'help')} onClose={closeMenu} icon={HelpCircle}>
                     <MenuItem onClick={menuActions.onOpenManual} label={t('common.manual')} icon={Book} />
+                    <MenuItem onClick={menuActions.onOpenHistory} label={t('menu.updateHistory')} icon={History} />
                     <MenuItem onClick={menuActions.onOpenAbout} label={t('menu.about')} icon={Info} />
                 </MenuDropdown>
             </div>
@@ -734,6 +738,7 @@ const menuActions = {
             onClose={() => setConfirmModal(null)}
         />
       )}
+      <UpdateHistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
       <ManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
       <ValidationErrorModal

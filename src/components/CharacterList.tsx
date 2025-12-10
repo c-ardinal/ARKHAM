@@ -241,7 +241,14 @@ const CharacterListItem = React.memo(({
 
 export const CharacterList = React.memo(({ onMobileDragStart, onEdit }: CharacterListProps) => {
   const { t } = useTranslation();
-  const { characters, addCharacter, deleteCharacter, setSelectedNode, selectedNodeId, mode } = useScenarioStore();
+  // Optimize selectors to prevent re-render on unrelated state changes (e.g. node movement)
+  const characters = useScenarioStore((state) => state.characters);
+  const addCharacter = useScenarioStore((state) => state.addCharacter);
+  const deleteCharacter = useScenarioStore((state) => state.deleteCharacter);
+  const setSelectedNode = useScenarioStore((state) => state.setSelectedNode);
+  const selectedNodeId = useScenarioStore((state) => state.selectedNodeId);
+  const mode = useScenarioStore((state) => state.mode);
+  
   const [swipedId, setSwipedId] = useState<string | null>(null);
 
   // Global click/touch listener to close swipe

@@ -32,6 +32,7 @@ export const ja: TranslationKeys = {
     view: '表示',
     setting: '設定',
     help: 'ヘルプ',
+    updateHistory: '更新履歴',
     zoomIn: '拡大',
     zoomOut: '縮小',
     fitView: '全ノードが収まるようにフィット',

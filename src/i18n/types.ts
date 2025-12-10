@@ -30,6 +30,7 @@ export type TranslationKeys = {
     view: string;
     setting: string;
     help: string;
+    updateHistory: string;
     zoomIn: string;
     zoomOut: string;
     fitView: string;

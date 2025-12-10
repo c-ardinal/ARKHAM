@@ -248,7 +248,11 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   edgeType: initialStoredState?.edgeType || 'default',
   setEdgeType: (type) => {
       const { edges } = get();
-      const updatedEdges = edges.map(edge => ({ ...edge, type }));
+      // Exclude sticky note edges from the update
+      const updatedEdges = edges.map(edge => {
+          if (edge.targetHandle === 'sticky-target') return edge;
+          return { ...edge, type };
+      });
       set({ edgeType: type, edges: updatedEdges });
   },
   
@@ -602,6 +606,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           },
           draggable: true, // Always draggable
           width: 180,
+          zIndex: 2001, // Ensure sticky is above the edge (2000)
       };
       
       let newEdges = state.edges;
@@ -613,7 +618,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               sourceHandle: 'sticky-origin',
               target: id,
               targetHandle: 'sticky-target',
-              type: 'straight',
+              type: 'sticky',
+              zIndex: 2000, // Ensure line is above other nodes
               style: { stroke: 'rgba(217, 119, 6, 0.5)', strokeWidth: 2 }, // Amber-600/50
               markerEnd: { type: MarkerType.ArrowClosed, width: 0, height: 0, color: 'transparent' }, // Hide arrow
               animated: false,

@@ -42,7 +42,15 @@ interface SidebarProps {
 }
 
 export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({ width: _width, isOpen, onToggle, isMobile = false, menuActions, onOpenPropertyPanel, canvasRef, currentZoom, setCurrentZoom }, ref) => {
-  const { setSelectedNode, setEdgeType, edgeType, theme, language, characters, resources, mode, gameState } = useScenarioStore();
+  const setSelectedNode = useScenarioStore(s => s.setSelectedNode);
+  const setEdgeType = useScenarioStore(s => s.setEdgeType);
+  const edgeType = useScenarioStore(s => s.edgeType);
+  const theme = useScenarioStore(s => s.theme);
+  const language = useScenarioStore(s => s.language);
+  const characters = useScenarioStore(s => s.characters);
+  const resources = useScenarioStore(s => s.resources);
+  const mode = useScenarioStore(s => s.mode);
+  const gameState = useScenarioStore(s => s.gameState);
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -311,16 +319,12 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
 
       {/* Panel Content (Visible only when open) */}
       <div 
-        className={`flex flex-col h-full bg-card overflow-hidden transition-all duration-300 ${isOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'}`}
+        className={`flex flex-col h-full bg-card overflow-hidden transition-all duration-300 ${isOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'} ${isMobile ? 'absolute z-[60] h-full top-0 left-16 shadow-xl border-l' : ''}`}
         style={{ 
-            position: 'relative',
-            left: 'auto', 
-            zIndex: 'auto',
-            top: 'auto',
-            bottom: 'auto',
+            position: isMobile ? 'absolute' : 'relative',
+            zIndex: isMobile ? 60 : 'auto',
             height: '100%',
-            // Remove shadow on mobile to match PC flat look as requested, or keep minimal
-            boxShadow: 'none' 
+            boxShadow: isMobile ? '4px 0 15px rgba(0,0,0,0.1)' : 'none' 
         }}
       >
         {(isOpen || dragType) && (
