@@ -35,16 +35,19 @@
       }
     },
     "node_colors_hardcoded": {
-      "event": "orange-100 / orange-900 (テキスト: orange-700/100)",
-      "element": "blue-100 / blue-900 (テキスト: blue-700/100)",
-      "branch": "purple-100 / purple-900 (テキスト: purple-700/100)",
-      "variable": "red-100 / red-900 (テキスト: red-700/100)",
-      "group": "slate-200 / slate-700 (テキスト: slate-700/200)",
-      "jump": "yellow-100 / yellow-900 (テキスト: yellow-700/100)",
-      "memo": "white / gray-800 (テキスト: gray-700/200)",
-      "character": "yellow-100 / yellow-900 (テキスト: yellow-700/100)",
-      "resource": "green-100 / green-900 (テキスト: green-700/100)",
-      "default": "gray-100 / gray-800"
+      "description": "各ノードタイプは特有のカラーテーマを持つ (Border/Background/Text)。Light/Darkモードでクラスが異なる。",
+      "values": {
+        "event": "orange-200/50/900 (Dark: orange-800/900-20/100)",
+        "element": "blue-200/50/900 (Dark: blue-800/900-40/100)",
+        "branch": "purple-200/50/900 (Dark: purple-800/900-40/100)",
+        "variable": "red-200/50/900 (Dark: red-800/900-40/100)",
+        "group": "slate-200/50/700 (Dark: slate-700/800-50/200)",
+        "jump": "yellow-200/50/900 (Dark: yellow-800/900-40/100)",
+        "memo": "gray-200/white/gray-800 (Dark: gray-700/800/200)",
+        "character": "yellow-200/50/900 (Dark: yellow-800/900-20/100)",
+        "resource": "green-200/50/900 (Dark: green-800/900-20/100)",
+        "default": "gray-100/800"
+      }
     },
     "z_indices": {
       "mobile_drag_ghost": 2500,
@@ -59,6 +62,12 @@
       "sidebar": 40,
       "canvas_nodes": 0,
       "canvas_group_nodes": -1
+    },
+    "edge_styles": {
+      "sticky_edge": {
+        "description": "付箋と親ノードを結ぶ直線。",
+        "logic": "ターゲットノードのアイコンと重ならないよう、始点をベクトル方向に15pxオフセットする。"
+      }
     },
     "visual_indicators": {
       "node_status": [
@@ -89,6 +98,12 @@
     }
   },
   "logic": {
+    "persistence": {
+      "storage_key": "trpg-scenario-manager-storage",
+      "mechanism": "Zustand middlewareによるLocalStorageへの自動保存。",
+      "saved_state": ["nodes", "edges", "gameState", "mode", "characters", "resources", "theme", "language", "edgeType"],
+      "reset_behavior": "全データをクリアし、「注意事項」メモノードのみを含む初期状態を生成する。"
+    },
     "game_state_calculation": {
       "resource_mapping": {
         "logic": "すべての要素(Element)/情報(Information)ノードをスキャン。リソースを参照している場合、タイプを状態カテゴリにマッピング。",
@@ -103,7 +118,8 @@
       },
       "variable_evaluation": {
         "mechanism": "再帰的な正規表現による置換 (${var}) -> 数式チェック -> new Function() の実行 (比較的安全な方法)",
-        "limits": "最大再帰深度 10, 最大文字列長 100,000"
+        "limits": "最大再帰深度 10, 最大文字列長 100,000",
+        "warning": "Variableノードで数値以外の値が入力された場合、警告を表示する。"
       },
       "variable_nodes": {
         "reveal_behavior": "現在の変数値を 'previousValue' に保存し、新しい値の式を評価して変数を更新。",
@@ -113,7 +129,8 @@
     "grouping_logic": {
       "creation": {
         "padding": "選択されたノードのバウンディングボックスの周囲20px",
-        "restriction": "付箋ノードはグループ化から除外"
+        "restriction": "付箋ノードはグループ化から除外",
+        "defaults": { "minWidth": 150, "minHeight": 50, "padding": 40 }
       },
       "drag_drop": {
         "detection": "すべてのグループとの交差面積を計算。",
@@ -122,7 +139,8 @@
       },
       "overlap_resolution": {
         "algorithm": "反復プッシュ (最大500回)。",
-        "direction": "重なりの中心ベクトルに基づいて下(+Y)または右(+X)を優先。",
+        "target": "兄弟グループ (Sibling Groups) のみ。",
+        "direction": "重なりの中心ベクトルに基づいて下(+Y)または右(+X)を優先 (overlapY < overlapX ならYシフト)。",
         "cascade": "プッシュされるノードと共に子孫ノードと付箋も移動。"
       },
       "collapse_expand": {
@@ -135,30 +153,71 @@
     "event": {
       "label": "イベント (Event)",
       "description": "シナリオの基本単位となるノード。",
+      "visual_structure": {
+        "icon": "Flag (Lucide)",
+        "theme": "Orange",
+        "indicators": [
+          { "type": "Start Node", "icon": "★ (Yellow)", "position": "Label Left" },
+          { "type": "Revealed", "icon": "✓ (Green Circle)", "position": "Top Left (-2px)" },
+          { "type": "Has Sticky", "icon": "StickyNote (Yellow Rotated)", "position": "Top Right (-5px)" }
+        ],
+        "handles": [
+          { "type": "Target", "position": "Top", "condition": "!isStart" },
+          { "type": "Source", "position": "Bottom" },
+          { "type": "StickySource", "position": "Right (-7px)", "visible": false }
+        ]
+      },
       "properties": [
-        { "key": "label", "type": "string", "description": "タイトル" },
-        { "key": "description", "type": "string", "description": "詳細テキスト" },
+        { "key": "label", "type": "string", "description": "タイトル (変数展開対応)" },
+        { "key": "description", "type": "string", "description": "詳細テキスト (変数展開対応)" },
         { "key": "isStart", "type": "boolean", "description": "開始ノードフラグ" }
       ]
     },
     "element": {
       "label": "要素 (Element / Information)",
       "description": "アイテムや知識の獲得・消費を扱うノード。",
+      "visual_structure": {
+        "icon": "Dynamic (Based on Resource Type)",
+        "theme": "Blue",
+        "width": "min 150px, max 60ch",
+        "indicators": [
+          { "type": "Action Type", "visual": "Bottom Box (Green for Obtain, Red for Consume)", "content": "Value x Quantity" }
+        ],
+        "handles": [
+          { "type": "Target", "position": "Top" },
+          { "type": "Source", "position": "Bottom" },
+          { "type": "StickySource", "position": "Right (-7px)", "visible": false }
+        ]
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "タイトル" },
-        { "key": "infoType", "type": "enum", "options": ["knowledge", "item", "skill", "stat", "equipment"], "description": "リソースタイプ" },
-        { "key": "infoValue", "type": "string", "description": "リソース名 (値)" },
-        { "key": "quantity", "type": "number", "description": "数量" },
-        { "key": "actionType", "type": "enum", "options": ["obtain", "consume"], "description": "アクション (獲得/消費)" }
+        { "key": "actionType", "type": "enum", "options": ["obtain", "consume"], "description": "アクション (獲得/消費)" },
+        { "key": "referenceId", "type": "string", "description": "リソースID (未選択時エラー)" },
+        { "key": "infoValue", "type": "string", "description": "リソース名 (自動更新)" },
+        { "key": "quantity", "type": "number", "description": "数量 (Default: 1)" }
       ]
     },
     "branch": {
       "label": "分岐 (Branch)",
       "description": "条件によってストーリーを分岐させるノード。",
+      "visual_structure": {
+        "icon": "GitBranch (Lucide)",
+        "theme": "Purple",
+        "indicators": [
+          { "type": "Condition Display", "visual": "Bottom Box (Mono Font)", "content": "BranchType (Condition)" }
+        ],
+        "handles": [
+          { "type": "Target", "position": "Top" },
+          { "type": "Source (If/Else True)", "position": "Bottom Left", "color": "Green", "condition": "branchType == if_else" },
+          { "type": "Source (If/Else False)", "position": "Bottom Right", "color": "Red", "condition": "branchType == if_else" },
+          { "type": "Source (Switch)", "position": "Right (Centered per row)", "condition": "branchType == switch" },
+          { "type": "StickySource", "position": "Right (-6px)", "visible": false }
+        ]
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "タイトル" },
         { "key": "branchType", "type": "enum", "options": ["if_else", "switch"], "description": "分岐タイプ" },
-        { "key": "branches", "type": "array", "description": "分岐先リスト (Switch用)" },
+        { "key": "branches", "type": "array", "description": "分岐先リスト (Switch用)", "item_format": "{ id, label }" },
         { "key": "conditionVariable", "type": "string", "description": "条件変数" },
         { "key": "conditionValue", "type": "string", "description": "比較値" }
       ]
@@ -166,34 +225,64 @@
     "variable": {
       "label": "変数操作 (Variable)",
       "description": "変数の値を更新するノード。",
+      "visual_structure": {
+        "icon": "Calculator (Lucide)",
+        "theme": "Red",
+        "handles": [
+          { "type": "Target", "position": "Top" },
+          { "type": "Source", "position": "Bottom" },
+          { "type": "StickySource", "position": "Right", "visible": false }
+        ]
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "タイトル" },
-        { "key": "targetVariable", "type": "string", "description": "対象変数" },
-        { "key": "variableValue", "type": "string", "description": "代入・計算式" },
+        { "key": "targetVariable", "type": "string", "description": "対象変数 (未選択時エラー)" },
+        { "key": "variableValue", "type": "string", "description": "代入・計算式 (Boolean時はSelect, Number時はバリデーションあり)" },
         { "key": "previousValue", "type": "any", "description": "一時保存値 (内部用)" }
       ]
     },
     "group": {
       "label": "グループ (Group)",
       "description": "複数のノードをまとめるコンテナ。",
+      "visual_structure": {
+        "theme": "Slate",
+        "handles": [
+          { "type": "Target", "position": "Top", "condition": "collapsed" },
+          { "type": "Source", "position": "Bottom", "condition": "collapsed" },
+          { "type": "StickySource", "position": "Right", "visible": false }
+        ]
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "グループ名" },
         { "key": "expanded", "type": "boolean", "description": "展開/折りたたみ状態" },
-        { "key": "contentWidth", "type": "number", "description": "コンテンツ幅" },
-        { "key": "contentHeight", "type": "number", "description": "コンテンツ高さ" }
+        { "key": "contentWidth", "type": "number", "description": "内部コンテンツ幅 (自動計算)" },
+        { "key": "contentHeight", "type": "number", "description": "内部コンテンツ高さ (自動計算)" }
       ]
     },
     "jump": {
       "label": "ジャンプ (Jump)",
       "description": "別のノードへ接続線なしで移動するノード。",
+      "visual_structure": {
+        "icon": "ArrowRightCircle (Lucide)",
+        "theme": "Yellow",
+        "handles": [
+          { "type": "Target", "position": "Top" }
+        ]
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "タイトル" },
-        { "key": "jumpTarget", "type": "string", "description": "移動先ノードID" }
+        { "key": "jumpTarget", "type": "string", "description": "移動先ノードID (自分自身・付箋・参照系は除外)" }
       ]
     },
     "memo": {
       "label": "メモ (Memo / Note)",
       "description": "シナリオに影響しないメモ書き。",
+      "visual_structure": {
+        "theme": "Gray/White",
+        "handles": [
+          { "type": "StickySource", "position": "Right", "visible": false }
+        ]
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "タイトル" },
         { "key": "description", "type": "string", "description": "メモ内容" }
@@ -202,6 +291,13 @@
     "sticky": {
       "label": "付箋 (Sticky)",
       "description": "キャンバスやノードに自由に貼れる付箋。",
+      "visual_structure": {
+        "theme": "Yellow (Post-it style)",
+        "rotation": "Random (-2 to 2 deg) or fixed",
+        "handles": [
+          { "type": "Target", "position": "Center", "condition": "Is Free Sticky (Not attached)" } 
+        ]
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "テキスト内容" },
         { "key": "targetNodeId", "type": "string", "description": "添付先ノードID (あれば)" }
@@ -210,6 +306,13 @@
     "character": {
       "label": "キャラクター (Character)",
       "description": "キャラクター定義への参照を持つノード。",
+      "visual_structure": {
+        "icon": "User (Lucide)",
+        "theme": "Yellow",
+        "handles": [
+          { "type": "StickySource", "position": "Right", "visible": false }
+        ]
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "表示名" },
         { "key": "referenceId", "type": "string", "description": "キャラクターデータID" }
@@ -218,13 +321,59 @@
     "resource": {
       "label": "リソース (Resource)",
       "description": "リソース定義への参照を持つノード。",
+      "visual_structure": {
+        "icon": "Box (Lucide)",
+        "theme": "Green",
+        "handles": [
+          { "type": "StickySource", "position": "Right", "visible": false }
+        ]
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "表示名" },
         { "key": "referenceId", "type": "string", "description": "リソースデータID" }
       ]
     }
   },
+  "implementation_report_inconsistencies": {
+    "update_history_modal": {
+      "issue": "モバイルサイドバーのHelpメニュー内にUpdate Historyへのリンクが存在しない（または機能していない）可能性がある。",
+      "status": "Verified",
+      "action_required": "Mobile Sidebarコンポーネントの確認と修正が必要。"
+    },
+    "variable_nodes": {
+      "issue": "変数ノード作成後、UI上で「変数タイプ」を変更する手段が実装されていない（コード上は不変として扱われている）。",
+      "status": "Verified",
+      "action_required": "仕様として「作成後のタイプ変更不可」を明記するか、リファクタリングで変更機能を実装する。"
+    },
+    "shortcuts": {
+      "issue": "ショートカットキーの実装が標準的な挙動と異なる、または不足している。",
+      "details": [
+        "Ctrl+C がクリップボードコピーではなく「その場で複製 (Duplicate)」として動作する。",
+        "Ctrl+V がクリップボードペーストではなく「直前の複製を再実行 (Reduplicate)」として動作する。",
+        "ズーム操作 (Ctrl +/-) のキーボードショートカットが実装されていない（GUIボタンのみ）。",
+        "Deleteキーは実装済み。"
+      ],
+      "status": "Verified",
+      "action_required": "ユーザーへの周知、または標準的なコピー/ペースト挙動への変更検討。"
+    }
+  },
   "user_interface": {
+    "theme": {
+      "default": "Dark (Slate-900 base)",
+      "toggle_behavior": "Local state + Tailwind '.dark' class toggling. Persisted in LocalStorage."
+    },
+    "shortcuts": {
+      "logic": "Canvas.tsx および Layout.tsx でのイベントリスナーによる実装。",
+      "definitions": [
+        { "key": "Ctrl + C", "action": "選択ノードの複製 (Duplicate)" },
+        { "key": "Ctrl + V", "action": "複製の再実行 (Reduplicate)" },
+        { "key": "Ctrl + R", "action": "公開/非公開の切り替え (Play Modeのみ有効)" },
+        { "key": "Delete", "action": "選択要素の削除" },
+        { "key": "Ctrl + Z", "action": "元に戻す (Undo)" },
+        { "key": "Ctrl + Y", "action": "やり直し (Redo)" },
+        { "key": "Ctrl + S", "action": "保存 (Save)" }
+      ]
+    },
     "header": {
       "elements": [
         { "label": "ロゴ (Logo)", "type": "branding", "trigger": "Click", "shortcut": "", "action": "ホームへ戻る (将来的な機能)", "visual": "紫から緑へのグラデーションテキスト (Cinzel Decorative)", "children": [] },
