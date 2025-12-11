@@ -198,6 +198,14 @@
             "value": 60
         },
         {
+            "name": "loading_overlay",
+            "value": 2000
+        },
+        {
+            "name": "sticky_node",
+            "value": 2000
+        },
+        {
             "name": "header",
             "value": 50
         },
@@ -223,6 +231,11 @@
             "name": "sticky_edge",
             "description": "付箋と親ノードを結ぶ直線。",
             "logic": "ターゲットノードのアイコンと重ならないよう、始点をベクトル方向に15pxオフセットする。"
+        },
+        {
+            "name": "selected",
+            "description": "選択されたエッジのハイライト。",
+            "visual": "Stroke Width: 6px, Color: Primary (Theme Color)"
         }
     ],
     "visual_indicators": [
@@ -243,6 +256,12 @@
           "condition": "data.isStart == true",
           "position": "ラベルの左",
           "visual": "金色の星 (text-yellow-500)"
+        },
+        {
+          "state": "付箋添付 (Has Sticky)",
+          "condition": "data.hasSticky == true",
+          "position": "ノード右上の外側",
+          "visual": "黄色い付箋アイコン, 6度回転 (rotate-6), bg-yellow-400"
         }
     ],
     "mobile_specific_styles": [
@@ -257,6 +276,18 @@
         {
             "name": "text_selection",
             "description": "入力フィールドを除くほぼすべてのUI要素で無効化"
+        },
+        {
+            "name": "touch_interaction",
+            "description": "長押し(300ms)でリストアイテムのドラッグ開始"
+        },
+        {
+            "name": "swipe_actions",
+            "description": "リストアイテムを左スワイプ(-70px)で削除ボタン表示"
+        },
+        {
+            "name": "context_menu_prevention",
+            "description": "タッチ操作中の不要なコンテキストメニューを抑制"
         }
     ]
   },
@@ -264,7 +295,8 @@
     "persistence": {
       "storage_key": "trpg-scenario-manager-storage",
       "mechanism": [
-        "Zustand middlewareによるLocalStorageへの自動保存。"
+        "Zustand middlewareによるLocalStorageへの自動保存。",
+        "ロード時のサニタイズ (無効な座標を持つノードの除外、選択状態のリセット)"
       ],
       "saved_state": ["nodes", "edges", "gameState", "mode", "characters", "resources", "theme", "language", "edgeType"],
       "reset_behavior": [
@@ -293,7 +325,8 @@
         ],
         "limits": [
             "最大再帰深度 10",
-            "最大文字列長 100,000"
+            "最大文字列長 100,000",
+            "数式長さ制限 10,000"
         ],
         "warnings": [
             "Variableノードで数値以外の値が入力された場合、警告を表示する。"
@@ -319,7 +352,19 @@
       "drag_drop": {
         "detection": "すべてのグループとの交差面積を計算。",
         "priority": "グループ面積の昇順でソート（最も内側のグループにドロップ）。",
-        "actions": []"ノードの親を変更(Reparent)し、グループサイズを更新し、内部の重なりを解決。"
+        "actions": [
+            "ノードの親を変更(Reparent)し、グループサイズを更新し、内部の重なりを解決。",
+            "親ノード移動時、その子孫に含まれる'TargetNodeId'を持つ付箋も自動的に追従する (再帰的チェック)。"
+        ]
+      },
+      "play_mode_restrictions": {
+          "movement": [
+             "付箋以外のノードは移動不可 (Position/Dimensions変更のロック)",
+             "付箋は自由に移動可能"
+          ],
+          "interaction": [
+              "コンテキストメニュー動作の変更 (Edit vs Play)"
+          ]
       },
       "overlap_resolution": {
         "algorithm": "反復プッシュ (最大500回)。",
@@ -339,7 +384,11 @@
         "edge_correction": "存在しないsource/targetを参照するエッジは削除する。"
       },
       "variable_validation": {
-        "type_consistency": "定義された型(number/boolean/string)と値の整合性をチェックし、不整合があれば自動変換を試みる (例: 'true' -> true)。"
+        "type_consistency": "定義された型(number/boolean/string)と値の整合性をチェックし、不整合があれば自動変換を試みる (例: 'true' -> true)。",
+        "uniqueness": "変数名の重複は禁止される。作成時およびリネーム時にチェックが行われる。"
+      },
+      "input_validation": {
+        "zoom": "最小 1% (0.01) - 最大 200% (2.0)。UI上の入力は1-200の整数。"
       }
     }
   },
@@ -373,7 +422,7 @@
     "variable": {
       "interface": "Variable",
       "fields": [
-        { "key": "name", "type": "string", "required": true },
+        { "key": "name", "type": "string", "required": true, "constraint": "unique (duplicate names prohibited)" },
         { "key": "type", "type": "enum", "options": ["boolean", "number", "string"], "required": true },
         { "key": "value", "type": "any", "required": true }
       ]
@@ -464,6 +513,9 @@
           { "type": "StickySource", "position": "Right", "visible": false }
         ]
       },
+      "logic": {
+          "auto_correction": "ターゲット未設定時、変数が存在すれば自動的に最初の候補を選択する。"
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "タイトル" },
         { "key": "targetVariable", "type": "string", "description": "対象変数 (変数未定義時はエラー表示)" },
@@ -499,6 +551,9 @@
           { "type": "Target", "position": "Top" }
         ]
       },
+      "logic": {
+          "auto_correction": "ターゲット未設定時、他ノードが存在すれば自動的に最初の候補を選択する。"
+      },
       "properties": [
         { "key": "label", "type": "string", "description": "タイトル" },
         { "key": "jumpTarget", "type": "string", "description": "移動先ノードID (自分自身・付箋・参照系は除外。左記以外のノードが未配置の場合はエラー表示)" }
@@ -525,7 +580,7 @@
         "theme": "Yellow (Post-it style)",
         "rotation": "Random (-2 to 2 deg) or fixed",
         "handles": [
-          { "type": "Target", "position": "Center", "condition": "Is Free Sticky (Not attached)" } 
+          { "type": "Target", "position": "Center", "visual": "Invisible (opacity: 0, 10x10px)", "description": "Anchor for StickyEdge" } 
         ]
       },
       "properties": [
@@ -541,6 +596,9 @@
         "theme": "Yellow",
         "handles": [
           { "type": "StickySource", "position": "Right", "visible": false }
+        ],
+        "indicators": [
+            { "condition": "character == undefined", "visual": "Deleted Character (Red Box warning)" }
         ]
       },
       "properties": [
@@ -556,6 +614,16 @@
         "theme": "Green",
         "handles": [
           { "type": "StickySource", "position": "Right", "visible": false }
+        ],
+        "border_color_logic": [
+            { "type": "Item", "color": "Emerald (Green)" },
+            { "type": "Equipment", "color": "Blue" },
+            { "type": "Knowledge", "color": "Purple" },
+            { "type": "Skill", "color": "Yellow" },
+            { "type": "Status", "color": "Red" }
+        ],
+        "indicators": [
+            { "condition": "resource == undefined", "visual": "None (Dashed border placeholder)" }
         ]
       },
       "properties": [
@@ -626,7 +694,7 @@
                     "trigger": "", 
                     "shortcut": "", 
                     "actions": [], 
-                    "visual": "ARKHAMと記載。紫から緑へのグラデーションテキスト (Cinzel Decorative)。テキストサイズはxx", 
+                    "visual": "ARKHAMと記載。紫から緑へのグラデーションテキスト (from-purple-600 to-green-800)。フォント: Cinzel Decorative, サイズ: 2xl-5xl (Responsive)", 
                     "children": []
                 },
                 {
@@ -635,7 +703,7 @@
                     "trigger": "", 
                     "shortcut": "", 
                     "actions": [], 
-                    "visual": "Adventure Routing & Keeper Handling Assistant Managerと記載。各単語の頭文字は紫、他はグレー。テキストサイズはxx", 
+                    "visual": "Adventure Routing & Keeper Handling Assistant Managerと記載。各単語の頭文字は紫(purple-500)、他はグレー(muted-foreground)。テキストサイズ: 0.6rem", 
                     "children": []
                 }
             ] 
@@ -715,8 +783,8 @@
               "shortcut": "",
               "actions": ["表示メニューを開く"],
               "children": [
-                { "label": "Zoom In", "trigger": "Click", "shortcut": "", "actions": ["ズームレベルを上げる (+)", "children": [] },
-                { "label": "Zoom Out", "trigger": "Click", "shortcut": "", "actions": ["ズームレベルを下げる (-)", "children": [] },
+                { "label": "Zoom In", "trigger": "Click", "shortcut": "", "actions": ["ズームレベルを上げる (+)"], "children": [] },
+                { "label": "Zoom Out", "trigger": "Click", "shortcut": "", "actions": ["ズームレベルを下げる (-)"], "children": [] },
                 { "label": "Fit View", "trigger": "Click", "shortcut": "", "actions": ["全体が収まるように表示"], "children": [] }
               ]
             },
@@ -775,8 +843,10 @@
         { "id": "menu", "label": "メニュー", "condition": "モバイルのみ", "trigger": "Tap", "shortcut": "", "actions": ["モバイルメニューを表示"], "children": [] },
         { "id": "nodes", "label": "ノード / ゲームステート", "trigger": "Click", "shortcut": "", "actions": ["ノード一覧またはステータスビューを表示"], "children": [] },
         { "id": "characters", "label": "キャラクター", "trigger": "Click", "shortcut": "", "actions": ["キャラクターリストを表示"], "children": [] },
-        { "id": "resources", "label": "リソース", "trigger": "Click", "shortcut": "", "actions": ["リソースリストを表示"], "children": [] },
-        { "id": "variables", "label": "変数", "trigger": "Click", "shortcut": "", "actions": ["変数リストを表示"], "children": [] }
+        { "id": "resources", "label": "リソース", "trigger": "Click", "shortcut": "", "actions": ["リソースリストを表示 (Swipe Delete対応)"], "children": [] },
+        { "id": "variables", "label": "変数", "trigger": "Click", "shortcut": "", "actions": ["変数リストを表示 (Swipe Delete対応)"], "children": [
+            { "label": "Sort", "trigger": "Click", "actions": ["名前/型/作成順でソート (昇順/降順)"], "children": [] }
+        ] }
       ]
     },
     "canvas_interaction": {
@@ -797,8 +867,8 @@
       },
       "context_menu": {
         "trigger": [
-          { "device": "Desktop", "trigger": "Right Click", "shortcut": "", "actions": ["コンテキストメニューを開く"], "children": [] },
-          { "device": "Mobile", "trigger": "Long Press (500ms)", "shortcut": "", "actions": ["コンテキストメニューを開く"], "children": [] }
+          { "device": "Desktop", "trigger": "Right Click (contextmenu event)", "shortcut": "", "actions": ["コンテキストメニューを開く"], "children": [] },
+          { "device": "Mobile", "trigger": "Long Press (500ms)", "shortcut": "", "actions": ["コンテキストメニューを開く (振動フィードバックなし)"], "children": [] }
         ],
         "items": [
           { "label": "Duplicate", "trigger": "Click", "shortcut": "", "condition": "編集モード & 付箋以外", "actions": ["ノードを複製する"], "children": [] },
@@ -828,5 +898,6 @@
         ]
       }
     }
+  }
   }
 }
