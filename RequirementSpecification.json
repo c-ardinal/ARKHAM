@@ -449,14 +449,19 @@
       },
       "variable_validation": {
         "type_consistency": "定義された型(number/boolean/string)と値の整合性をチェックし、不整合があれば自動変換を試みる (例: 'true' -> true)。",
-        "uniqueness": "変数名の重複は禁止される(大文字小文字を区別しない: A==a)。作成時およびリネーム時にチェックが行われる。",
+        "uniqueness": "変数名の重複は禁止される(大文字小文字を区別しない: A==a)。重複検出時は後勝ちではなく、重複した定義が削除される等の補正が入る。",
         "type_immutability": {
             "rule": "定義後の変数型変更は不可。",
             "reason": "他変数（特に計算式を持つnumber型）からの参照整合性を維持するため。UI上で型変更を防ぐ設計とする。"
+        },
+        "limits": {
+            "recursion_depth": "最大 10 (無限ループ防止)。深さ超過時は置換を停止。",
+            "text_length": "最大 100,000文字 (DoS防止)。超過時はエラー文字を返す。"
         }
       },
       "input_validation": {
-        "zoom": "最小 1% (0.01) - 最大 200% (2.0)。UI上の入力は1-200の整数。"
+        "zoom": "最小 1% (0.01) - 最大 200% (2.0)。UI上の入力は1-200の整数。",
+        "formula_evaluation": "許可される文字: 0-9, ., +, -, *, /, (, ) および空白。これ以外が含まれる場合は文字列として扱われる。"
       }
     }
   },
@@ -923,7 +928,7 @@
       ]
     },
     "sidebar": {
-      "width": { "desktop": "320px", "mobile": "オーバーレイ (約256px)" },
+      "width": { "desktop": "Layout.tsxにより定義 (通常320px程度想定)", "mobile": "オーバーレイ (約256px)。Breakpoint: 768px (max-width) で切り替え。" },
       "tabs": [
         { "id": "menu", "label": "メニュー", "condition": "モバイルのみ", "trigger": "Tap", "shortcut": "", "actions": ["モバイルメニューを表示"], "children": [] },
         { "id": "nodes", "label": "ノード / ゲームステート", "trigger": "Click", "shortcut": "", "actions": ["ノード一覧またはステータスビューを表示"], "children": [] },
@@ -933,6 +938,15 @@
             { "label": "Sort", "trigger": "Click", "actions": ["名前/型/作成順でソート (昇順/降順)"], "children": [] }
         ] }
       ]
+    },
+    "property_panel": {
+        "width": {
+            "desktop": "リサイズ可能 (最小 250px - 最大 600px)。初期値は不定(ドラッグで変更)。",
+            "mobile": "全画面オーバーレイ (Fixed Inset-0, Center content)。"
+        },
+        "behavior": {
+            "mobile_backdrop": "パネル外タップで閉じる動作にはなっていない(Closeボタン必須)。"
+        }
     },
     "canvas_interaction": {
       "selection": [
