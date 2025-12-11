@@ -1,4 +1,5 @@
-# ChangeLog
+<!-- SECTION: ja -->
+# 更新履歴
 
 ## v2.0.0 (2025-12-xx)
 ### 機能追加
@@ -32,4 +33,41 @@
 
 ## v1.0.0 (2025-12-06)
 ### その他
-- 初回リリース (Initial Release)
+- 初回リリース
+
+<!-- SECTION: en -->
+# Update History
+
+## v2.0.0 (2025-12-xx)
+### New Features
+- Added support for mobile device layouts (Smartphones/Tablets)
+- Added internal error display feature
+- Added update history display feature
+- Added data deletion feature
+
+### Changes & Improvements
+- Adjusted PC layout
+- Persist data across page reloads
+- Enhanced validation during data save/load
+
+### Bug Fixes
+- Fixed issue where multiple nodes on canvas could not be selected
+- Fixed issue where text on UI could not be copied
+
+### Others
+- Performance improvements
+
+## v1.0.2 (2025-12-06)
+### Changes & Improvements
+- Corrected menu and sidebar design
+
+## v1.0.1 (2025-12-06)
+### Bug Fixes
+- Fixed issue where Character and Element data could not be saved
+
+### Others
+- Updated README.md
+
+## v1.0.0 (2025-12-06)
+### Others
+- Initial Release

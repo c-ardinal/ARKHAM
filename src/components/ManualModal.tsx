@@ -1,6 +1,8 @@
-import { X } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
-
+import { useLocalizedMarkdown } from '../hooks/useLocalizedMarkdown';
+import { X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ManualModalProps {
   isOpen: boolean;
@@ -8,7 +10,8 @@ interface ManualModalProps {
 }
 
 export const ManualModal = ({ isOpen, onClose }: ManualModalProps) => {
-  const { t, tf } = useTranslation();
+  const { t } = useTranslation();
+  const markdown = useLocalizedMarkdown('/Manual.md');
 
   if (!isOpen) return null;
 
@@ -21,76 +24,32 @@ export const ManualModal = ({ isOpen, onClose }: ManualModalProps) => {
             <X size={24} />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto space-y-6 text-muted-foreground">
-          <section>
-            <h3 className="text-lg font-semibold mb-2 text-primary">{t('manual.introduction')}</h3>
-            <p>{tf('manual.introText')}</p>
-          </section>
-
-          <section>
-            <h3 className="text-lg font-semibold mb-2 text-primary">{t('manual.glossary')}</h3>
-            <ul className="list-disc list-inside space-y-2 ml-2">
-                <li>{tf('manual.glossaryNode')}</li>
-                <li>{tf('manual.glossaryHandle')}</li>
-                <li>{tf('manual.glossaryEdge')}</li>
-            </ul>
-          </section>
-
-          <section>
-            <h3 className="text-lg font-semibold mb-2 text-primary">{t('manual.nodes')}</h3>
-            <ul className="list-disc list-outside space-y-3 ml-6">
-              <li><strong>{t('nodes.event')}:</strong> {tf('manual.eventNodeDesc')}</li>
-              <li><strong>{t('nodes.element')}:</strong> {tf('manual.infoNodeDesc')}</li>
-              <li><strong>{t('nodes.branch')}:</strong> {tf('manual.branchNodeDesc')}</li>
-              <li><strong>{t('nodes.variable')}:</strong> {tf('manual.variableNodeDesc')}</li>
-              <li><strong>{t('nodes.group')}:</strong> {tf('manual.groupNodeDesc')}</li>
-              <li><strong>{t('nodes.jump')}:</strong> {tf('manual.jumpNodeDesc')}</li>
-              <li><strong>{t('nodes.memo')}:</strong> {tf('manual.memoNodeDesc')}</li>
-              <li><strong>{t('menu.bulkStickyOperations')} (Sticky):</strong> {tf('manual.stickyNodeDesc')}</li>
-            </ul>
-            <h4 className="font-semibold mt-4 mb-2 text-primary">{t('menu.file')} / {t('characters.title')} & {t('resources.title')}</h4>
-            <ul className="list-disc list-outside space-y-3 ml-6">
-              <li><strong>{t('resources.title')} (Ref):</strong> {tf('manual.resourceNodeDesc')}</li>
-              <li><strong>{t('characters.title')} (Ref):</strong> {tf('manual.characterNodeDesc')}</li>
-            </ul>
-          </section>
-
-          <section>
-            <h3 className="text-lg font-semibold mb-2 text-primary">{t('manual.controls')}</h3>
-            <ul className="list-disc list-inside space-y-2 ml-2">
-                <li>{tf('manual.controlsDesc1')}</li>
-                <li>{tf('manual.controlsDesc2')}</li>
-                <li>{tf('manual.controlsDesc3')}</li>
-                <li>{tf('manual.controlsDesc4')}</li>
-            </ul>
-          </section>
-
-          <section>
-            <h3 className="text-lg font-semibold mb-2 text-primary">{t('manual.modesTitle')}</h3>
-            <div className="space-y-4">
-                <div>
-                    <h4 className="font-bold mb-1">{t('manual.editModeTitle')}</h4>
-                    <p className="ml-2">{tf('manual.editModeDesc')}</p>
-                </div>
-                <div>
-                    <h4 className="font-bold mb-1">{t('manual.playModeTitle')}</h4>
-                    <p className="ml-2">{tf('manual.playModeDesc')}</p>
-                </div>
-            </div>
-          </section>
-
-          <section>
-            <h3 className="text-lg font-semibold mb-2 text-primary">{t('manual.variablesTitle')}</h3>
-            <p>{tf('manual.variablesDesc')}</p>
-          </section>
-
-          <section>
-            <h3 className="text-lg font-semibold mb-2 text-primary">{t('manual.shortcutsTitle')}</h3>
-            <p>{tf('manual.shortcutsDesc')}</p>
-          </section>
-
+        
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+             <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                    h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-4 pb-2 border-b border-border text-foreground" {...props} />,
+                    h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-8 mb-3 text-primary" {...props} />,
+                    h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-6 mb-2 text-foreground" {...props} />,
+                    p: ({node, ...props}) => <p className="mb-4 leading-relaxed text-muted-foreground" {...props} />,
+                    ul: ({node, ...props}) => <ul className="list-disc list-outside ml-5 mb-4 space-y-1 text-muted-foreground" {...props} />,
+                    ol: ({node, ...props}) => <ol className="list-decimal list-outside ml-5 mb-4 space-y-1 text-muted-foreground" {...props} />,
+                    li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                    strong: ({node, ...props}) => <strong className="font-semibold text-foreground" {...props} />,
+                    table: ({node, ...props}) => <table className="w-full border-collapse border border-border mb-6 text-sm" {...props} />,
+                    thead: ({node, ...props}) => <thead className="bg-muted" {...props} />,
+                    th: ({node, ...props}) => <th className="border border-border p-3 font-bold text-left text-foreground" {...props} />,
+                    td: ({node, ...props}) => <td className="border border-border p-3 text-muted-foreground" {...props} />,
+                    code: ({node, ...props}) => <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-sm text-foreground" {...props} />,
+                    blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-primary/30 pl-4 py-1 my-4 italic text-muted-foreground" {...props} />,
+                }}
+             >
+                {markdown}
+             </ReactMarkdown>
         </div>
-        <div className="p-4 border-t flex justify-end border-border">
+
+        <div className="p-4 border-t flex justify-end border-border bg-card rounded-b-lg">
           <button 
             onClick={onClose}
             className="px-4 py-2 rounded transition-colors bg-secondary hover:bg-secondary/80 text-secondary-foreground"

@@ -83,6 +83,8 @@ npm run build
 | ノード複製 | `Ctrl + C` |
 | 再複製 | `Ctrl + V` |
 | 開示済/未開示切替 | `Ctrl + R` |
+| 拡大 | `Ctrl + +` |
+| 縮小 | `Ctrl + -` |
 
 ## 使用技術
 

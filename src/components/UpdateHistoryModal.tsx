@@ -1,61 +1,17 @@
-
 import { useTranslation } from '../hooks/useTranslation';
+import { useLocalizedMarkdown } from '../hooks/useLocalizedMarkdown';
 import { X, Clock } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface UpdateHistoryModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-// @ts-ignore
-import changeLogRaw from '../../ChangeLog.md?raw';
-
-interface ChangeLog {
-    version: string;
-    date: string;
-    features: string[];
-    changes: string[];
-    fixes: string[];
-    others: string[];
-}
-
-const parseChangeLog = (md: string): ChangeLog[] => {
-    const logs: ChangeLog[] = [];
-    const sections = md.split(/^## /m).filter(s => s.trim());
-    
-    sections.forEach(section => {
-        const lines = section.split('\n');
-        const header = lines[0]; // e.g. "v1.1.0 (2025-12-10)"
-        const match = header.match(/(v\d+\.\d+\.\d+) \(([^)]+)\)/);
-        if (!match) return;
-        
-        const version = match[1];
-        const date = match[2];
-        const log: ChangeLog = { version, date, features: [], changes: [], fixes: [], others: [] };
-        
-        let currentType: 'features' | 'changes' | 'fixes' | 'others' | null = null;
-        
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line.startsWith('### ')) {
-                if (line.includes('機能追加')) currentType = 'features';
-                else if (line.includes('変更・改善')) currentType = 'changes';
-                else if (line.includes('バグ修正')) currentType = 'fixes';
-                else if (line.includes('その他')) currentType = 'others';
-                else currentType = null;
-            } else if (line.startsWith('- ') && currentType) {
-                log[currentType].push(line.substring(2));
-            }
-        }
-        logs.push(log);
-    });
-    return logs;
-};
-
-const updateHistory = parseChangeLog(changeLogRaw || '');
-
 export const UpdateHistoryModal = ({ isOpen, onClose }: UpdateHistoryModalProps) => {
     const { t } = useTranslation();
+    const markdown = useLocalizedMarkdown('/ChangeLog.md');
 
     if (!isOpen) return null;
 
@@ -73,71 +29,27 @@ export const UpdateHistoryModal = ({ isOpen, onClose }: UpdateHistoryModalProps)
                     </h2>
                     <button 
                         onClick={onClose}
-                        className="p-1 rounded-full hover:bg-muted transition-colors"
+                        className="p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                     >
                         <X size={20} />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                    {updateHistory.length === 0 && (
-                        <div className="text-center text-muted-foreground">Unable to load history.</div>
-                    )}
-                    {updateHistory.map((log, index) => (
-                        <div key={index} className="relative">
-                            <div className="flex items-baseline gap-3 mb-3 border-b border-border pb-2">
-                                <h3 className="text-lg font-bold text-primary">{log.version}</h3>
-                                <span className="text-sm text-muted-foreground font-mono">{log.date}</span>
-                            </div>
-                            
-                            <div className="space-y-4 pl-2">
-                                {log.features.length > 0 && (
-                                    <div>
-                                        <div className="text-xs font-bold text-green-600 dark:text-green-400 mb-1 flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-green-500"></span> 機能追加 (New Features)
-                                        </div>
-                                        <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground pl-2">
-                                            {log.features.map((item, i) => <li key={i}>{item}</li>)}
-                                        </ul>
-                                    </div>
-                                )}
-                                
-                                {log.changes.length > 0 && (
-                                    <div>
-                                        <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-blue-500"></span> 変更・改善 (Changes)
-                                        </div>
-                                        <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground pl-2">
-                                            {log.changes.map((item, i) => <li key={i}>{item}</li>)}
-                                        </ul>
-                                    </div>
-                                )}
-
-                                {log.fixes.length > 0 && (
-                                    <div>
-                                        <div className="text-xs font-bold text-orange-600 dark:text-orange-400 mb-1 flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-orange-500"></span> バグ修正 (Bug Fixes)
-                                        </div>
-                                        <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground pl-2">
-                                            {log.fixes.map((item, i) => <li key={i}>{item}</li>)}
-                                        </ul>
-                                    </div>
-                                )}
-
-                                {log.others.length > 0 && (
-                                    <div>
-                                        <div className="text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-gray-500"></span> その他 (Others)
-                                        </div>
-                                        <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground pl-2">
-                                            {log.others.map((item, i) => <li key={i}>{item}</li>)}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                     <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                            h1: ({node, ...props}) => <h1 className="hidden" {...props} />, // Hide the standard "# ChangeLog" title as we have the modal header
+                            h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-6 mb-2 pb-1 border-b border-border text-primary" {...props} />,
+                            h3: ({node, ...props}) => <h3 className="text-sm font-bold mt-3 mb-1 text-foreground/80 uppercase tracking-wider" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc list-outside ml-4 mb-4 space-y-1 text-sm text-muted-foreground" {...props} />,
+                            li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                            p: ({node, ...props}) => <p className="mb-2 text-sm text-muted-foreground" {...props} />,
+                        }}
+                    >
+                        {markdown}
+                    </ReactMarkdown>
                 </div>
 
                 {/* Footer */}

@@ -5,6 +5,8 @@ import { useTranslation } from '../hooks/useTranslation';
 import { Plus, Trash2, Edit2, Save, X, ArrowDownAZ, ArrowUpAZ, Variable as VariableIcon } from 'lucide-react';
 import type { VariableType } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
+import { INPUT_CLASS } from '../styles/common';
+
 
 const VariableListItem = React.memo(({
     variable,
@@ -402,7 +404,7 @@ export const VariableList = React.memo(() => {
       }
   };
 
-  const inputClass = "w-full border rounded px-2 py-1 text-sm bg-background border-input text-foreground";
+  const inputClass = INPUT_CLASS + " px-2 py-1 text-sm";
 
   return (
     <div className="flex flex-col h-full overflow-hidden" onClick={() => setSwipedId(null)}>
