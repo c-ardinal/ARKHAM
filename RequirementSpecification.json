@@ -6,71 +6,226 @@
   "visuals": {
     "color_palette_hsl_definitions": {
       "light": {
-        "background": "210 40% 98% (Slate-50)",
-        "foreground": "222 47% 11% (Slate-900)",
-        "card": "0 0% 100% (White)",
-        "popover": "0 0% 100% (White)",
-        "primary": "221 83% 53% (Blue-600)",
-        "secondary": "210 40% 96.1% (Slate-100)",
-        "muted": "210 40% 96.1% (Slate-100)",
-        "accent": "210 40% 96.1% (Slate-100)",
-        "destructive": "0 84.2% 60.2% (Red-500)",
-        "border": "214.3 31.8% 91.4% (Slate-200)",
-        "input": "214.3 31.8% 91.4% (Slate-200)",
-        "ring": "221 83% 53% (Blue-600)"
+        "background": "Slate-50",
+        "foreground": "Slate-900",
+        "card": "White",
+        "popover": "White",
+        "primary": "Blue-600",
+        "secondary": "Slate-100",
+        "muted": "Slate-100",
+        "accent": "Slate-100",
+        "destructive": "Red-500",
+        "border": "Slate-200",
+        "input": "Slate-200",
+        "ring": "Blue-600"
       },
       "dark": {
-        "background": "222 47% 11% (Slate-900)",
-        "foreground": "210 40% 98% (Slate-50)",
-        "card": "215 28% 17% (Slate-800)",
-        "popover": "215 28% 17% (Slate-800)",
-        "primary": "217 91% 60% (Blue-500)",
-        "secondary": "215 28% 17% (Slate-800)",
-        "muted": "215 28% 17% (Slate-800)",
-        "accent": "215 25% 27% (Slate-700)",
-        "destructive": "0 62.8% 30.6% (Red-900)",
-        "border": "215 25% 27% (Slate-700)",
-        "input": "215 25% 27% (Slate-700)",
-        "ring": "224 76% 48% (Blue-700)"
+        "background": "Slate-900",
+        "foreground": "Slate-50",
+        "card": "Slate-800",
+        "popover": "Slate-800",
+        "primary": "Blue-500",
+        "secondary": "Slate-800",
+        "muted": "Slate-800",
+        "accent": "Slate-700",
+        "destructive": "Red-900",
+        "border": "Slate-700",
+        "input": "Slate-700",
+        "ring": "Blue-700"
       }
     },
     "node_colors_hardcoded": {
       "description": "各ノードタイプは特有のカラーテーマを持つ (Border/Background/Text)。Light/Darkモードでクラスが異なる。",
-      "values": {
-        "event": "orange-200/50/900 (Dark: orange-800/900-20/100)",
-        "element": "blue-200/50/900 (Dark: blue-800/900-40/100)",
-        "branch": "purple-200/50/900 (Dark: purple-800/900-40/100)",
-        "variable": "red-200/50/900 (Dark: red-800/900-40/100)",
-        "group": "slate-200/50/700 (Dark: slate-700/800-50/200)",
-        "jump": "yellow-200/50/900 (Dark: yellow-800/900-40/100)",
-        "memo": "gray-200/white/gray-800 (Dark: gray-700/800/200)",
-        "character": "yellow-200/50/900 (Dark: yellow-800/900-20/100)",
-        "resource": "green-200/50/900 (Dark: green-800/900-20/100)",
-        "default": "gray-100/800"
-      }
-    },
-    "z_indices": {
-      "mobile_drag_ghost": 2500,
-      "sticky_nodes": 2001,
-      "sticky_edges": 2000,
-      "modals": 150,
-      "confirmation_modal": 100,
-      "mobile_property_panel": 60,
-      "mobile_sidebar": 60,
-      "header": 50,
-      "context_menu": 50,
-      "sidebar": 40,
-      "canvas_nodes": 0,
-      "canvas_group_nodes": -1
-    },
-    "edge_styles": {
-      "sticky_edge": {
-        "description": "付箋と親ノードを結ぶ直線。",
-        "logic": "ターゲットノードのアイコンと重ならないよう、始点をベクトル方向に15pxオフセットする。"
-      }
-    },
-    "visual_indicators": {
-      "node_status": [
+      "values": [
+        {
+            "name": "event",
+            "light": {
+                "border": "orange-200",
+                "background": "Slate-50",
+                "text": "orange-900"
+            },
+            "dark": {
+                "border": "orange-800",
+                "background": "orange-900-20",
+                "text": "orange-100"
+            }
+        },
+        {
+            "name": "element",
+            "light": {
+                "border": "blue-200",
+                "background": "blue-50",
+                "text": "blue-900"
+            },
+            "dark": {
+                "border": "blue-800",
+                "background": "blue-900-40",
+                "text": "blue-100"
+            }
+        },
+        {
+            "name": "branch",
+            "light": {
+                "border": "purple-200",
+                "background": "purple-50",
+                "text": "purple-900"
+            },
+            "dark": {
+                "border": "purple-800",
+                "background": "purple-900-40",
+                "text": "purple-100"
+            }
+        },
+        {
+            "name": "variable",
+            "light": {
+                "border": "red-200",
+                "background": "red-50",
+                "text": "red-900"
+            },
+            "dark": {
+                "border": "red-800",
+                "background": "red-900-40",
+                "text": "red-100"
+            }
+        },
+        {
+            "name": "group",
+            "light": {
+                "border": "slate-200",
+                "background": "slate-50",
+                "text": "slate-700"
+            },
+            "dark": {
+                "border": "slate-700",
+                "background": "slate-800-50",
+                "text": "slate-200"
+            }
+        },
+        {
+            "name": "jump",
+            "light": {
+                "border": "yellow-200",
+                "background": "yellow-50",
+                "text": "yellow-900"
+            },
+            "dark": {
+                "border": "yellow-800",
+                "background": "yellow-900-40",
+                "text": "yellow-100"
+            }
+        },
+        {
+            "name": "memo",
+            "light": {
+                "border": "gray-200",
+                "background": "white",
+                "text": "gray-800"
+            },
+            "dark": {
+                "border": "gray-700",
+                "background": "gray-800",
+                "text": "gray-200"
+            }
+        },
+        {
+            "name": "character",
+            "light": {
+                "border": "yellow-200",
+                "background": "yellow-50",
+                "text": "yellow-900"
+            },
+            "dark": {
+                "border": "yellow-800",
+                "background": "yellow-900-20",
+                "text": "yellow-100"
+            }
+        },
+        {
+            "name": "resource",
+            "light": {
+                "border": "green-200",
+                "background": "green-50",
+                "text": "green-900"
+            },
+            "dark": {
+                "border": "green-800",
+                "background": "green-900-20",
+                "text": "green-100"
+            }
+        },
+        {
+            "name": "default",
+            "light": {
+                "border": "gray-100",
+                "background": "gray-50",
+                "text": "gray-800"
+            },
+            "dark": {
+                "border": "gray-100",
+                "background": "gray-100",
+                "text": "gray-800"
+            }
+        }
+      ],
+    "z_indices": [
+        {
+            "name": "mobile_drag_ghost",
+            "value": 2500
+        },
+        {
+            "name": "sticky_nodes",
+            "value": 2001
+        },
+        {
+            "name": "sticky_edges",
+            "value": 2000
+        },
+        {
+            "name": "modals",
+            "value": 150
+        },
+        {
+            "name": "confirmation_modal",
+            "value": 100
+        },
+        {
+            "name": "mobile_property_panel",
+            "value": 60
+        },
+        {
+            "name": "mobile_sidebar",
+            "value": 60
+        },
+        {
+            "name": "header",
+            "value": 50
+        },
+        {
+            "name": "context_menu",
+            "value": 50
+        },
+        {
+            "name": "sidebar",
+            "value": 40
+        },
+        {
+            "name": "canvas_nodes",
+            "value": 0
+        },
+        {
+            "name": "canvas_group_nodes",
+            "value": -1
+        }
+    ],
+    "edge_styles": [
+        {
+            "name": "sticky_edge",
+            "description": "付箋と親ノードを結ぶ直線。",
+            "logic": "ターゲットノードのアイコンと重ならないよう、始点をベクトル方向に15pxオフセットする。"
+        }
+    ],
+    "visual_indicators": [
         {
           "state": "公開済み (Revealed)",
           "condition": "data.revealed == true",
@@ -89,20 +244,34 @@
           "position": "ラベルの左",
           "visual": "金色の星 (text-yellow-500)"
         }
-      ]
-    },
-    "mobile_specific_styles": {
-      "react_flow_handle": "幅/高さを14pxに強制（標準より拡大）、ヒットエリアを拡張",
-      "touch_action": "ノード上で 'none !important' を指定し、スクロールを防止",
-      "text_selection": "入力フィールドを除くほぼすべてのUI要素で無効化"
-    }
+    ],
+    "mobile_specific_styles": [
+        {
+            "name": "react_flow_handle",
+            "description": "幅/高さを14pxに強制（標準より拡大）、ヒットエリアを拡張"
+        },
+        {
+            "name": "touch_action",
+            "description": "ノード上で 'none !important' を指定し、スクロールを防止"
+        },
+        {
+            "name": "text_selection",
+            "description": "入力フィールドを除くほぼすべてのUI要素で無効化"
+        }
+    ]
   },
   "logic": {
     "persistence": {
       "storage_key": "trpg-scenario-manager-storage",
-      "mechanism": "Zustand middlewareによるLocalStorageへの自動保存。",
+      "mechanism": [
+        "Zustand middlewareによるLocalStorageへの自動保存。"
+      ],
       "saved_state": ["nodes", "edges", "gameState", "mode", "characters", "resources", "theme", "language", "edgeType"],
-      "reset_behavior": "全データをクリアし、「注意事項」メモノードのみを含む初期状態を生成する。"
+      "reset_behavior": [
+        "1.全データをクリア",
+        "2.「注意事項」メモノードのみを含む初期状態を生成",
+        "3. 画面をフィット"
+      ]
     },
     "game_state_calculation": {
       "resource_mapping": {
@@ -117,13 +286,28 @@
         ]
       },
       "variable_evaluation": {
-        "mechanism": "再帰的な正規表現による置換 (${var}) -> 数式チェック -> new Function() の実行 (比較的安全な方法)",
-        "limits": "最大再帰深度 10, 最大文字列長 100,000",
-        "warning": "Variableノードで数値以外の値が入力された場合、警告を表示する。"
+        "mechanism": [
+            "1. 再帰的な正規表現による置換 (${var})",
+            "2. 数式チェック",
+            "3. new Function() の実行 (比較的安全な方法)"
+        ],
+        "limits": [
+            "最大再帰深度 10",
+            "最大文字列長 100,000"
+        ],
+        "warnings": [
+            "Variableノードで数値以外の値が入力された場合、警告を表示する。"
+        ]
       },
       "variable_nodes": {
-        "reveal_behavior": "現在の変数値を 'previousValue' に保存し、新しい値の式を評価して変数を更新。",
-        "unreveal_behavior": "'previousValue' から変数値を復元し、'previousValue' をクリア。"
+        "reveal_behavior": [
+          "1. 現在の変数値を 'previousValue' に保存",
+          "2. 新しい値の式を評価して変数を更新"
+        ],
+        "unreveal_behavior": [
+          "1. 'previousValue' から変数値を復元",
+          "2. 'previousValue' をクリア"
+        ]
       }
     },
     "grouping_logic": {
@@ -151,8 +335,8 @@
     "validation_logic": {
       "scenario_validation": {
         "mandatory_checks": ["nodes array exists", "edges array exists", "gameState object exists"],
-        "node_correction": "不正なtypeは 'event' に、欠落したpositionは {0,0} に、欠落したdataは {} に自動補正される。",
-        "edge_correction": "存在しないsource/targetを参照するエッジは削除される。"
+        "node_correction": "不正なtypeは 'event' に、欠落したpositionは {0,0} に、欠落したdataは {} に自動補正する。",
+        "edge_correction": "存在しないsource/targetを参照するエッジは削除する。"
       },
       "variable_validation": {
         "type_consistency": "定義された型(number/boolean/string)と値の整合性をチェックし、不整合があれば自動変換を試みる (例: 'true' -> true)。"
@@ -381,27 +565,33 @@
     }
   },
   "implementation_report_inconsistencies": {
-    "update_history_modal": {
-      "issue": "モバイルサイドバーのHelpメニュー内にUpdate Historyへのリンクが存在しない（または機能していない）可能性がある。",
-      "status": "Verified",
-      "action_required": "Mobile Sidebarコンポーネントの確認と修正が必要。"
-    },
-    "variable_nodes": {
-      "issue": "変数ノード作成後、UI上で「変数タイプ」を変更する手段が実装されていない（コード上は不変として扱われている）。",
-      "status": "Verified",
-      "action_required": "仕様として「作成後のタイプ変更不可」を明記するか、リファクタリングで変更機能を実装する。"
-    },
-    "shortcuts": {
-      "issue": "ショートカットキーの実装が標準的な挙動と異なる、または不足している。",
-      "details": [
-        "Ctrl+C がクリップボードコピーではなく「その場で複製 (Duplicate)」として動作する。",
-        "Ctrl+V がクリップボードペーストではなく「直前の複製を再実行 (Reduplicate)」として動作する。",
-        "ズーム操作 (Ctrl +/-) のキーボードショートカットが実装されていない（GUIボタンのみ）。",
-        "Deleteキーは実装済み。"
-      ],
-      "status": "Verified",
-      "action_required": "ユーザーへの周知、または標準的なコピー/ペースト挙動への変更検討。"
-    }
+    "status": "active",
+    "items": [
+      {
+        "id": "variable_type_immutability",
+        "description": "変数の型は作成後に変更できない（UI上の制限）。",
+        "location": "src/store/scenarioStore.ts",
+        "status": "verified (by design)"
+      },
+      {
+        "id": "shortcut_behavior",
+        "description": "Ctrl+C/V は OS のクリップボードではなく、内部的な複製・再複製 (Duplicate/Reduplicate) として動作する。",
+        "location": "src/components/Canvas.tsx",
+        "status": "verified (by design)"
+      },
+      {
+        "id": "sticky_handle_offset",
+        "description": "軽微な視覚的不一致: 'sticky-origin' ハンドルのオフセット (-7px 対 -6px)。",
+        "location": "src/nodes/*",
+        "status": "minor visual inconsistency"
+      },
+      {
+        "id": "unused_localization",
+        "description": "文字列 'mobileBlocker.title/message' は未使用の残留物である（モバイルサポート実装済みのため）。",
+        "location": "src/i18n/ja.ts",
+        "status": "finding (cleanup candidate)"
+      }
+    ]
   },
   "user_interface": {
     "theme": {
@@ -411,9 +601,9 @@
     "shortcuts": {
       "logic": "Canvas.tsx および Layout.tsx でのイベントリスナーによる実装。",
       "definitions": [
-        { "key": "Ctrl + C", "action": "選択ノードの複製 (Duplicate)" },
+        { "key": "Ctrl + C", "action": "選択ノードの複製 (Duplicate / 内部コピー)" },
         { "key": "Ctrl + V", "action": "複製の再実行 (Reduplicate)" },
-        { "key": "Ctrl + R", "action": "公開/非公開の切り替え (Play Modeのみ有効)" },
+        { "key": "Ctrl + R", "action": "公開/非公開の切り替え (全モードで有効)" },
         { "key": "Delete", "action": "選択要素の削除" },
         { "key": "Ctrl + Z", "action": "元に戻す (Undo)" },
         { "key": "Ctrl + Y", "action": "やり直し (Redo)" },
