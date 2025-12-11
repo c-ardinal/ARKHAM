@@ -157,3 +157,12 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+/* Force StickyNode handle to center, overriding mobile directional styles */
+.sticky-handle-center {
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    bottom: auto !important;
+    right: auto !important;
+}

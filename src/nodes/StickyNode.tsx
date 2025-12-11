@@ -31,7 +31,8 @@ const StickyNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
         type="target" 
         id="sticky-target"
         position={Position.Top} 
-        style={{ opacity: 0, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 10, height: 10 }} 
+        className="sticky-handle-center"
+        style={{ opacity: 0, width: 10, height: 10 }} 
         isConnectable={false} 
       />
       
