@@ -245,9 +245,5 @@ export type TranslationKeys = {
     showStickies: string; 
     hideStickies: string;
   };
-  mobileBlocker: {
-    title: string;
-    message: string;
-    recommendation: string;
-  };
+
 };

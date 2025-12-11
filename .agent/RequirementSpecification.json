@@ -719,12 +719,6 @@
         "status": "minor visual inconsistency"
       },
       {
-        "id": "unused_localization",
-        "description": "文字列 'mobileBlocker.title/message' は未使用の残留物である（モバイルサポート実装済みのため）。",
-        "location": "src/i18n/ja.ts",
-        "status": "finding (cleanup candidate)"
-      },
-      {
         "id": "mobile_help_menu_missing_history",
         "description": "モバイルサイドバーのHelpメニューに'Update History'が含まれていない(デスクトップHeaderには存在)。",
         "location": "src/components/Sidebar.tsx",

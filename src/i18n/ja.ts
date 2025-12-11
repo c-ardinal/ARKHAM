@@ -253,9 +253,5 @@ export const ja: TranslationKeys = {
     showStickies: '付箋を表示',
     hideStickies: '付箋を非表示',
   },
-  mobileBlocker: {
-    title: 'PCからアクセスしてください',
-    message: '申し訳ありませんが、このアプリケーションは現在スマートフォンには対応していません。\nPC（デスクトップまたはノートPC）からアクセスしてご利用ください。',
-    recommendation: 'PCブラウザ推奨',
-  },
+
 };
