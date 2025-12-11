@@ -298,7 +298,7 @@
         "Zustand middlewareによるLocalStorageへの自動保存。",
         "ロード時のサニタイズ (無効な座標を持つノードの除外、選択状態のリセット)"
       ],
-      "saved_state": ["nodes", "edges", "gameState", "mode", "characters", "resources", "theme", "language", "edgeType"],
+      "saved_state": ["nodes", "edges", "gameState", "mode", "characters", "resources", "theme", "language", "edgeType", "viewport"],
       "reset_behavior": [
         "1.全データをクリア",
         "2.「注意事項」メモノードのみを含む初期状態を生成",
@@ -773,6 +773,38 @@
         { "key": "Ctrl + +", "actions": ["拡大 (Zoom In)"] },
         { "key": "Ctrl + -", "actions": ["縮小 (Zoom Out)"] }
       ]
+    },
+    "debug_mode": {
+      "description": "開発者向けのデバッグ機能。一般ユーザーには非表示。",
+      "activation": {
+        "trigger": "ヘルプメニュー > バージョン情報モーダル内のバージョン番号（例: 1.0.2）を7回クリック",
+        "feedback": [
+          "3回目: 小さな振動（モバイル）またはアニメーション",
+          "5回目: 「あと2回」などのヒント表示",
+          "7回目: 「デバッグモードが有効になりました」トースト通知"
+        ],
+        "persistence": "localStorage ('debugModeEnabled': 'true') に保存。ブラウザを閉じても有効のまま。",
+        "deactivation": "バージョン番号を10回クリックで無効化"
+      },
+      "features": {
+        "debug_console": {
+          "description": "アプリケーション内のconsole.logをキャプチャして表示するモーダル",
+          "access": "デバッグモード有効時、ヘルプメニューに「デバッグ」項目が表示される",
+          "functionality": [
+            "アプリ起動時からすべてのconsole.log/warn/errorをキャプチャ",
+            "モーダル内でログをリアルタイム表示",
+            "ログコピーボタン（クリップボードにコピー）",
+            "ログクリアボタン",
+            "自動スクロール無効（ログコピーを容易にするため）"
+          ],
+          "log_format": "タイムスタンプ [レベル] メッセージ",
+          "max_logs": "最大1000件まで保持"
+        }
+      },
+      "development_mode": {
+        "behavior": "import.meta.env.DEV === true の場合、デバッグモードは常に有効",
+        "reason": "開発効率向上のため"
+      }
     },
     "header": {
       "elements": [

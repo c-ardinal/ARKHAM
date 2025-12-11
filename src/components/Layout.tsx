@@ -7,6 +7,7 @@ import { ManualModal } from './ManualModal';
 import { AboutModal } from './AboutModal';
 import { ValidationErrorModal } from './ValidationErrorModal';
 import { UpdateHistoryModal } from './UpdateHistoryModal';
+import { DebugModal } from './DebugModal';
 import { useScenarioStore } from '../store/scenarioStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
 import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight } from 'lucide-react';
@@ -229,6 +230,13 @@ export const Layout = () => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
   const [validationError, setValidationError] = useState<{ errors: string[]; warnings: string[]; corrections?: string[]; jsonContent?: string } | null>(null);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const isDebugModeEnabled = (() => {
+    // 開発環境では常に有効
+    if (import.meta.env.DEV) return true;
+    // localStorageから読み込み
+    return localStorage.getItem('debugModeEnabled') === 'true';
+  })();
 
   // Mobile logic: 
   // Use (pointer: coarse) to target primary input mechanism.
@@ -248,7 +256,7 @@ export const Layout = () => {
   const [isResizingProperty, setIsResizingProperty] = useState(false);
   const [mobilePropertyPanelOpen, setMobilePropertyPanelOpen] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(false);
-  const canvasRef = useRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }>(null);
+  const canvasRef = useRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void; getViewport: () => { x: number; y: number; zoom: number }; setViewport: (viewport: { x: number; y: number; zoom: number }, options?: { isRestoring?: boolean }) => void }>(null);
   const [currentZoom, setCurrentZoom] = useState(100);
 
   useEffect(() => {
@@ -294,7 +302,8 @@ export const Layout = () => {
       gameState,
       characters,
       resources,
-      edgeType
+      edgeType,
+      viewport: canvasRef.current?.getViewport()
     };
     
     // Validate and correct the data before saving
@@ -406,11 +415,24 @@ export const Layout = () => {
           });
           // Auto-load after showing warnings
           setTimeout(() => {
-            useScenarioStore.getState().loadScenario(validation.correctedData);
+            const data = validation.correctedData;
+            console.log('[Layout] Loading scenario with warnings:', { hasViewport: !!data.viewport, viewport: data.viewport });
+            useScenarioStore.getState().loadScenario(data);
+            if (data && data.viewport && canvasRef.current) {
+                console.log('[Layout] Calling setViewport with isRestoring: true');
+                canvasRef.current.setViewport(data.viewport, { isRestoring: true });
+            }
           }, 100);
         } else {
           // No warnings, load directly
-          useScenarioStore.getState().loadScenario(validation.correctedData || data);
+          const scenarioData = validation.correctedData || data;
+          console.log('[Layout] Loading scenario directly:', { hasViewport: !!scenarioData.viewport, viewport: scenarioData.viewport });
+          useScenarioStore.getState().loadScenario(scenarioData);
+          
+          if (scenarioData.viewport && canvasRef.current) {
+              console.log('[Layout] Calling setViewport with isRestoring: true');
+              canvasRef.current.setViewport(scenarioData.viewport, { isRestoring: true });
+          }
         }
       } catch (error) {
         console.error('Failed to load scenario:', error);
@@ -472,8 +494,16 @@ const menuActions = {
             title: t('menu.loadSample'),
             message: t('menu.confirmLoadSample'),
             onConfirm: () => {
+                const sampleData = type === 'story' ? sampleStory : sampleNestedGroup;
+                console.log('[Layout] Loading sample data:', { type, hasViewport: !!(sampleData as any).viewport, viewport: (sampleData as any).viewport });
                 // @ts-ignore
-                useScenarioStore.getState().loadScenario(type === 'story' ? sampleStory : sampleNestedGroup);
+                useScenarioStore.getState().loadScenario(sampleData);
+                
+                // ビューポート復元
+                if ((sampleData as any).viewport && canvasRef.current) {
+                    console.log('[Layout] Calling setViewport with isRestoring: true (sample data)');
+                    canvasRef.current.setViewport((sampleData as any).viewport, { isRestoring: true });
+                }
             }
         });
     },
@@ -493,6 +523,7 @@ const menuActions = {
     onOpenManual: () => setIsManualOpen(true),
     onOpenAbout: () => setIsAboutOpen(true),
     onOpenUpdateHistory: () => setIsHistoryOpen(true),
+    onOpenDebug: () => setIsDebugOpen(true),
     onShowAllStickies: () => useScenarioStore.getState().showAllStickies(),
     onHideAllStickies: () => useScenarioStore.getState().hideAllStickies(),
     onDeleteAllStickies: () => useScenarioStore.getState().deleteAllStickiesGlobal(),
@@ -518,7 +549,7 @@ const menuActions = {
         setCurrentZoom(zoom);
         canvasRef.current?.setZoom(zoom / 100);
       }
-  });
+  }, isDebugModeEnabled);
 
   const renderMenuItem = (item: MenuItemType, onClose: () => void) => {
       if (item.type === 'divider') {
@@ -692,6 +723,7 @@ const menuActions = {
         jsonContent={validationError?.jsonContent}
         onClose={() => setValidationError(null)}
       />
+      <DebugModal isOpen={isDebugOpen} onClose={() => setIsDebugOpen(false)} />
 
       </div>
     </ReactFlowProvider>

@@ -6,7 +6,7 @@ import {
     FileText, Save, Upload, Book, Folder, Download, Trash2, 
     Edit, StickyNote, Eye, EyeOff, Sun, Moon, 
     Eye as ViewIcon, Settings, HelpCircle, History, Info, 
-    Languages, Activity,
+    Languages, Activity, Bug,
     Maximize, Spline, Minus, CornerDownRight, Route
 } from 'lucide-react';
 import type { MenuSection } from '../types/menu';
@@ -22,6 +22,7 @@ export interface MenuExternalActions {
     onOpenManual: () => void;
     onOpenUpdateHistory: () => void;
     onOpenAbout: () => void;
+    onOpenDebug: () => void;
     // View actions
     onZoomIn: () => void;
     onZoomOut: () => void;
@@ -30,7 +31,7 @@ export interface MenuExternalActions {
     currentZoom: number;
 }
 
-export const useMenuStructure = (actions: MenuExternalActions): MenuSection[] => {
+export const useMenuStructure = (actions: MenuExternalActions, isDebugModeEnabled: boolean = false): MenuSection[] => {
     const { t } = useTranslation();
     const { 
         edgeType, setEdgeType, 
@@ -183,6 +184,10 @@ export const useMenuStructure = (actions: MenuExternalActions): MenuSection[] =>
                 { id: 'manual', type: 'item', label: t('common.manual'), icon: Book, action: actions.onOpenManual },
                 { id: 'history', type: 'item', label: t('menu.updateHistory'), icon: History, action: actions.onOpenUpdateHistory },
                 { id: 'about', type: 'item', label: t('menu.about'), icon: Info, action: actions.onOpenAbout },
+                ...(isDebugModeEnabled ? [
+                    { id: 'sep_help', type: 'divider' as const },
+                    { id: 'debug', type: 'item' as const, label: 'デバッグ', icon: Bug, action: actions.onOpenDebug },
+                ] : []),
             ]
         }
     ];
