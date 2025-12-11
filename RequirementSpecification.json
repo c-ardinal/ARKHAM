@@ -357,15 +357,6 @@
             "親ノード移動時、その子孫に含まれる'TargetNodeId'を持つ付箋も自動的に追従する (再帰的チェック)。"
         ]
       },
-      "play_mode_restrictions": {
-          "movement": [
-             "付箋以外のノードは移動不可 (Position/Dimensions変更のロック)",
-             "付箋は自由に移動可能"
-          ],
-          "interaction": [
-              "コンテキストメニュー動作の変更 (Edit vs Play)"
-          ]
-      },
       "overlap_resolution": {
         "algorithm": "反復プッシュ (最大500回)。",
         "target": "兄弟グループ (Sibling Groups) のみ。",
@@ -375,6 +366,61 @@
       "collapse_expand": {
         "collapse": "子ノードを非表示にし、グループサイズをコンテンツサイズ（または最小150x50）に設定。外部接続用に「仮想エッジ（破線）」を作成。",
         "expand": "子ノードの表示を復元し、サイズを再計算し、重なっている兄弟ノードを押しのける（プッシュダウン/ライトロジック）。"
+      },
+      "item_operations": {
+        "deletion": {
+          "cascade_rules": [
+             "親ノード削除時: 子孫ノードも再帰的に削除される。",
+             "ターゲット削除時: 削除対象をターゲットとするJumpノードも削除される。",
+             "ターゲット削除時: 削除対象をターゲットとするStickyノードも削除される。",
+             "エッジ削除: 削除されたノードに接続するエッジは全て削除される。"
+          ]
+        },
+        "duplication": {
+           "logic": "内部ステート（`duplicateNodes`）により処理される。",
+           "behavior": [
+             "ID: 新規生成。",
+             "ラベル: 末尾に `(Copy)` を付与。",
+             "位置: 原本から X+20, Y+20 ずらして配置。",
+             "選択状態: 複製後のノードのみを選択状態にする（原本は選択解除）。"
+           ],
+           "clipboard_usage": "OSのクリップボードは使用しない（アプリ内メモリで完結）。"
+        }
+      },
+      "clipboard_interaction": {
+          "text_copy": {
+              "trigger": "コンテキストメニュー 'Copy Text'",
+              "destination": "OSのクリップボード (navigator.clipboard.writeText)",
+              "format": "ノードタイプに応じたテキストフォーマット（変数展開後の値を含む）。"
+          },
+          "node_copy_paste": {
+              "trigger": "Ctrl+C / Ctrl+V",
+              "destination": "アプリ内メモリ（OSクリップボード不使用）。",
+              "note": "Ctrl+V は 'Reduplicate'（直前の複製操作の繰り返し）として動作する。"
+          }
+      },
+      "data_integrity": {
+          "import_validation": {
+              "trigger": "ファイル読み込み時 (Load)",
+              "rules": [
+                  "必須フィールド (nodes, edges) の存在チェック (欠落時は空配列補完)。",
+                  "ノード検証: ID欠落時は自動生成。Type不正時は 'event' に補正。Position欠落時は {0,0} に補正。",
+                  "エッジ検証: 存在しないノードIDを参照するエッジは削除。"
+              ]
+          },
+          "export_format": {
+              "filename": "TRPGScenarioManager_YYYYMMDDHHmmssSSS.json",
+              "content": "現在の状態（検証・補正済み）をJSONとして出力。"
+          }
+      },
+      "play_mode_restrictions": {
+          "movement": [
+             "全ノードに対して `draggable: true` は維持される（ダブルタップ拡大防止のため）。",
+             "ただし、移動イベント (`onNodesChange`) レベルで座標更新がブロックされる（付箋を除く）。"
+          ],
+          "interaction": [
+              "コンテキストメニュー動作の変更 (Edit vs Play)"
+          ]
       }
     },
     "validation_logic": {
@@ -382,6 +428,23 @@
         "mandatory_checks": ["nodes array exists", "edges array exists", "gameState object exists"],
         "node_correction": "不正なtypeは 'event' に、欠落したpositionは {0,0} に、欠落したdataは {} に自動補正する。",
         "edge_correction": "存在しないsource/targetを参照するエッジは削除する。"
+      },
+      "variable_operations": {
+        "refactoring_scope": {
+          "trigger": "変数名の変更時 (Rename)",
+          "scope": "プロジェクト内の以下の箇所にある当該変数名(${OldName})を新しい名前(${NewName})に一括置換する。",
+          "targets": [
+            "ノードのラベル (label)",
+            "ノードの説明文 (description)",
+            "要素ノードのInfo値 (infoValue)",
+            "分岐ノードの条件値 (conditionValue) - 部分一致および完全一致",
+            "スイッチ分岐のラベル (branch label)",
+            "変数ノードのターゲット (targetVariable) - 完全一致",
+            "変数ノードの値 (variableValue)",
+            "他の変数の文字列値 (recursive reference)"
+          ],
+          "constraint": "予約語(prototype等)への変更はブロックされる。"
+        }
       },
       "variable_validation": {
         "type_consistency": "定義された型(number/boolean/string)と値の整合性をチェックし、不整合があれば自動変換を試みる (例: 'true' -> true)。",
@@ -677,6 +740,25 @@
     "theme": {
       "default": "Dark (Slate-900 base)",
       "toggle_behavior": "Local state + Tailwind '.dark' class toggling. Persisted in LocalStorage."
+    },
+    "text_input_behaviors": {
+      "variable_suggestion_and_expansion": {
+        "feature": "テキスト入力時の変数名サジェストおよび `${Name}` 形式の展開サポート。",
+        "supported_fields": [
+          "各ノードのタイトル (Label)",
+          "各ノードの説明文 (Description)",
+          "キャラクター/リソースの説明文 (Description)",
+          "リソースの効果 (Effect)",
+          "変数ノードの代入値 (Variable Value)",
+          "分岐ノードの条件値およびスイッチのケースラベル (Condition/Branch Label)"
+        ],
+        "excluded_fields": [
+          "キャラクターの読み仮名/アビリティ/スキル/メモ",
+          "リソースの読み仮名/コスト/メモ",
+          "要素ノードの数量 (Number Input)",
+          "その他、単純な文字列として扱われるフィールド"
+        ]
+      }
     },
     "shortcuts": {
       "logic": "Canvas.tsx および Layout.tsx でのイベントリスナーによる実装。",
