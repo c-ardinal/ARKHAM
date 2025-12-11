@@ -321,9 +321,28 @@ export const Layout = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleZoomIn = useCallback(() => {
+    canvasRef.current?.zoomIn();
+    setTimeout(() => {
+         const zoom = canvasRef.current?.getZoom();
+         if (zoom) setCurrentZoom(Math.round(zoom * 100));
+    }, 50);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    canvasRef.current?.zoomOut();
+    setTimeout(() => {
+         const zoom = canvasRef.current?.getZoom();
+         if (zoom) setCurrentZoom(Math.round(zoom * 100));
+    }, 50);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
+          // Prevention of browser default zoom is important, but careful not to block other shortcuts
+          // Native browser zoom is usually handled before JS, but we can try to prevent default.
+          
           if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
               e.preventDefault();
               undo();
@@ -336,10 +355,20 @@ export const Layout = () => {
               e.preventDefault();
               handleSave();
           }
+          // Zoom In: Ctrl + + (or = which is unshifted + on US keyboards)
+          if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+              e.preventDefault();
+              handleZoomIn();
+          }
+          // Zoom Out: Ctrl + -
+          if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+              e.preventDefault();
+              handleZoomOut();
+          }
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, nodes, edges, gameState]);
+  }, [undo, redo, nodes, edges, gameState, handleZoomIn, handleZoomOut]);
 
 
 
@@ -476,20 +505,8 @@ const menuActions = {
   const menuItems = useMenuStructure({
       ...menuActions,
       currentZoom,
-      onZoomIn: () => {
-        canvasRef.current?.zoomIn();
-        setTimeout(() => {
-             const zoom = canvasRef.current?.getZoom();
-             if (zoom) setCurrentZoom(Math.round(zoom * 100));
-        }, 50);
-      },
-      onZoomOut: () => {
-        canvasRef.current?.zoomOut();
-        setTimeout(() => {
-             const zoom = canvasRef.current?.getZoom();
-             if (zoom) setCurrentZoom(Math.round(zoom * 100));
-        }, 50);
-      },
+      onZoomIn: handleZoomIn,
+      onZoomOut: handleZoomOut,
       onFitView: () => {
         canvasRef.current?.fitView();
         setTimeout(() => {
