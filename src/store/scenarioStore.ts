@@ -980,10 +980,26 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
 
   deleteVariable: (name) => {
+    get().pushHistory();
     const state = get();
     const newVariables = { ...state.gameState.variables };
     delete newVariables[name];
+
+    const updatedNodes = state.nodes.map(node => {
+        if (node.type === 'variable' && node.data.targetVariable === name) {
+            return {
+                ...node,
+                data: {
+                    ...node.data,
+                    targetVariable: undefined
+                }
+            };
+        }
+        return node;
+    });
+
     set({
+      nodes: updatedNodes,
       gameState: {
         ...state.gameState,
         variables: newVariables
