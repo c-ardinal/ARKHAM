@@ -2,7 +2,6 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useLocalizedMarkdown } from '../hooks/useLocalizedMarkdown';
 import { X, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 interface UpdateHistoryModalProps {
     isOpen: boolean;
@@ -38,7 +37,6 @@ export const UpdateHistoryModal = ({ isOpen, onClose }: UpdateHistoryModalProps)
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
                         components={{
                             h1: ({node, ...props}) => <h1 className="hidden" {...props} />, // Hide the standard "# ChangeLog" title as we have the modal header
                             h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-6 mb-2 pb-1 border-b border-border text-primary" {...props} />,

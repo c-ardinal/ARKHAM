@@ -91,17 +91,15 @@ ARKHAM(アーカム)へようこそ。
 - 変数名は変更可能です。名前を変更すると、その変数を使用しているノード内の参照も自動的に更新されます。  
 
 ## ショートカットキー
-| 操作 | キー |
-|---|---|
-| 保存 | `Ctrl + S` |
-| 元に戻す | `Ctrl + Z` |
-| やり直し | `Ctrl + Y` |
-| 削除 | `Del` |
-| 複製 | `Ctrl + C` |
-| 再複製 | `Ctrl + V` (最後に複製したノードを再度作成) |
-| 開示/未開示切り替え | `Ctrl + R` |
-| 拡大 | `Ctrl + +` |
-| 縮小 | `Ctrl + -` |
+- **保存**: `Ctrl + S`
+- **元に戻す**: `Ctrl + Z`
+- **やり直し**: `Ctrl + Y`
+- **削除**: `Del`
+- **複製**: `Ctrl + C`
+- **再複製**: `Ctrl + V` (最後に複製したノードを再度作成)
+- **開示/未開示切り替え**: `Ctrl + R`
+- **拡大**: `Ctrl + +`
+- **縮小**: `Ctrl + -`
 
 
 <!-- SECTION: en -->
@@ -178,14 +176,12 @@ Use the format `${variableName}` to include variable values in text. They will b
 - Variable names can be changed. References in nodes will update automatically.  
 
 ## Keyboard Shortcuts
-| Action | Shortcut |
-|---|---|
-| Save | `Ctrl + S` |
-| Undo | `Ctrl + Z` |
-| Redo | `Ctrl + Y` |
-| Delete | `Del` |
-| Duplicate | `Ctrl + C` |
-| Re-duplicate | `Ctrl + V` (Create copy of last duplicated node) |
-| Toggle Reveal | `Ctrl + R` |
-| Zoom In | `Ctrl + +` |
-| Zoom Out | `Ctrl + -` |
+- **Save**: `Ctrl + S`
+- **Undo**: `Ctrl + Z`
+- **Redo**: `Ctrl + Y`
+- **Delete**: `Del`
+- **Duplicate**: `Ctrl + C`
+- **Re-duplicate**: `Ctrl + V` (Create copy of last duplicated node)
+- **Toggle Reveal**: `Ctrl + R`
+- **Zoom In**: `Ctrl + +`
+- **Zoom Out**: `Ctrl + -`

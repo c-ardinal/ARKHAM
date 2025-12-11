@@ -2,7 +2,6 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useLocalizedMarkdown } from '../hooks/useLocalizedMarkdown';
 import { X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 interface ManualModalProps {
   isOpen: boolean;
@@ -27,7 +26,6 @@ export const ManualModal = ({ isOpen, onClose }: ManualModalProps) => {
         
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
              <ReactMarkdown 
-                remarkPlugins={[remarkGfm]}
                 components={{
                     h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-4 pb-2 border-b border-border text-foreground" {...props} />,
                     h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-8 mb-3 text-primary" {...props} />,
