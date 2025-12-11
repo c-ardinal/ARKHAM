@@ -51,7 +51,7 @@ export const ja: TranslationKeys = {
     switchToDark: 'ダークモードへ切替',
     switchToJa: '日本語へ切替',
     switchToEn: '英語へ切替',
-    about: 'About',
+    about: 'バージョン情報',
     export: 'テキスト出力',
     exportSimple: 'シンプルテキスト',
     exportMarkdown: 'Markdown',

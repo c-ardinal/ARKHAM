@@ -3,55 +3,29 @@ import { createPortal } from 'react-dom';
 import { useReactFlow } from 'reactflow';
 import type { NodeType } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Package, Users, Zap, Variable as VariableIcon, Menu, Flag, GitBranch, Folder, StickyNote, Save, Upload, Download, Moon, Sun, Book, Info, ChevronDown, ChevronRight, Rabbit, Eye, EyeOff, Trash2, Check, Activity, ChartBarStacked, Minus, GitMerge, GripVertical, Shield, BookOpen, Plus, Maximize, History } from 'lucide-react';
+import { Package, Users, Zap, Variable as VariableIcon, Menu, Flag, Rabbit, Check, ChartBarStacked, Shield, GripVertical, ChevronDown, ChevronRight, BookOpen, Activity, GitBranch, Folder, StickyNote } from 'lucide-react';
 import { getIconForCharacterType, getIconForResourceType } from '../utils/iconUtils';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableList } from './VariableList';
 import { CharacterList } from './CharacterList';
 import { ResourceList } from './ResourceList';
-
-export interface MenuActions {
-    onSave: () => void;
-    onLoadClick: () => void;
-    onLoadSample: (type: 'story' | 'nested') => void;
-    onExport: (type: 'text' | 'markdown') => void;
-    onReset: () => void;
-    onToggleTheme: () => void;
-    onToggleLang: () => void;
-    onOpenManual: () => void;
-    onOpenUpdateHistory: () => void;
-    onOpenAbout: () => void;
-    onShowAllStickies: () => void;
-    onHideAllStickies: () => void;
-    onDeleteAllStickies: () => void;
-    onRevealAll: () => void;
-    onUnrevealAll: () => void;
-    mode: 'edit' | 'play';
-    toggleMode: () => void;
-}
+import type { MenuSection, MenuItem } from '../types/menu';
 
 interface SidebarProps {
   width: number;
   isOpen: boolean;
   onToggle: () => void;
   isMobile?: boolean;
-  menuActions: MenuActions;
   onOpenPropertyPanel?: () => void;
-  canvasRef?: React.RefObject<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void } | null>;
-  currentZoom?: number;
-  setCurrentZoom?: (zoom: number) => void;
+  menuItems: MenuSection[];
 }
 
-export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({ width: _width, isOpen, onToggle, isMobile = false, menuActions, onOpenPropertyPanel, canvasRef, currentZoom, setCurrentZoom }, ref) => {
+export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({ width: _width, isOpen, onToggle, isMobile = false, onOpenPropertyPanel, menuItems }, ref) => {
   const setSelectedNode = useScenarioStore(s => s.setSelectedNode);
-  const setEdgeType = useScenarioStore(s => s.setEdgeType);
-  const edgeType = useScenarioStore(s => s.edgeType);
-  const theme = useScenarioStore(s => s.theme);
-  const language = useScenarioStore(s => s.language);
-  const characters = useScenarioStore(s => s.characters);
-  const resources = useScenarioStore(s => s.resources);
   const mode = useScenarioStore(s => s.mode);
   const gameState = useScenarioStore(s => s.gameState);
+  const resources = useScenarioStore(s => s.resources);
+  const characters = useScenarioStore(s => s.characters);
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -61,15 +35,12 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
   const [activeTab, setActiveTab] = useState<'nodes' | 'characters' | 'resources' | 'variables' | 'menu'>(isMobile ? 'menu' : 'nodes');
   const { screenToFlowPosition } = useReactFlow();
 
-  // Reset tab on mobile switch is not necessary and causes loop issues.
-  // Instead, rely on user interaction.
-
   // --- Mobile Drag Support ---
   const [dragType, setDragType] = useState<NodeType | null>(null);
   const [dragData, setDragData] = useState<string | null>(null);
   const [dragPos, setDragPos] = useState<{x: number, y: number} | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [isTouching, setIsTouching] = useState(false); // Flag for context menu prevention
+  const [isTouching, setIsTouching] = useState(false);
 
   useEffect(() => {
       const handleContextMenu = (e: MouseEvent) => {
@@ -78,11 +49,6 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
               e.stopPropagation();
           }
       };
-      // Use capture to ensuring it runs before others if needed, or bubble.
-      // Window level might be safest for "global sidebar interaction".
-      // But user said "Sidebar internal panel".
-      // Let's attach to the sidebar root ref logic if possible, but Sidebar is a component.
-      // We can attach to window just to be safe during sidebar touch.
       if (isTouching) {
          window.addEventListener('contextmenu', handleContextMenu, { capture: true });
       }
@@ -104,9 +70,7 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
           if (dragType) {
               if (dragPos && dragPos.x !== 0 && dragPos.y !== 0) {
                  const flowPos = screenToFlowPosition({ x: dragPos.x, y: dragPos.y });
-                 // Offset to center the node (approx 150x50 center)
                  const position = { x: flowPos.x - 75, y: flowPos.y - 25 };
-                 // Ensure valid position
                  if (!isNaN(position.x) && !isNaN(position.y)) {
                      const newNode = {
                         id: `${dragType}-${Date.now()}`,
@@ -149,18 +113,12 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
 
       const onNodeTouchStart = (e: React.TouchEvent, type: NodeType, data?: string) => {
           if (!isMobile) return;
-          // Prevent default to avoid scrolling/selection interference and ensure touchmove fires
-          // e.preventDefault(); // React synthetic event might not support preventDefault on touchstart for passive listeners...
-          // But we can try. If passive, console warning.
-          // Better: set touch-action: none on CSS.
           const touch = e.touches[0];
           setDragType(type);
           if (data) setDragData(data);
           else setDragData(null);
           setDragPos({ x: touch.clientX, y: touch.clientY });
           
-          // Close sidebar with delay - wait, if we keep content mounted, we can toggle immediately!
-          // The key is that the DOM element must NOT disappear.
           if (isOpen) {
               onToggle();
           }
@@ -186,19 +144,15 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
       onTouchEnd: onNodeTouchEnd
   });
   
-  // Desktop Drag
   const onDragStart = (event: React.DragEvent, nodeType: NodeType) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.effectAllowed = 'move';
   };
   
   const handleAddNode = (type: NodeType) => {
-      // Get center of viewport relative to window
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
-      
       const position = screenToFlowPosition({ x: centerX, y: centerY });
-      
       const newNode = {
         id: `${type}-${Date.now()}`,
         type: type,
@@ -209,11 +163,8 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
             referenceId: undefined
         },
       };
-
       // @ts-ignore
       useScenarioStore.getState().addNode(newNode);
-
-      // Close sidebar on mobile/tablet after adding
       if (isMobile && isOpen) {
           onToggle();
       }
@@ -227,7 +178,7 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
           style={{ touchAction: 'manipulation' }}
           {...props}
       >
-          {Icon && <Icon size={16} />} {label} {children}
+          {Icon && <Icon size={16} />} <span>{label}</span> {children}
       </button>
   );
 
@@ -243,7 +194,34 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
       </button>
   );
 
-  // TabButton component helper
+  const renderMobileMenuItem = (item: MenuItem, depth = 0) => {
+    if (item.type === 'divider') return <div key={item.id} className="h-px bg-border my-1" />;
+    
+    if (item.type === 'custom') return <div key={item.id} className="p-2">{item.customRender}</div>;
+
+    if (item.type === 'submenu') {
+        return (
+            <div key={item.id} className="flex flex-col">
+                <div className={`px-2 py-1 text-xs font-semibold text-muted-foreground ${depth > 0 ? 'pl-4' : ''} mt-1`}>{item.label}</div>
+                {item.children?.map(child => renderMobileMenuItem(child, depth + 1))}
+            </div>
+        );
+    }
+
+    // item or checkbox
+    return (
+        <MenuButton 
+            key={item.id} 
+            onClick={item.action} 
+            icon={item.icon} 
+            label={item.label} 
+            className={`${item.danger ? 'hover:bg-destructive/10 text-destructive active:bg-destructive/10' : ''} ${depth > 0 ? 'pl-6' : ''}`}
+        >
+             {item.type === 'checkbox' && item.checked && <Check size={14} className="ml-auto"/>}
+        </MenuButton>
+    );
+  };
+
   interface TabButtonProps {
       id: 'nodes' | 'characters' | 'resources' | 'variables' | 'menu';
       label: string;
@@ -278,7 +256,6 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
       );
   };
 
-    // Helper for colors
     const getNodeColor = (type: NodeType) => {
         switch (type) {
             case 'event': return 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-100';
@@ -348,210 +325,21 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                     <div className="min-w-[15rem]">
                     {activeTab === 'menu' ? (
                         <div className="flex flex-col gap-2 pb-10">
-                            {/* File Section */}
-                            <div className="border border-border rounded overflow-hidden">
-                                <MenuHeader onClick={() => toggleMenu('file')} expanded={openMenu === 'file'} label={t('menu.file')} />
-                                {openMenu === 'file' && (
-                                    <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
-                                         <MenuButton onClick={menuActions.onSave} icon={Save} label={t('common.save')} />
-                                         <MenuButton onClick={menuActions.onLoadClick} icon={Upload} label={t('common.load')} />
-                                         
-                                         <div className="h-px bg-border my-1" />
-                                         <div className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">{t('menu.loadSample' as any)}</div>
-                                         <MenuButton onClick={() => menuActions.onLoadSample('story')} icon={Book} label={t('menu.loadStory' as any)} />
-                                         <MenuButton onClick={() => menuActions.onLoadSample('nested')} icon={Folder} label={t('menu.loadNestedGroup' as any)} />
-                                         
-                                         <div className="h-px bg-border my-1" />
-                                         <div className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">{t('menu.export')}</div>
-                                         <MenuButton onClick={() => menuActions.onExport('text')} icon={Download} label={t('menu.exportSimple' as any)} />
-                                         <MenuButton onClick={() => menuActions.onExport('markdown')} icon={Download} label={t('menu.exportMarkdown' as any)} />
-                                         <div className="h-px bg-border my-1" />
-                                         <MenuButton onClick={() => { 
-                                             if(window.confirm('すべてのノード、キャラクター、リソース、変数、ゲーム状態、履歴を削除して初期状態に戻します。設定は保持されます。よろしいですか？')) { 
-                                                 useScenarioStore.getState().resetToInitialState(); 
-                                             } 
-                                         }} icon={Trash2} label="消去" className="hover:bg-destructive/10 text-destructive active:bg-destructive/10" />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Edit Section */}
-                            <div className="border border-border rounded overflow-hidden">
-                                <MenuHeader onClick={() => toggleMenu('edit')} expanded={openMenu === 'edit'} label={t('menu.edit')} />
-                                {openMenu === 'edit' && (
-                                    <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
-                                        <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{t('menu.stickyNotes')}</div>
-                                        <MenuButton onClick={menuActions.onShowAllStickies} icon={Eye} label={t('menu.showAllStickies')} />
-                                        <MenuButton onClick={menuActions.onHideAllStickies} icon={EyeOff} label={t('menu.hideAllStickies')} />
-                                        <MenuButton onClick={() => { if(window.confirm(t('menu.deleteAllStickies') + '?')) { useScenarioStore.getState().deleteAllFreeStickies(); useScenarioStore.getState().deleteAllNodeStickies(); } }} icon={Trash2} label={t('menu.deleteAllStickies')} className="hover:bg-destructive/10 text-destructive active:bg-destructive/10" />
-                                        
-                                        <div className="h-px bg-border my-1" />
-                                        <MenuButton onClick={() => useScenarioStore.getState().showAllFreeStickies()} icon={Eye} label={t('menu.showFreeStickies' as any)} />
-                                        <MenuButton onClick={() => useScenarioStore.getState().hideAllFreeStickies()} icon={EyeOff} label={t('menu.hideFreeStickies' as any)} />
-                                        <MenuButton onClick={() => { if(window.confirm(t('menu.confirmDeleteFreeStickies' as any))) useScenarioStore.getState().deleteAllFreeStickies(); }} icon={Trash2} label={t('menu.deleteFreeStickies' as any)} className="hover:bg-destructive/10 text-destructive active:bg-destructive/10" />
-                                        
-                                        <div className="h-px bg-border my-1" />
-                                        <MenuButton onClick={() => useScenarioStore.getState().showAllNodeStickies()} icon={Eye} label={t('menu.showNodeStickies' as any)} />
-                                        <MenuButton onClick={() => useScenarioStore.getState().hideAllNodeStickies()} icon={EyeOff} label={t('menu.hideNodeStickies' as any)} />
-                                        <MenuButton onClick={() => { if(window.confirm(t('menu.confirmDeleteNodeStickies' as any))) useScenarioStore.getState().deleteAllNodeStickies(); }} icon={Trash2} label={t('menu.deleteNodeStickies' as any)} className="hover:bg-destructive/10 text-destructive active:bg-destructive/10" />
-                                        
-                                        <div className="h-px bg-border my-1" />
-                                        <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{t('menu.bulkRevealOperations' as any)}</div>
-                                        <MenuButton onClick={menuActions.onRevealAll} icon={Sun} label={t('common.revealAll')} />
-                                        <MenuButton onClick={menuActions.onUnrevealAll} icon={Moon} label={t('common.unrevealAll')} />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* View Section */}
-                            {canvasRef && currentZoom !== undefined && setCurrentZoom && (
-                                <div className="border border-border rounded overflow-hidden">
-                                    <MenuHeader onClick={() => toggleMenu('view')} expanded={openMenu === 'view'} label={t('menu.view')} />
-                                    {openMenu === 'view' && (
+                            {menuItems.map(section => (
+                                <div key={section.id} className="border border-border rounded overflow-hidden">
+                                    <MenuHeader 
+                                        onClick={() => toggleMenu(section.id)} 
+                                        expanded={openMenu === section.id} 
+                                        label={section.label} 
+                                    />
+                                    {openMenu === section.id && (
                                         <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
-                                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{t('menu.zoomLevel')}</div>
-                                            <div className="flex items-center gap-2 p-2">
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        canvasRef.current?.zoomOut();
-                                                        setTimeout(() => {
-                                                            const zoom = canvasRef.current?.getZoom();
-                                                            if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                                                        }, 50);
-                                                    }}
-                                                    onTouchEnd={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        canvasRef.current?.zoomOut();
-                                                        setTimeout(() => {
-                                                            const zoom = canvasRef.current?.getZoom();
-                                                            if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                                                        }, 50);
-                                                    }}
-                                                    className="p-1.5 md:hover:bg-accent active:bg-accent rounded flex items-center justify-center"
-                                                    style={{ touchAction: 'manipulation' }}
-                                                    // title={t('menu.zoomOut')} // Tooltip removed for mobile
-                                                >
-                                                    <Minus size={16}/>
-                                                </button>
-                                                <input
-                                                    type="number"
-                                                    value={currentZoom}
-                                                    onChange={(e) => {
-                                                        const value = parseInt(e.target.value) || 1;
-                                                        const clampedValue = Math.max(1, Math.min(200, value));
-                                                        setCurrentZoom(clampedValue);
-                                                        canvasRef.current?.setZoom(clampedValue / 100);
-                                                    }}
-                                                    onBlur={(e) => {
-                                                        const value = parseInt(e.target.value) || 1;
-                                                        const clampedValue = Math.max(1, Math.min(200, value));
-                                                        setCurrentZoom(clampedValue);
-                                                        canvasRef.current?.setZoom(clampedValue / 100);
-                                                    }}
-                                                    className="flex-1 text-center text-sm font-mono min-w-[60px] bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
-                                                    min="1"
-                                                    max="200"
-                                                />
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        canvasRef.current?.zoomIn();
-                                                        setTimeout(() => {
-                                                            const zoom = canvasRef.current?.getZoom();
-                                                            if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                                                        }, 50);
-                                                    }}
-                                                    onTouchEnd={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        canvasRef.current?.zoomIn();
-                                                        setTimeout(() => {
-                                                            const zoom = canvasRef.current?.getZoom();
-                                                            if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                                                        }, 50);
-                                                    }}
-                                                    className="p-1.5 md:hover:bg-accent active:bg-accent rounded flex items-center justify-center"
-                                                    style={{ touchAction: 'manipulation' }}
-                                                    // title={t('menu.zoomIn')} // Tooltip removed for mobile
-                                                >
-                                                    <Plus size={16}/>
-                                                </button>
-                                            </div>
-                                            <div className="h-px bg-border my-1" />
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    canvasRef.current?.fitView();
-                                                    setTimeout(() => {
-                                                        const zoom = canvasRef.current?.getZoom();
-                                                        if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                                                    }, 350);
-                                                }}
-                                                onTouchEnd={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    canvasRef.current?.fitView();
-                                                    setTimeout(() => {
-                                                        const zoom = canvasRef.current?.getZoom();
-                                                        if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                                                    }, 350);
-                                                }}
-                                                className="w-full text-left p-2 md:hover:bg-accent active:bg-accent rounded flex items-center gap-2 text-sm"
-                                                style={{ touchAction: 'manipulation' }}
-                                            >
-                                                <Maximize size={16}/> {t('menu.fitView')}
-                                            </button>
+                                            {section.items.map(item => renderMobileMenuItem(item))}
                                         </div>
                                     )}
                                 </div>
-                            )}
+                            ))}
 
-                            {/* Settings Section */}
-                            <div className="border border-border rounded overflow-hidden">
-                                <MenuHeader onClick={() => toggleMenu('setting')} expanded={openMenu === 'setting'} label={t('menu.setting')} />
-                                {openMenu === 'setting' && (
-                                    <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
-                                         <MenuButton onClick={menuActions.onToggleTheme} icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? t('menu.switchToLight' as any) : t('menu.switchToDark' as any)} />
-                                         <MenuButton onClick={menuActions.onToggleLang} icon={Flag} label={language === 'en' ? t('menu.switchToJa' as any) : t('menu.switchToEn' as any)} />
-                                         
-                                         <div className="mt-1 flex flex-col gap-1">
-                                            <div className="text-xs text-muted-foreground mb-1">{t('menu.changeEdgeStyle')}</div>
-                                            <div className="flex flex-col gap-1">
-                                                {['default', 'straight', 'step', 'smoothstep'].map((type) => (
-                                                    <button 
-                                                        key={type}
-                                                        onClick={(e) => { e.stopPropagation(); setEdgeType(type as any); }}
-                                                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setEdgeType(type as any); }}
-                                                        className={`flex items-center gap-2 p-2 rounded w-full justify-start text-sm transition-colors ${edgeType === type ? 'bg-primary text-primary-foreground' : 'md:hover:bg-accent active:bg-accent'}`}
-                                                        style={{ touchAction: 'manipulation' }}
-                                                    >
-                                                        {type === 'default' && <Activity size={16} />}
-                                                        {type === 'straight' && <Minus size={16} />}
-                                                        {type === 'step' && <GitBranch size={16} className="rotate-90" />} 
-                                                        {type === 'smoothstep' && <GitMerge size={16} />}
-                                                        <span className="flex-1 capitalize text-left">{t(`menu.edgeStyle.${type}` as any)}</span>
-                                                        {edgeType === type && <Check size={14} />}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                         </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Help Section */}
-                            <div className="border border-border rounded overflow-hidden">
-                                <MenuHeader onClick={() => toggleMenu('help')} expanded={openMenu === 'help'} label={t('menu.help')} />
-                                {openMenu === 'help' && (
-                                    <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
-                                        <MenuButton onClick={menuActions.onOpenManual} icon={Book} label={t('common.manual')} />
-                                        <MenuButton onClick={menuActions.onOpenUpdateHistory} icon={History} label={t('menu.updateHistory')} />
-                                        <MenuButton onClick={menuActions.onOpenAbout} icon={Info} label={t('menu.about')} />
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     ) : (
                         <>

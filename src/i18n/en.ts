@@ -51,7 +51,7 @@ export const en: TranslationKeys = {
     switchToDark: 'Switch to Dark Mode',
     switchToJa: 'Switch to Japanese',
     switchToEn: 'Switch to English',
-    about: 'About',
+    about: 'Versions',
     export: 'Export Text',
     exportSimple: 'Simple Text',
     exportMarkdown: 'Markdown',

@@ -9,7 +9,7 @@ import { ValidationErrorModal } from './ValidationErrorModal';
 import { UpdateHistoryModal } from './UpdateHistoryModal';
 import { useScenarioStore } from '../store/scenarioStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
-import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Save, Upload, Book, Folder, Download, StickyNote, Eye, EyeOff, Trash2, Sun, Moon, Languages, Activity, Minus, Info, Spline, CornerDownRight, Route, Plus, Maximize, FileText, Settings, HelpCircle, History } from 'lucide-react';
+import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight } from 'lucide-react';
 
 import { useTranslation } from '../hooks/useTranslation';
 import { generateScenarioText } from '../utils/exportUtils';
@@ -17,6 +17,8 @@ import sampleStory from '../../sample/sample_Story.json';
 import sampleNestedGroup from '../../sample/sample_NestedGroupNodes.json';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { createPortal } from 'react-dom'; // Import createPortal
+import { useMenuStructure } from '../hooks/useMenuStructure';
+import type { MenuItem as MenuItemType } from '../types/menu';
 
 interface MenuItemProps {
     onClick?: (e: React.MouseEvent) => void;
@@ -217,7 +219,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose }: Confi
 };
 
 export const Layout = () => {
-  const { mode, setMode, nodes, edges, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, setEdgeType, edgeType, selectedNodeId, setSelectedNode, characters, resources } = useScenarioStore();
+  const { mode, setMode, nodes, edges, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, edgeType, selectedNodeId, setSelectedNode, characters, resources } = useScenarioStore();
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -471,6 +473,64 @@ const menuActions = {
     toggleMode
   };
 
+  const menuItems = useMenuStructure({
+      ...menuActions,
+      currentZoom,
+      onZoomIn: () => {
+        canvasRef.current?.zoomIn();
+        setTimeout(() => {
+             const zoom = canvasRef.current?.getZoom();
+             if (zoom) setCurrentZoom(Math.round(zoom * 100));
+        }, 50);
+      },
+      onZoomOut: () => {
+        canvasRef.current?.zoomOut();
+        setTimeout(() => {
+             const zoom = canvasRef.current?.getZoom();
+             if (zoom) setCurrentZoom(Math.round(zoom * 100));
+        }, 50);
+      },
+      onFitView: () => {
+        canvasRef.current?.fitView();
+        setTimeout(() => {
+            const zoom = canvasRef.current?.getZoom();
+            if (zoom) setCurrentZoom(Math.round(zoom * 100));
+        }, 350);
+      },
+      onSetZoom: (zoom) => {
+        setCurrentZoom(zoom);
+        canvasRef.current?.setZoom(zoom / 100);
+      }
+  });
+
+  const renderMenuItem = (item: MenuItemType, onClose: () => void) => {
+      if (item.type === 'divider') {
+          return <div key={item.id} className="my-1 border-t border-border" />;
+      }
+      if (item.type === 'custom') {
+          return <div key={item.id} className="px-4 py-2 hover:bg-transparent cursor-default">{item.customRender}</div>;
+      }
+      if (item.type === 'submenu') {
+          return (
+              <SubMenu key={item.id} label={item.label || ''} icon={item.icon} onClose={onClose}>
+                  {item.children?.map(child => renderMenuItem(child, onClose))}
+              </SubMenu>
+          );
+      }
+      // item or checkbox
+      return (
+          <MenuItem 
+              key={item.id}
+              onClick={item.action} 
+              label={item.label || ''} 
+              icon={item.icon} 
+              danger={item.danger}
+              checked={item.checked}
+              onClose={onClose}
+          />
+      );
+  };
+
   return (
     <ReactFlowProvider>
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-background text-foreground">
@@ -488,149 +548,18 @@ const menuActions = {
 
             {/* Desktop Menu */}
             <div className={`${isMobile ? 'hidden' : 'flex'} items-center gap-1`}>
-                <MenuDropdown label={t('menu.file')} isOpen={openMenuId === 'file'} onToggle={() => setOpenMenuId(openMenuId === 'file' ? null : 'file')} onClose={closeMenu} icon={FileText}>
-                    <MenuItem onClick={handleSave} label={t('common.save')} icon={Save} />
-                    <MenuItem onClick={() => fileInputRef.current?.click()} label={t('common.load')} icon={Upload} />
-                    <SubMenu label={t('menu.loadSample')} icon={Book}>
-                        <MenuItem 
-                            onClick={() => menuActions.onLoadSample('story')} 
-                            label={t('menu.loadStory')}
-                            icon={Book}
-                        />
-                         <MenuItem 
-                            onClick={() => menuActions.onLoadSample('nested')} 
-                            label={t('menu.loadNestedGroup')} 
-                            icon={Folder}
-                        />
-                    </SubMenu>
-                    <div className="my-1 border-t border-border" />
-                    <SubMenu label={t('menu.export')} icon={Download}>
-                        <MenuItem onClick={() => menuActions.onExport('text')} label={t('menu.exportSimple')} icon={Download} />
-                        <MenuItem onClick={() => menuActions.onExport('markdown')} label={t('menu.exportMarkdown')} icon={Download} />
-                    </SubMenu>
-                    <div className="my-1 border-t border-border" />
-                    <MenuItem 
-                        onClick={() => setConfirmModal({ 
-                            isOpen: true, 
-                            title: '消去', 
-                            message: 'すべてのノード、キャラクター、リソース、変数、ゲーム状態、履歴を削除して初期状態に戻します。設定は保持されます。よろしいですか？', 
-                            onConfirm: () => {
-                                useScenarioStore.getState().resetToInitialState();
-                                setTimeout(() => {
-                                    canvasRef.current?.fitView();
-                                    const zoom = canvasRef.current?.getZoom();
-                                    if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                                }, 100);
-                            } 
-                        })} 
-                        label="消去" 
-                        danger 
-                        icon={Trash2} 
-                    />
-
-                </MenuDropdown>
-
-                <MenuDropdown label={t('menu.edit')} isOpen={openMenuId === 'edit'} onToggle={() => setOpenMenuId(openMenuId === 'edit' ? null : 'edit')} onClose={closeMenu} icon={Edit}>
-                     <SubMenu label={t('menu.stickyNotes' as any) || "Sticky Notes"} icon={StickyNote}>
-                        <MenuItem onClick={menuActions.onShowAllStickies} label={t('menu.showAllStickies')} icon={Eye} />
-                        <MenuItem onClick={menuActions.onHideAllStickies} label={t('menu.hideAllStickies')} icon={EyeOff} />
-                        <MenuItem onClick={() => setConfirmModal({ isOpen: true, title: t('menu.deleteAllStickies'), message: t('menu.deleteAllStickies') + '?', onConfirm: menuActions.onDeleteAllStickies })} label={t('menu.deleteAllStickies')} danger icon={Trash2} />
-                        <div className="my-1 border-t border-border" />
-                        <MenuItem onClick={() => useScenarioStore.getState().showAllFreeStickies()} label={t('menu.showFreeStickies' as any)} icon={Eye} />
-                        <MenuItem onClick={() => useScenarioStore.getState().hideAllFreeStickies()} label={t('menu.hideFreeStickies' as any)} icon={EyeOff} />
-                        <MenuItem onClick={() => setConfirmModal({ isOpen: true, title: t('menu.deleteFreeStickies' as any), message: t('menu.confirmDeleteFreeStickies' as any), onConfirm: () => useScenarioStore.getState().deleteAllFreeStickies() })} label={t('menu.deleteFreeStickies' as any)} danger icon={Trash2} />
-                        <div className="my-1 border-t border-border" />
-                        <MenuItem onClick={() => useScenarioStore.getState().showAllNodeStickies()} label={t('menu.showNodeStickies' as any)} icon={Eye} />
-                        <MenuItem onClick={() => useScenarioStore.getState().hideAllNodeStickies()} label={t('menu.hideNodeStickies' as any)} icon={EyeOff} />
-                        <MenuItem onClick={() => setConfirmModal({ isOpen: true, title: t('menu.deleteNodeStickies' as any), message: t('menu.confirmDeleteNodeStickies' as any), onConfirm: () => useScenarioStore.getState().deleteAllNodeStickies() })} label={t('menu.deleteNodeStickies' as any)} danger icon={Trash2} />
-                    </SubMenu>
-                    <SubMenu label={t('menu.bulkRevealOperations')} icon={Sun}>
-                        <MenuItem onClick={() => setConfirmModal({ isOpen: true, title: t('common.revealAll'), message: t('common.confirmRevealAll'), onConfirm: menuActions.onRevealAll })} label={t('common.revealAll')} icon={Sun} />
-                        <MenuItem onClick={() => setConfirmModal({ isOpen: true, title: t('common.unrevealAll'), message: t('common.confirmUnrevealAll'), onConfirm: menuActions.onUnrevealAll })} label={t('common.unrevealAll')} icon={Moon} />
-                    </SubMenu>
-                </MenuDropdown>
-
-                <MenuDropdown label={t('menu.view')} isOpen={openMenuId === 'view'} onToggle={() => setOpenMenuId(openMenuId === 'view' ? null : 'view')} onClose={closeMenu} icon={Eye}>
-                    <div className="px-4 py-2">
-                        <div className="text-xs font-semibold text-muted-foreground mb-2">{t('menu.zoomLevel')}</div>
-                        <div className="flex items-center gap-2">
-                            <button 
-                                onClick={() => {
-                                    canvasRef.current?.zoomOut();
-                                    setTimeout(() => {
-                                        const zoom = canvasRef.current?.getZoom();
-                                        if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                                    }, 50);
-                                }}
-                                className="p-2 hover:bg-accent rounded flex items-center justify-center transition-colors"
-                                title={t('menu.zoomOut')}
-                            >
-                                <Minus size={16}/>
-                            </button>
-                            <input
-                                type="number"
-                                value={currentZoom}
-                                onChange={(e) => {
-                                    const value = parseInt(e.target.value) || 1;
-                                    const clampedValue = Math.max(1, Math.min(200, value));
-                                    setCurrentZoom(clampedValue);
-                                    canvasRef.current?.setZoom(clampedValue / 100);
-                                }}
-                                onBlur={(e) => {
-                                    const value = parseInt(e.target.value) || 1;
-                                    const clampedValue = Math.max(1, Math.min(200, value));
-                                    setCurrentZoom(clampedValue);
-                                    canvasRef.current?.setZoom(clampedValue / 100);
-                                }}
-                                className="flex-1 text-center text-sm font-mono min-w-[60px] bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
-                                min="1"
-                                max="200"
-                            />
-                            <button 
-                                onClick={() => {
-                                    canvasRef.current?.zoomIn();
-                                    setTimeout(() => {
-                                        const zoom = canvasRef.current?.getZoom();
-                                        if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                                    }, 50);
-                                }}
-                                className="p-2 hover:bg-accent rounded flex items-center justify-center transition-colors"
-                                title={t('menu.zoomIn')}
-                            >
-                                <Plus size={16}/>
-                            </button>
-                        </div>
-                    </div>
-                    <div className="h-px bg-border my-1 mx-2" />
-                    <MenuItem 
-                        onClick={() => {
-                            canvasRef.current?.fitView();
-                            setTimeout(() => {
-                                const zoom = canvasRef.current?.getZoom();
-                                if (zoom) setCurrentZoom(Math.round(zoom * 100));
-                            }, 350);
-                        }}
-                        label={t('menu.fitView')}
-                        icon={Maximize}
-                    />
-                </MenuDropdown>
-
-                <MenuDropdown label={String(t('menu.setting') || 'Settings')} isOpen={openMenuId === 'setting'} onToggle={() => setOpenMenuId(openMenuId === 'setting' ? null : 'setting')} onClose={closeMenu} icon={Settings}>
-                    <MenuItem onClick={menuActions.onToggleTheme} label={theme === 'dark' ? t('menu.switchToLight' as any) : t('menu.switchToDark' as any)} icon={theme === 'dark' ? Sun : Moon} />
-                    <MenuItem onClick={menuActions.onToggleLang} label={language === 'en' ? t('menu.switchToJa' as any) : t('menu.switchToEn' as any)} icon={Languages} />
-                     <SubMenu label={t('menu.changeEdgeStyle')} icon={Activity}>
-                        <MenuItem onClick={() => setEdgeType('default')} label={t('menu.edgeStyle.default' as any)} checked={edgeType === 'default'} icon={Spline} />
-                        <MenuItem onClick={() => setEdgeType('straight')} label={t('menu.edgeStyle.straight' as any)} checked={edgeType === 'straight'} icon={Minus} />
-                        <MenuItem onClick={() => setEdgeType('step')} label={t('menu.edgeStyle.step' as any)} checked={edgeType === 'step'} icon={CornerDownRight} />
-                        <MenuItem onClick={() => setEdgeType('smoothstep')} label={t('menu.edgeStyle.smoothstep' as any)} checked={edgeType === 'smoothstep'} icon={Route} />
-                    </SubMenu>
-                </MenuDropdown>
-
-                <MenuDropdown label={t('menu.help')} isOpen={openMenuId === 'help'} onToggle={() => setOpenMenuId(openMenuId === 'help' ? null : 'help')} onClose={closeMenu} icon={HelpCircle}>
-                    <MenuItem onClick={menuActions.onOpenManual} label={t('common.manual')} icon={Book} />
-                    <MenuItem onClick={menuActions.onOpenUpdateHistory} label={t('menu.updateHistory')} icon={History} />
-                    <MenuItem onClick={menuActions.onOpenAbout} label={t('menu.about')} icon={Info} />
-                </MenuDropdown>
+                {menuItems.map(section => (
+                    <MenuDropdown 
+                        key={section.id}
+                        label={section.label} 
+                        isOpen={openMenuId === section.id} 
+                        onToggle={() => setOpenMenuId(openMenuId === section.id ? null : section.id)} 
+                        onClose={closeMenu} 
+                        icon={section.icon}
+                    >
+                        {section.items.map(item => renderMenuItem(item, closeMenu))}
+                    </MenuDropdown>
+                ))}
             </div>
         </div>
         
@@ -678,11 +607,8 @@ const menuActions = {
             isOpen={isSidebarOpen} 
             onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
             isMobile={isMobile}
-            menuActions={menuActions}
             onOpenPropertyPanel={() => setMobilePropertyPanelOpen(true)}
-            canvasRef={canvasRef}
-            currentZoom={currentZoom}
-            setCurrentZoom={setCurrentZoom}
+            menuItems={menuItems}
         />
         </div>
         
