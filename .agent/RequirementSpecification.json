@@ -340,8 +340,14 @@
         "unreveal_behavior": [
           "1. 'previousValue' から変数値を復元",
           "2. 'previousValue' をクリア"
-        ]
+        ],
+        "optimistic_update": "ノードレンダリングにおいて、変数値の反映を楽観的に(Optimistically)行うことで、ストア更新の遅延による変数名の一瞬の消失(None表示)を防ぐ。"
       }
+    },
+    "localization": {
+        "strategy": "Markdownベースのコンテンツローディング (Manual/ChangeLog)",
+        "mechanism": "public/[File].md をフェッチし、セクションマーカー (<!-- SECTION: ja/en -->) に基づいてパースする。結果はグローバルキャッシュされ、言語切り替え時のちらつき (Flicker) を防止する。",
+        "benefits": "コンテンツ管理の容易化（コードベースからの分離）と、即時の言語切り替え体験の提供。"
     },
     "grouping_logic": {
       "creation": {
@@ -579,7 +585,7 @@
       "description": "変数の値を更新するノード。",
       "style": "赤色テーマ。変数アイコン。値/ターゲット変数表示。",
       "behavior": {
-         "auto_assignment": "新規作成時、定義済み変数が存在する場合、最初の変数を自動的にターゲットとして割り当てる (None回避)。",
+         "auto_assignment": "新規作成時、定義済み変数が存在する場合、最初の変数を自動的にターゲットとして割り当てる (None回避)。また、既存ノードでターゲットが未設定(None)の場合も、レンダリング時に自動的に最初の変数を割り当てる。",
          "target_display": "ターゲット変数が設定されている場合、ノード上にその変数名と現在値を表示する。"
       },
       "visual_structure": {
@@ -753,7 +759,9 @@
         { "key": "Delete", "actions": ["選択要素の削除"] },
         { "key": "Ctrl + Z", "actions": ["元に戻す (Undo)"] },
         { "key": "Ctrl + Y", "actions": ["やり直し (Redo)"] },
-        { "key": "Ctrl + S", "actions": ["保存 (Save)"] }
+        { "key": "Ctrl + S", "actions": ["保存 (Save)"] },
+        { "key": "Ctrl + +", "actions": ["拡大 (Zoom In)"] },
+        { "key": "Ctrl + -", "actions": ["縮小 (Zoom Out)"] }
       ]
     },
     "header": {
@@ -914,6 +922,23 @@
           ]
         }
       ]
+    },
+    "modals": {
+        "manual_modal": {
+            "description": "ユーザーマニュアルを表示するモーダル。",
+            "content_source": "public/Manual.md",
+            "features": "Markdownレンダリング, 言語切り替え即時反映"
+        },
+        "update_history_modal": {
+            "description": "更新履歴を表示するモーダル。",
+            "content_source": "public/ChangeLog.md",
+            "features": "Markdownレンダリング, 言語切り替え即時反映, バージョンごとの色分け表示"
+        },
+        "about_modal": {
+            "description": "アプリ情報を表示するモーダル。",
+            "content_source": "Hardcoded",
+            "features": "バージョン情報, リンク"
+        }
     },
     "sidebar": {
       "width": { "desktop": "Layout.tsxにより定義 (通常320px程度想定)", "mobile": "オーバーレイ (約256px)。Breakpoint: 768px (max-width) で切り替え。" },
