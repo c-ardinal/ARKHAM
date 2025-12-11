@@ -52,7 +52,15 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
              infoValue: resources[0].name 
          });
       }
-  }, [selectedNode?.id, resources.length, selectedNode?.data.referenceId]);
+
+      if (selectedNode?.type === 'variable' && 
+          !selectedNode.data.targetVariable && 
+          Object.keys(gameState.variables).length > 0) {
+          updateNodeData(selectedNode.id, { 
+             targetVariable: Object.keys(gameState.variables)[0]
+         });
+      }
+  }, [selectedNode?.id, resources.length, selectedNode?.data.referenceId, selectedNode?.data.targetVariable, gameState.variables]);
 
   const panelClass = isMobile
       ? `bg-card border border-border rounded-lg shadow-xl w-full max-w-[400px] max-h-[85vh] flex flex-col overflow-hidden` 

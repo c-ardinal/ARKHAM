@@ -195,10 +195,54 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       };
   }),
 
-  addResource: (res) => set((state) => ({ resources: [...state.resources, res] })),
-  updateResource: (id, res) => set((state) => ({
-      resources: state.resources.map((r) => (r.id === id ? { ...r, ...res } : r))
-  })),
+  addResource: (res) => set((state) => {
+      const newResources = [...state.resources, res];
+      
+      // Auto-assign to unassigned element nodes
+      const updatedNodes = state.nodes.map(node => {
+          if ((node.type === 'element' || node.type === 'information') && !node.data.referenceId) {
+             return {
+                 ...node,
+                 data: {
+                     ...node.data,
+                     referenceId: res.id,
+                     infoValue: res.name
+                 }
+             };
+          }
+          return node;
+      });
+
+      return { 
+          resources: newResources,
+          nodes: updatedNodes
+      };
+  }),
+  updateResource: (id, res) => set((state) => {
+      const updatedResources = state.resources.map((r) => (r.id === id ? { ...r, ...res } : r));
+      
+      // Update element nodes that reference this resource
+      const updatedNodes = state.nodes.map(node => {
+          if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
+             const updatedResource = updatedResources.find(r => r.id === id);
+             if (updatedResource) {
+                 return {
+                     ...node,
+                     data: {
+                         ...node.data,
+                         infoValue: updatedResource.name
+                     }
+                 };
+             }
+          }
+          return node;
+      });
+
+      return {
+          resources: updatedResources,
+          nodes: updatedNodes
+      };
+  }),
   deleteResource: (id) => set((state) => {
        const resources = state.resources.filter((r) => r.id !== id);
        const fallbackResource = resources.length > 0 ? resources[0] : null;
@@ -471,7 +515,25 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
   addNode: (node: ScenarioNode) => {
     get().pushHistory();
-    set({ nodes: [...get().nodes, node] });
+    
+    let nodeToAdd = node;
+    const state = get();
+    
+    // Auto-assign variable for new Variable nodes
+    if (node.type === 'variable' && !node.data.targetVariable) {
+        const variableNames = Object.keys(state.gameState.variables);
+        if (variableNames.length > 0) {
+            nodeToAdd = {
+                ...node,
+                data: {
+                    ...node.data,
+                    targetVariable: variableNames[0]
+                }
+            };
+        }
+    }
+
+    set({ nodes: [...state.nodes, nodeToAdd] });
     get().recalculateGameState();
   },
   updateNodeData: (id: string, data: any) => {
