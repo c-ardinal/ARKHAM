@@ -346,7 +346,11 @@
     },
     "localization": {
         "strategy": "Markdownベースのコンテンツローディング (Manual/ChangeLog)",
-        "mechanism": "public/[File].md をフェッチし、セクションマーカー (<!-- SECTION: ja/en -->) に基づいてパースする。結果はグローバルキャッシュされ、言語切り替え時のちらつき (Flicker) を防止する。",
+        "mechanism": [
+            "public/[File].md をフェッチし、セクションマーカー (<!-- SECTION: ja/en -->) に基づいてパースする。",
+            "結果はグローバルキャッシュされ、言語切り替え時のちらつき (Flicker) を防止する。",
+            "iOS互換性のためGFM(Table等)は使用せず標準Markdownのみサポート。"
+        ],
         "benefits": "コンテンツ管理の容易化（コードベースからの分離）と、即時の言語切り替え体験の提供。"
     },
     "grouping_logic": {
@@ -723,6 +727,12 @@
         "description": "軽微な視覚的不一致: 'sticky-origin' ハンドルのオフセット (-7px 対 -6px)。",
         "location": "src/nodes/*",
         "status": "minor visual inconsistency"
+      },
+      {
+        "id": "markdown_table_limitation",
+        "description": "iOS (Older Safari) での正規表現クラッシュ回避のため、remark-gfm を除外。Manual/ChangeLogでのテーブル使用不可。",
+        "location": "src/components/*Modal.tsx",
+        "status": "intentional limitation"
       }
     ]
   },
