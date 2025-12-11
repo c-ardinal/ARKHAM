@@ -387,7 +387,7 @@
            "clipboard_usage": "OSのクリップボードは使用しない（アプリ内メモリで完結）。"
         }
       },
-      "clipboard_interaction": {
+       "clipboard_interaction": {
           "text_copy": {
               "trigger": "コンテキストメニュー 'Copy Text'",
               "destination": "OSのクリップボード (navigator.clipboard.writeText)",
@@ -396,9 +396,10 @@
           "node_copy_paste": {
               "trigger": "Ctrl+C / Ctrl+V",
               "destination": "アプリ内メモリ（OSクリップボード不使用）。",
-              "note": "Ctrl+V は 'Reduplicate'（直前の複製操作の繰り返し）として動作する。"
+              "behavior": "Ctrl+Cで選択ノードを内部クリップボードに記録。Ctrl+Vは 'Reduplicate'（記録されたノードの再複製）として動作する。",
+              "note": "Canvas上でのみ有効であり、ペースト先もCanvas限定であるため、OSクリップボードと分離した設計とする。"
           }
-      },
+       },
       "data_integrity": {
           "import_validation": {
               "trigger": "ファイル読み込み時 (Load)",
@@ -448,7 +449,11 @@
       },
       "variable_validation": {
         "type_consistency": "定義された型(number/boolean/string)と値の整合性をチェックし、不整合があれば自動変換を試みる (例: 'true' -> true)。",
-        "uniqueness": "変数名の重複は禁止される(大文字小文字を区別しない: A==a)。作成時およびリネーム時にチェックが行われる。"
+        "uniqueness": "変数名の重複は禁止される(大文字小文字を区別しない: A==a)。作成時およびリネーム時にチェックが行われる。",
+        "type_immutability": {
+            "rule": "定義後の変数型変更は不可。",
+            "reason": "他変数（特に計算式を持つnumber型）からの参照整合性を維持するため。UI上で型変更を防ぐ設計とする。"
+        }
       },
       "input_validation": {
         "zoom": "最小 1% (0.01) - 最大 200% (2.0)。UI上の入力は1-200の整数。"
@@ -567,6 +572,11 @@
     "variable": {
       "label": "変数操作 (Variable)",
       "description": "変数の値を更新するノード。",
+      "style": "赤色テーマ。変数アイコン。値/ターゲット変数表示。",
+      "behavior": {
+         "auto_assignment": "新規作成時、定義済み変数が存在する場合、最初の変数を自動的にターゲットとして割り当てる (None回避)。",
+         "target_display": "ターゲット変数が設定されている場合、ノード上にその変数名と現在値を表示する。"
+      },
       "visual_structure": {
         "icon": "Calculator (Lucide)",
         "theme": "Red",
@@ -697,20 +707,7 @@
   },
   "implementation_report_inconsistencies": {
     "status": "active",
-    "items": [
-      {
-        "id": "variable_type_immutability",
-        "description": "変数の型は作成後に変更できない（UI上の制限）。",
-        "location": "src/store/scenarioStore.ts",
-        "status": "verified (by design)"
-      },
-      {
-        "id": "shortcut_behavior",
-        "description": "Ctrl+C/V は OS のクリップボードではなく、内部的な複製・再複製 (Duplicate/Reduplicate) として動作する。",
-        "location": "src/components/Canvas.tsx",
-        "status": "verified (by design)"
-      },
-      {
+    "items": [{
         "id": "sticky_handle_offset",
         "description": "軽微な視覚的不一致: 'sticky-origin' ハンドルのオフセット (-7px 対 -6px)。",
         "location": "src/nodes/*",
@@ -721,12 +718,6 @@
         "description": "文字列 'mobileBlocker.title/message' は未使用の残留物である（モバイルサポート実装済みのため）。",
         "location": "src/i18n/ja.ts",
         "status": "finding (cleanup candidate)"
-      },
-      {
-        "id": "variable_auto_correction-missing",
-        "description": "仕様書には'自動補正(auto_correction)'ロジックがあるが、VariableNode.tsxには実装が見当たらない。",
-        "location": "src/nodes/VariableNode.tsx",
-        "status": "missing implementation"
       },
       {
         "id": "mobile_help_menu_missing_history",
