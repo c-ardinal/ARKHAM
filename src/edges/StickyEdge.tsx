@@ -1,5 +1,5 @@
 import { BaseEdge, type EdgeProps, getStraightPath } from 'reactflow';
-import React from 'react';
+
 
 const StickyEdge = ({
   sourceX,

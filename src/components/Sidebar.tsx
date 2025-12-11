@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useReactFlow } from 'reactflow';
 import type { NodeType } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Package, Users, Zap, Variable as VariableIcon, Menu, Flag, GitBranch, Folder, StickyNote, Save, Upload, Download, Moon, Sun, Book, Info, ChevronDown, ChevronRight, Rabbit, Eye, EyeOff, Trash2, Check, Activity, ChartBarStacked, Minus, GitMerge, GripVertical, Shield, BookOpen, Plus, Maximize } from 'lucide-react';
+import { Package, Users, Zap, Variable as VariableIcon, Menu, Flag, GitBranch, Folder, StickyNote, Save, Upload, Download, Moon, Sun, Book, Info, ChevronDown, ChevronRight, Rabbit, Eye, EyeOff, Trash2, Check, Activity, ChartBarStacked, Minus, GitMerge, GripVertical, Shield, BookOpen, Plus, Maximize, History } from 'lucide-react';
 import { getIconForCharacterType, getIconForResourceType } from '../utils/iconUtils';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableList } from './VariableList';
@@ -19,6 +19,7 @@ export interface MenuActions {
     onToggleTheme: () => void;
     onToggleLang: () => void;
     onOpenManual: () => void;
+    onOpenUpdateHistory: () => void;
     onOpenAbout: () => void;
     onShowAllStickies: () => void;
     onHideAllStickies: () => void;
@@ -546,6 +547,7 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                 {openMenu === 'help' && (
                                     <div className="flex flex-col bg-background p-1 animate-in slide-in-from-top-2 duration-200">
                                         <MenuButton onClick={menuActions.onOpenManual} icon={Book} label={t('common.manual')} />
+                                        <MenuButton onClick={menuActions.onOpenUpdateHistory} icon={History} label={t('menu.updateHistory')} />
                                         <MenuButton onClick={menuActions.onOpenAbout} icon={Info} label={t('menu.about')} />
                                     </div>
                                 )}

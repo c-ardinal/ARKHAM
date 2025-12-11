@@ -717,12 +717,6 @@
         "description": "軽微な視覚的不一致: 'sticky-origin' ハンドルのオフセット (-7px 対 -6px)。",
         "location": "src/nodes/*",
         "status": "minor visual inconsistency"
-      },
-      {
-        "id": "mobile_help_menu_missing_history",
-        "description": "モバイルサイドバーのHelpメニューに'Update History'が含まれていない(デスクトップHeaderには存在)。",
-        "location": "src/components/Sidebar.tsx",
-        "status": "missing feature"
       }
     ]
   },

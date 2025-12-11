@@ -461,7 +461,7 @@ const menuActions = {
     onToggleLang: () => setLanguage(language === 'en' ? 'ja' : 'en'),
     onOpenManual: () => setIsManualOpen(true),
     onOpenAbout: () => setIsAboutOpen(true),
-    onOpenHistory: () => setIsHistoryOpen(true),
+    onOpenUpdateHistory: () => setIsHistoryOpen(true),
     onShowAllStickies: () => useScenarioStore.getState().showAllStickies(),
     onHideAllStickies: () => useScenarioStore.getState().hideAllStickies(),
     onDeleteAllStickies: () => useScenarioStore.getState().deleteAllStickiesGlobal(),
@@ -628,7 +628,7 @@ const menuActions = {
 
                 <MenuDropdown label={t('menu.help')} isOpen={openMenuId === 'help'} onToggle={() => setOpenMenuId(openMenuId === 'help' ? null : 'help')} onClose={closeMenu} icon={HelpCircle}>
                     <MenuItem onClick={menuActions.onOpenManual} label={t('common.manual')} icon={Book} />
-                    <MenuItem onClick={menuActions.onOpenHistory} label={t('menu.updateHistory')} icon={History} />
+                    <MenuItem onClick={menuActions.onOpenUpdateHistory} label={t('menu.updateHistory')} icon={History} />
                     <MenuItem onClick={menuActions.onOpenAbout} label={t('menu.about')} icon={Info} />
                 </MenuDropdown>
             </div>

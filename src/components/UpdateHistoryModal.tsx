@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useTranslation } from '../hooks/useTranslation';
 import { X, Clock } from 'lucide-react';
 
