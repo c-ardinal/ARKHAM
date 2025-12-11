@@ -385,7 +385,7 @@
       },
       "variable_validation": {
         "type_consistency": "定義された型(number/boolean/string)と値の整合性をチェックし、不整合があれば自動変換を試みる (例: 'true' -> true)。",
-        "uniqueness": "変数名の重複は禁止される。作成時およびリネーム時にチェックが行われる。"
+        "uniqueness": "変数名の重複は禁止される(大文字小文字を区別しない: A==a)。作成時およびリネーム時にチェックが行われる。"
       },
       "input_validation": {
         "zoom": "最小 1% (0.01) - 最大 200% (2.0)。UI上の入力は1-200の整数。"
@@ -658,6 +658,18 @@
         "description": "文字列 'mobileBlocker.title/message' は未使用の残留物である（モバイルサポート実装済みのため）。",
         "location": "src/i18n/ja.ts",
         "status": "finding (cleanup candidate)"
+      },
+      {
+        "id": "variable_auto_correction-missing",
+        "description": "仕様書には'自動補正(auto_correction)'ロジックがあるが、VariableNode.tsxには実装が見当たらない。",
+        "location": "src/nodes/VariableNode.tsx",
+        "status": "missing implementation"
+      },
+      {
+        "id": "mobile_help_menu_missing_history",
+        "description": "モバイルサイドバーのHelpメニューに'Update History'が含まれていない(デスクトップHeaderには存在)。",
+        "location": "src/components/Sidebar.tsx",
+        "status": "missing feature"
       }
     ]
   },
