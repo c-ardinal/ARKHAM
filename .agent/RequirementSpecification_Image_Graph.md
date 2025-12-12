@@ -38,6 +38,7 @@ graph TD
         D_Sidebar[サイドバー （常時表示）]
         D_Prop[プロパティパネル （右側）]
         D_DnD[HTML5 ドラッグ＆ドロップ]
+        D_Debug[デバッグパネル （Floating/Overlay）]
         
         D_Mouse -->|右クリック| D_Ctx[コンテキストメニュー]
         D_Mouse -->|クリック| D_Select[ノード選択]
@@ -49,6 +50,7 @@ graph TD
         M_Sidebar[サイドバー （オーバーレイ / 非表示）]
         M_Prop[プロパティパネル （オーバーレイ / フル）]
         M_TouchDnD[タッチドラッグ （ポータルゴースト）]
+        M_Debug[デバッグモーダル （Overlay）]
         
         M_Touch -->|タップ| M_Select[選択 / プロパティを開く]
         M_Touch -->|長押し| M_Ctx[コンテキストメニュー]
@@ -57,4 +59,6 @@ graph TD
     
     User -->|デバイス判定| Desktop
     User -->|デバイス判定| Mobile
+    User -.->|隠しコマンド| D_Debug
+    User -.->|隠しコマンド| M_Debug
 ```

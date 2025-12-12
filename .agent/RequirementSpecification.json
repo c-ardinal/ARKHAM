@@ -787,18 +787,16 @@
         "deactivation": "バージョン番号を10回クリックで無効化"
       },
       "features": {
-        "debug_console": {
-          "description": "アプリケーション内のconsole.logをキャプチャして表示するモーダル",
+        "debug_panel": {
+          "description": "アプリケーションの状態を詳細に検査するための統合デバッグパネル (Debugging Suite)",
           "access": "デバッグモード有効時、ヘルプメニューに「デバッグ」項目が表示される",
-          "functionality": [
-            "アプリ起動時からすべてのconsole.log/warn/errorをキャプチャ",
-            "モーダル内でログをリアルタイム表示",
-            "ログコピーボタン（クリップボードにコピー）",
-            "ログクリアボタン",
-            "自動スクロール無効（ログコピーを容易にするため）"
+          "features": [
+            "Log Console: ログの閲覧、フィルタリング、エクスポート",
+            "Performance Monitor: レンダリング性能とリソース使用状況の監視",
+            "Snapshots: 状態の保存、差分比較、永続化、JSONエクスポート",
+            "Assertions: データ整合性の自動チェックとカスタムルールの追加"
           ],
-          "log_format": "タイムスタンプ [レベル] メッセージ",
-          "max_logs": "最大1000件まで保持"
+          "specification_reference": "DebugFeatureSpecification.md"
         }
       },
       "development_mode": {

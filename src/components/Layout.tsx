@@ -7,9 +7,10 @@ import { ManualModal } from './ManualModal';
 import { AboutModal } from './AboutModal';
 import { ValidationErrorModal } from './ValidationErrorModal';
 import { UpdateHistoryModal } from './UpdateHistoryModal';
-import { DebugModal } from './DebugModal';
+import { DebugPanel } from './DebugPanel/DebugPanel';
 import { LoadingOverlay } from './LoadingOverlay';
 import { useScenarioStore } from '../store/scenarioStore';
+import { useDebugStore } from '../store/debugStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
 import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight } from 'lucide-react';
 
@@ -231,7 +232,6 @@ export const Layout = () => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
   const [validationError, setValidationError] = useState<{ errors: string[]; warnings: string[]; corrections?: string[]; jsonContent?: string } | null>(null);
-  const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const isDebugModeEnabled = (() => {
     // 開発環境では常に有効
@@ -615,7 +615,9 @@ const menuActions = {
     onOpenManual: () => setIsManualOpen(true),
     onOpenAbout: () => setIsAboutOpen(true),
     onOpenUpdateHistory: () => setIsHistoryOpen(true),
-    onOpenDebug: () => setIsDebugOpen(true),
+    onOpenDebugPanel: () => {
+      useDebugStore.getState().setDebugPanelOpen(true);
+    },
     onShowAllStickies: () => useScenarioStore.getState().showAllStickies(),
     onHideAllStickies: () => useScenarioStore.getState().hideAllStickies(),
     onDeleteAllStickies: () => useScenarioStore.getState().deleteAllStickiesGlobal(),
@@ -815,7 +817,7 @@ const menuActions = {
         jsonContent={validationError?.jsonContent}
         onClose={() => setValidationError(null)}
       />
-      <DebugModal isOpen={isDebugOpen} onClose={() => setIsDebugOpen(false)} />
+      {isDebugModeEnabled && <DebugPanel />}
       <LoadingOverlay isLoading={isLoading} message="シナリオを読み込んでいます..." />
 
       </div>

@@ -6,7 +6,7 @@ import {
     FileText, Save, Upload, Book, Folder, Download, Trash2, 
     Edit, StickyNote, Eye, EyeOff, Sun, Moon, 
     Eye as ViewIcon, Settings, HelpCircle, History, Info, 
-    Languages, Activity, Bug,
+    Languages, Activity,
     Maximize, Spline, Minus, CornerDownRight, Route
 } from 'lucide-react';
 import type { MenuSection } from '../types/menu';
@@ -22,7 +22,7 @@ export interface MenuExternalActions {
     onOpenManual: () => void;
     onOpenUpdateHistory: () => void;
     onOpenAbout: () => void;
-    onOpenDebug: () => void;
+    onOpenDebugPanel: () => void;
     // View actions
     onZoomIn: () => void;
     onZoomOut: () => void;
@@ -186,7 +186,7 @@ export const useMenuStructure = (actions: MenuExternalActions, isDebugModeEnable
                 { id: 'about', type: 'item', label: t('menu.about'), icon: Info, action: actions.onOpenAbout },
                 ...(isDebugModeEnabled ? [
                     { id: 'sep_help', type: 'divider' as const },
-                    { id: 'debug', type: 'item' as const, label: 'デバッグ', icon: Bug, action: actions.onOpenDebug },
+                    { id: 'debug_panel', type: 'item' as const, label: 'デバッグパネル', icon: Activity, action: actions.onOpenDebugPanel },
                 ] : []),
             ]
         }

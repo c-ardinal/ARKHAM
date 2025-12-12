@@ -5,6 +5,7 @@ import { VariableSuggestInput } from './VariableSuggestInput';
 import { substituteVariables } from '../utils/textUtils';
 import { INPUT_CLASS, LABEL_CLASS, ERROR_MSG_CLASS as ERROR_CLASS } from '../styles/common';
 import { X } from 'lucide-react';
+import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 
 const MobileBackdrop = ({ children, isMobile }: { children: React.ReactNode, isMobile: boolean }) => {
     if (!isMobile) return <>{children}</>;
@@ -27,6 +28,9 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
       characters, resources, updateCharacter, updateResource
   } = useScenarioStore();
   const { t } = useTranslation();
+  
+  // レンダリング計測(デバッグモード時のみ)
+  useRenderMetricsIfDebug('PropertyPanel');
   
   // Resolve selected item
   let selectedNode = nodes.find((n) => n.id === selectedNodeId);

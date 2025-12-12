@@ -10,6 +10,7 @@ import { VariableList } from './VariableList';
 import { CharacterList } from './CharacterList';
 import { ResourceList } from './ResourceList';
 import type { MenuSection, MenuItem } from '../types/menu';
+import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 
 interface SidebarProps {
   width: number;
@@ -28,6 +29,9 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
   const characters = useScenarioStore(s => s.characters);
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  // レンダリング計測(デバッグモード時のみ)
+  useRenderMetricsIfDebug('Sidebar');
 
   const toggleMenu = (section: string) => {
       setOpenMenu(prev => prev === section ? null : section);

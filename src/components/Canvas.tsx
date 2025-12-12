@@ -26,6 +26,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
 import { NodeInfoModal } from './NodeInfoModal';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
+import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 
 const nodeTypes = {
   event: EventNode,
@@ -91,6 +92,9 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       getViewport
   } = useReactFlow();
   const { t } = useTranslation();
+  
+  // レンダリング計測(デバッグモード時のみ)
+  useRenderMetricsIfDebug('Canvas');
   
   // Expose zoom functions to parent
   useImperativeHandle(ref, () => ({

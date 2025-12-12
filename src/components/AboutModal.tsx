@@ -116,9 +116,9 @@ export const AboutModal = ({ isOpen, onClose }: AboutModalProps) => {
             <div>
               <h3 className="text-lg font-semibold mb-2 text-foreground">Version</h3>
               <p 
-                className={`font-mono cursor-pointer select-none transition-all ${
+                className={`font-mono select-none transition-all ${
                   clickCount >= 3 ? 'animate-pulse' : ''
-                } hover:text-primary`}
+                }`}
                 onClick={handleVersionClick}
               >
                 {packageJson.version}
