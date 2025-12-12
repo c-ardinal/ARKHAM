@@ -231,6 +231,18 @@ export function validateScenarioData(data: any): ValidationResult {
     }
   }
 
+  // 9. Validate viewport (optional)
+  if (data.viewport !== undefined) {
+    if (typeof data.viewport !== 'object' || 
+        typeof data.viewport.x !== 'number' || 
+        typeof data.viewport.y !== 'number' || 
+        typeof data.viewport.zoom !== 'number') {
+      warnings.push('viewportが不正です。無視します');
+      delete correctedData.viewport;
+      corrections.push('不正なviewportを削除しました');
+    }
+  }
+
   return {
     isValid: errors.length === 0,
     errors,

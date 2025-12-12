@@ -48,7 +48,7 @@ const edgeTypes = {
 };
 
 
-const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }, { 
+const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void; getViewport: () => { x: number; y: number; zoom: number }; setViewport: (viewport: { x: number; y: number; zoom: number }, options?: { isRestoring?: boolean }) => void }, { 
     onCanvasClick?: () => void;
     isMobile?: boolean; // Added isMobile prop
     onOpenPropertyPanel?: () => void;
@@ -105,10 +105,92 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     fitView: () => {
       fitView({ padding: 0.2, duration: 300 });
     },
+    // fitView実行後、ビューポート変化を監視して完了後に保存
+    fitViewWithSave: () => {
+      return new Promise<void>((resolve) => {
+        let prevViewport = getViewport();
+        let stableFrames = 0;
+        const requiredStableFrames = 3; // 3フレーム安定したら完了と判断
+        
+        fitView({ padding: 0.2, duration: 300 });
+        
+        const checkStability = () => {
+          const currentViewport = getViewport();
+          const isStable = 
+            Math.abs(currentViewport.x - prevViewport.x) < 0.1 &&
+            Math.abs(currentViewport.y - prevViewport.y) < 0.1 &&
+            Math.abs(currentViewport.zoom - prevViewport.zoom) < 0.001;
+          
+          if (isStable) {
+            stableFrames++;
+            if (stableFrames >= requiredStableFrames) {
+              // 完了：ビューポートを保存
+              localStorage.setItem('canvas-viewport', JSON.stringify(currentViewport));
+              resolve();
+              return;
+            }
+          } else {
+            stableFrames = 0;
+          }
+          
+          prevViewport = currentViewport;
+          requestAnimationFrame(checkStability);
+        };
+        
+        requestAnimationFrame(checkStability);
+      });
+    },
     getZoom: () => getZoom(),
     setZoom: (zoom: number) => {
       const clampedZoom = Math.max(0.01, Math.min(2, zoom));
       setViewport({ x: getViewport().x, y: getViewport().y, zoom: clampedZoom }, { duration: 200 });
+    },
+    getViewport: () => getViewport(),
+    setViewport: (viewport: { x: number; y: number; zoom: number }, options?: { isRestoring?: boolean }) => {
+      // ビューポート復元時の処理
+      if (options?.isRestoring) {
+        // 保留してuseEffectで処理
+        setPendingViewport(viewport);
+        setHasAppliedViewport(false); // リセットして再適用を許可
+      } else {
+        // 通常のビューポート変更
+        setViewport(viewport);
+      }
+    },
+    // setViewport実行後、ビューポート変化を監視して完了後に保存
+    setViewportWithSave: (viewport: { x: number; y: number; zoom: number }, duration: number = 200) => {
+      return new Promise<void>((resolve) => {
+        let prevViewport = getViewport();
+        let stableFrames = 0;
+        const requiredStableFrames = 3;
+        
+        setViewport(viewport, { duration });
+        
+        const checkStability = () => {
+          const currentViewport = getViewport();
+          const isStable = 
+            Math.abs(currentViewport.x - prevViewport.x) < 0.1 &&
+            Math.abs(currentViewport.y - prevViewport.y) < 0.1 &&
+            Math.abs(currentViewport.zoom - prevViewport.zoom) < 0.001;
+          
+          if (isStable) {
+            stableFrames++;
+            if (stableFrames >= requiredStableFrames) {
+              // 完了：ビューポートを保存
+              localStorage.setItem('canvas-viewport', JSON.stringify(currentViewport));
+              resolve();
+              return;
+            }
+          } else {
+            stableFrames = 0;
+          }
+          
+          prevViewport = currentViewport;
+          requestAnimationFrame(checkStability);
+        };
+        
+        requestAnimationFrame(checkStability);
+      });
     }
   }), [getZoom, setViewport, getViewport, fitView]);
   
@@ -117,6 +199,12 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   const [infoModalData, setInfoModalData] = useState<string | null>(null);
   // Removed local isUpdatingSticky
   const lastDuplicatedIds = useRef<string[]>([]);
+  
+  // ビューポート復元管理（stateで変更を検知）
+  const [pendingViewport, setPendingViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
+  const [hasAppliedViewport, setHasAppliedViewport] = useState(false);
+  const previousNodesLength = useRef(0);
+  const nodesDimensionsInitialized = useRef(false);
 
   // Sync zoom state
   useEffect(() => {
@@ -126,26 +214,120 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       return () => clearInterval(interval);
   }, [getZoom]);
 
-  // Fit view on mount
-  const hasFitted = useRef(false);
-  const [isInitializing, setIsInitializing] = useState(true);
-
+  // ノード変更時のビューポート処理
   useEffect(() => {
-      // Small delay to ensure dimensions are ready especially on mobile
-      const timeout = setTimeout(() => {
-          if (!hasFitted.current && nodes.length > 0) {
-              window.requestAnimationFrame(() => {
-                  fitView({ padding: 0.2 });
-                  hasFitted.current = true;
-                  setIsInitializing(false);
-              });
-          } else {
-             // If no nodes, or already fitted, just finish init
-             if (nodes.length === 0) setIsInitializing(false);
-          }
-      }, 500); 
-      return () => clearTimeout(timeout);
-  }, [nodes.length, fitView]);
+
+    
+    // リセット時（ノード数が0になった）にフラグをリセット
+    if (nodes.length === 0 && previousNodesLength.current > 0) {
+
+      setHasAppliedViewport(false);
+      setPendingViewport(null);
+      nodesDimensionsInitialized.current = false;
+    }
+    
+    // ノード数が0の場合は何もしない
+    if (nodes.length === 0) {
+
+      previousNodesLength.current = nodes.length;
+      return;
+    }
+    
+    // ノードが読み込まれた直後
+    const nodesJustLoaded = previousNodesLength.current === 0 && nodes.length > 0;
+    const nodesChanged = Math.abs(nodes.length - previousNodesLength.current) > 5;
+    
+    // ノードのサイズがすべて確定しているかチェック
+    const allNodesHaveDimensions = nodes.every(n => n.width && n.height);
+    const nodesWithoutDimensions = nodes.filter(n => !n.width || !n.height);
+    
+    console.log('[Viewport] Node analysis:', {
+      nodesJustLoaded,
+      nodesChanged,
+      allNodesHaveDimensions,
+      nodesWithoutDimensionsCount: nodesWithoutDimensions.length,
+      nodesWithoutDimensions: nodesWithoutDimensions.map(n => ({ id: n.id, type: n.type, width: n.width, height: n.height }))
+    });
+    
+    if ((nodesJustLoaded || nodesChanged) && allNodesHaveDimensions) {
+      console.log('[Viewport] Conditions met for viewport action');
+      
+      if (pendingViewport && !hasAppliedViewport) {
+        // ノードのサイズが確定してからビューポートを復元
+        const viewport = pendingViewport;
+        setHasAppliedViewport(true);
+        nodesDimensionsInitialized.current = true;
+        
+        // モバイルデバイスではレンダリングに時間がかかるため、より長い遅延を設定
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const delay = isMobileDevice ? 5000 : 300;
+        
+        console.log('[Viewport] Scheduling viewport restoration:', { viewport, delay, isMobileDevice });
+        
+        // 少し遅延させてReactFlowのレイアウト計算を待つ
+        setTimeout(() => {
+          console.log('[Viewport] Executing setViewport now');
+          window.requestAnimationFrame(() => {
+            setViewport(viewport);
+            console.log('[Viewport] setViewport executed');
+            // 適用後にpendingViewportをクリア
+            setTimeout(() => {
+              console.log('[Viewport] Clearing pendingViewport');
+              setPendingViewport(null);
+            }, 100);
+          });
+        }, delay);
+      } else if (!hasAppliedViewport && !pendingViewport && nodes.length > 0) {
+        // ビューポートがない場合はfitView
+        setHasAppliedViewport(true);
+        console.log('[Viewport] No pending viewport, scheduling fitView');
+        setTimeout(() => {
+          window.requestAnimationFrame(async () => {
+            console.log('[Viewport] Executing fitView');
+            fitView({ padding: 0.2 });
+            
+            // fitView完了を待ってビューポートを保存
+            let prevViewport = getViewport();
+            let stableFrames = 0;
+            const checkStability = () => {
+              const currentViewport = getViewport();
+              const isStable = 
+                Math.abs(currentViewport.x - prevViewport.x) < 0.1 &&
+                Math.abs(currentViewport.y - prevViewport.y) < 0.1 &&
+                Math.abs(currentViewport.zoom - prevViewport.zoom) < 0.001;
+              
+              if (isStable) {
+                stableFrames++;
+                if (stableFrames >= 3) {
+                  localStorage.setItem('canvas-viewport', JSON.stringify(currentViewport));
+                  console.log('[Viewport] Saved after fitView');
+                  return;
+                }
+              } else {
+                stableFrames = 0;
+              }
+              
+              prevViewport = currentViewport;
+              requestAnimationFrame(checkStability);
+            };
+            requestAnimationFrame(checkStability);
+          });
+        }, 100);
+      } else {
+        console.log('[Viewport] Skipping action:', { 
+          hasApplied: hasAppliedViewport, 
+          hasPending: !!pendingViewport 
+        });
+      }
+    } else {
+      console.log('[Viewport] Conditions not met for viewport action');
+    }
+    
+    previousNodesLength.current = nodes.length;
+  }, [nodes, pendingViewport, fitView, setViewport]);
+  
+
+
 
   const setZoom = (newZoom: number) => {
       const { x, y } = getViewport();
@@ -1032,15 +1214,6 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         onTouchMoveCapture={handleTouchMove}
         onTouchEndCapture={handleTouchEnd}
     >
-      {isInitializing && (
-        <div className="absolute inset-0 z-[2000] bg-background flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <span className={isMobile ? 'inline' : 'hidden'}>{mode === 'edit' ? 'PLAY' : 'EDIT'}</span>
-                <div className="text-sm text-muted-foreground">Loading...</div>
-            </div>
-        </div>
-      )}
 
       {mode === 'play' && (
           <style>{`
@@ -1060,6 +1233,17 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         onReconnect={onReconnect}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        defaultViewport={(() => {
+          const savedViewport = localStorage.getItem('canvas-viewport');
+          if (savedViewport) {
+            try {
+              return JSON.parse(savedViewport);
+            } catch (e) {
+              return { x: 0, y: 0, zoom: 1 };
+            }
+          }
+          return { x: 0, y: 0, zoom: 1 };
+        })()}
         onDragOver={onDragOver}
         onDrop={onDrop}
         onNodeDragStart={onNodeDragStart}
@@ -1073,14 +1257,16 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         onNodeContextMenu={onNodeContextMenu}
         onSelectionContextMenu={onSelectionContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
+        onMoveEnd={(_event, viewport) => {
+          // Save viewport to localStorage when user moves or zooms
+          localStorage.setItem('canvas-viewport', JSON.stringify(viewport));
+        }}
         onPaneContextMenu={onPaneContextMenu}
         onPaneClick={handlePaneClick}
         nodesDraggable={true}
         nodesConnectable={mode === 'edit'}
         elementsSelectable={true}
         zoomOnDoubleClick={false} // Disable native double click zoom (handled manually for pane)
-        
-        fitView
         selectionKeyCode="Shift" // Default behavior
         deleteKeyCode={null} // Disable default delete to handle it manually
         minZoom={0.01}
@@ -1141,7 +1327,33 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
                     <Minus size={14} />
                 </ControlButton>
                 
-                <ControlButton onClick={() => fitView()} title="Fit View" className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
+                <ControlButton onClick={() => {
+                  fitView();
+                  // fitView完了を待ってビューポートを保存
+                  let prevViewport = getViewport();
+                  let stableFrames = 0;
+                  const checkStability = () => {
+                    const currentViewport = getViewport();
+                    const isStable = 
+                      Math.abs(currentViewport.x - prevViewport.x) < 0.1 &&
+                      Math.abs(currentViewport.y - prevViewport.y) < 0.1 &&
+                      Math.abs(currentViewport.zoom - prevViewport.zoom) < 0.001;
+                    
+                    if (isStable) {
+                      stableFrames++;
+                      if (stableFrames >= 3) {
+                        localStorage.setItem('canvas-viewport', JSON.stringify(currentViewport));
+                        return;
+                      }
+                    } else {
+                      stableFrames = 0;
+                    }
+                    
+                    prevViewport = currentViewport;
+                    requestAnimationFrame(checkStability);
+                  };
+                  requestAnimationFrame(checkStability);
+                }} title="Fit View" className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
                     <Maximize size={14} />
                 </ControlButton>
             </Controls> 
@@ -1183,7 +1395,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   );
 }));
 
-export const Canvas = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void }, { 
+export const Canvas = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void; getViewport: () => { x: number; y: number; zoom: number }; setViewport: (viewport: { x: number; y: number; zoom: number }, options?: { isRestoring?: boolean }) => void }, { 
     onCanvasClick?: () => void;
     isMobile?: boolean; // Added prop
     onOpenPropertyPanel?: () => void;

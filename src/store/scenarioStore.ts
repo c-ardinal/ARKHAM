@@ -615,8 +615,14 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
   loadScenario: (data) => {
        const { nodes, edges, gameState, characters, resources, edgeType } = data as any; // Type assertion to allow new props
+              // ノードから一時的なプロパティを削除（dragging, selectedのみ）
+        const cleanedNodes = (nodes || []).map((node: any) => {
+          const { dragging, selected, ...cleanNode } = node;
+          return cleanNode;
+        });
+        
        set({ 
-           nodes: nodes || [], 
+           nodes: cleanedNodes, 
            edges: edges || [], 
            gameState: gameState || {
               currentNodes: [],
@@ -2320,6 +2326,7 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
   },
 
   resetToInitialState: () => {
+    console.log('[DEBUG] resetToInitialState called');
     const currentLanguage = get().language;
     const currentTheme = get().theme;
     const currentEdgeType = get().edgeType;
@@ -2364,5 +2371,8 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
 
     // LocalStorageも更新
     get().saveToLocalStorage();
+    
+    // ビューポートもリセット
+    localStorage.setItem('canvas-viewport', JSON.stringify({ x: 0, y: 0, zoom: 1 }));
   },
 }));

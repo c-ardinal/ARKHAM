@@ -8,6 +8,7 @@ import { AboutModal } from './AboutModal';
 import { ValidationErrorModal } from './ValidationErrorModal';
 import { UpdateHistoryModal } from './UpdateHistoryModal';
 import { DebugModal } from './DebugModal';
+import { LoadingOverlay } from './LoadingOverlay';
 import { useScenarioStore } from '../store/scenarioStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
 import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight } from 'lucide-react';
@@ -231,6 +232,7 @@ export const Layout = () => {
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
   const [validationError, setValidationError] = useState<{ errors: string[]; warnings: string[]; corrections?: string[]; jsonContent?: string } | null>(null);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const isDebugModeEnabled = (() => {
     // 開発環境では常に有効
     if (import.meta.env.DEV) return true;
@@ -256,14 +258,62 @@ export const Layout = () => {
   const [isResizingProperty, setIsResizingProperty] = useState(false);
   const [mobilePropertyPanelOpen, setMobilePropertyPanelOpen] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(false);
-  const canvasRef = useRef<{ zoomIn: () => void; zoomOut: () => void; fitView: () => void; getZoom: () => number; setZoom: (zoom: number) => void; getViewport: () => { x: number; y: number; zoom: number }; setViewport: (viewport: { x: number; y: number; zoom: number }, options?: { isRestoring?: boolean }) => void }>(null);
-  const [currentZoom, setCurrentZoom] = useState(100);
+  const canvasRef = useRef<{ 
+    zoomIn: () => void; 
+    zoomOut: () => void; 
+    fitView: () => void; 
+    fitViewWithSave: () => Promise<void>;
+    getZoom: () => number; 
+    setZoom: (zoom: number) => void; 
+    getViewport: () => { x: number; y: number; zoom: number }; 
+    setViewport: (viewport: { x: number; y: number; zoom: number }, options?: { isRestoring?: boolean }) => void;
+    setViewportWithSave: (viewport: { x: number; y: number; zoom: number }, duration?: number) => Promise<void>;
+  }>(null);
+  const [currentZoom, setCurrentZoom] = useState(() => {
+    const savedViewport = localStorage.getItem('canvas-viewport');
+    if (savedViewport) {
+      try {
+        const viewport = JSON.parse(savedViewport);
+        return Math.round(viewport.zoom * 100);
+      } catch (e) {
+        return 100;
+      }
+    }
+    return 100;
+  });
 
   useEffect(() => {
-    document.fonts.ready.then(() => {
-        setFontsLoaded(true);
-    });
-  }, []);
+    const initializeOnMobile = async () => {
+      await document.fonts.ready;
+      setFontsLoaded(true);
+      
+      // Apply same stabilization process on page reload for mobile/tablet
+      const isMobileDevice = window.matchMedia('(max-width: 1366px) and (pointer: coarse)').matches;
+      if (isMobileDevice && nodes.length > 0) {
+        // Get current data
+        const currentData = {
+          nodes,
+          edges,
+          gameState,
+          characters,
+          resources
+        };
+        
+        // 1st load
+        useScenarioStore.getState().loadScenario(currentData);
+        
+        // 0ms wait
+        await new Promise(resolve => setTimeout(resolve, 0));
+        
+        // 2nd load
+        useScenarioStore.getState().loadScenario(currentData);
+      }
+    };
+    
+    initializeOnMobile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
+
 
   const toggleMode = useCallback(() => {
       setMode(mode === 'edit' ? 'play' : 'edit');
@@ -379,6 +429,52 @@ export const Layout = () => {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo, nodes, edges, gameState, handleZoomIn, handleZoomOut]);
 
+  // モバイル/タブレットでのノード位置ずれを防ぐため、シナリオを2回読み込む
+  const loadScenarioWithStabilization = useCallback(async (data: any) => {
+    // モバイル/タブレット判定
+    const isMobileDevice = window.matchMedia('(max-width: 1366px) and (pointer: coarse)').matches;
+    
+    if (!isMobileDevice) {
+      // PCの場合は通常の読み込み
+      useScenarioStore.getState().loadScenario(data);
+      
+      // 0ms待機（ReactFlowの初期化を待つ）
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      if (canvasRef.current) {
+        await canvasRef.current.fitViewWithSave();
+        const viewport = canvasRef.current.getViewport();
+        setCurrentZoom(Math.round(viewport.zoom * 100));
+      }
+      return;
+    }
+
+    // モバイル/タブレットの場合は2回読み込み
+    setIsLoading(true);
+    
+    // 1回目の読み込み
+    useScenarioStore.getState().loadScenario(data);
+    
+    // 0ms待機（次のイベントループまで待つ）
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
+    // 2回目の読み込み
+    useScenarioStore.getState().loadScenario(data);
+    
+    // fitViewを実行し、完了後にビューポートを保存
+    if (canvasRef.current) {
+      await canvasRef.current.fitViewWithSave();
+      const viewport = canvasRef.current.getViewport();
+      setCurrentZoom(Math.round(viewport.zoom * 100));
+    }
+    
+    // 0ms待機してからLoading画面を消す
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
+    // Loading画面を消す
+    setIsLoading(false);
+  }, [canvasRef]);
+
 
 
   const handleLoad = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -416,23 +512,12 @@ export const Layout = () => {
           // Auto-load after showing warnings
           setTimeout(() => {
             const data = validation.correctedData;
-            console.log('[Layout] Loading scenario with warnings:', { hasViewport: !!data.viewport, viewport: data.viewport });
-            useScenarioStore.getState().loadScenario(data);
-            if (data && data.viewport && canvasRef.current) {
-                console.log('[Layout] Calling setViewport with isRestoring: true');
-                canvasRef.current.setViewport(data.viewport, { isRestoring: true });
-            }
+            loadScenarioWithStabilization(data);
           }, 100);
         } else {
           // No warnings, load directly
           const scenarioData = validation.correctedData || data;
-          console.log('[Layout] Loading scenario directly:', { hasViewport: !!scenarioData.viewport, viewport: scenarioData.viewport });
-          useScenarioStore.getState().loadScenario(scenarioData);
-          
-          if (scenarioData.viewport && canvasRef.current) {
-              console.log('[Layout] Calling setViewport with isRestoring: true');
-              canvasRef.current.setViewport(scenarioData.viewport, { isRestoring: true });
-          }
+          loadScenarioWithStabilization(scenarioData);
         }
       } catch (error) {
         console.error('Failed to load scenario:', error);
@@ -497,13 +582,7 @@ const menuActions = {
                 const sampleData = type === 'story' ? sampleStory : sampleNestedGroup;
                 console.log('[Layout] Loading sample data:', { type, hasViewport: !!(sampleData as any).viewport, viewport: (sampleData as any).viewport });
                 // @ts-ignore
-                useScenarioStore.getState().loadScenario(sampleData);
-                
-                // ビューポート復元
-                if ((sampleData as any).viewport && canvasRef.current) {
-                    console.log('[Layout] Calling setViewport with isRestoring: true (sample data)');
-                    canvasRef.current.setViewport((sampleData as any).viewport, { isRestoring: true });
-                }
+                loadScenarioWithStabilization(sampleData);
             }
         });
     },
@@ -517,7 +596,20 @@ const menuActions = {
         a.click();
         URL.revokeObjectURL(url);
     },
-    onReset: () => setConfirmModal({ isOpen: true, title: t('common.reset' as any), message: t('common.confirmReset' as any), onConfirm: () => { useScenarioStore.getState().reset(); } }),
+    onReset: () => setConfirmModal({ 
+      isOpen: true, 
+      title: t('common.reset' as any), 
+      message: t('common.confirmReset' as any), 
+      onConfirm: async () => { 
+        useScenarioStore.getState().resetToInitialState(); 
+        // リセット後にfitViewを実行し、完了後にビューポートを保存
+        setTimeout(async () => {
+          if (canvasRef.current) {
+            await canvasRef.current.fitViewWithSave();
+          }
+        }, 100);
+      } 
+    }),
     onToggleTheme: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
     onToggleLang: () => setLanguage(language === 'en' ? 'ja' : 'en'),
     onOpenManual: () => setIsManualOpen(true),
@@ -538,12 +630,12 @@ const menuActions = {
       currentZoom,
       onZoomIn: handleZoomIn,
       onZoomOut: handleZoomOut,
-      onFitView: () => {
-        canvasRef.current?.fitView();
-        setTimeout(() => {
-            const zoom = canvasRef.current?.getZoom();
-            if (zoom) setCurrentZoom(Math.round(zoom * 100));
-        }, 350);
+      onFitView: async () => {
+        if (canvasRef.current) {
+          await canvasRef.current.fitViewWithSave();
+          const zoom = canvasRef.current.getZoom();
+          setCurrentZoom(Math.round(zoom * 100));
+        }
       },
       onSetZoom: (zoom) => {
         setCurrentZoom(zoom);
@@ -724,6 +816,7 @@ const menuActions = {
         onClose={() => setValidationError(null)}
       />
       <DebugModal isOpen={isDebugOpen} onClose={() => setIsDebugOpen(false)} />
+      <LoadingOverlay isLoading={isLoading} message="シナリオを読み込んでいます..." />
 
       </div>
     </ReactFlowProvider>
