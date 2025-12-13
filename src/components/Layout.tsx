@@ -283,11 +283,12 @@ export const Layout = () => {
   });
 
   useEffect(() => {
-    const initializeOnMobile = async () => {
+    const initialize = async () => {
+      // Font loading check for ALL devices
       await document.fonts.ready;
       setFontsLoaded(true);
       
-      // Apply same stabilization process on page reload for mobile/tablet
+      // Stabilization logic for mobile/tablet only
       const isMobileDevice = window.matchMedia('(max-width: 1366px) and (pointer: coarse)').matches;
       if (isMobileDevice && nodes.length > 0) {
         // Get current data
@@ -310,7 +311,7 @@ export const Layout = () => {
       }
     };
     
-    initializeOnMobile();
+    initialize();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
 
@@ -769,6 +770,7 @@ const menuActions = {
             }}
             isMobile={isMobile}
             onOpenPropertyPanel={() => setMobilePropertyPanelOpen(true)}
+            fontsLoaded={fontsLoaded}
         />
         
         {/* Helper for property resizing (Desktop) */}

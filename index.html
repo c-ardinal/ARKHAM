@@ -20,6 +20,49 @@
     <title>ARKHAM</title>
   </head>
   <body>
+    <div id="initial-loader" class="initial-loader">
+        <style>
+          html, body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              background-color: #0c0a09; /* warm-gray-950 */
+              overflow: hidden;
+          }
+          .initial-loader {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            background-color: #0c0a09;
+            color: #e7e5e4;
+            font-family: sans-serif;
+            flex-direction: column;
+            gap: 1rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+          }
+          .spinner {
+            width: 40px;
+            height: 40px;
+            box-sizing: border-box;
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            border-top-color: #8E24AA ; /* purple-600 */
+            animation: spin 1s ease-in-out infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        </style>
+        <div class="spinner"></div>
+        <div>Loading Arkham...</div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -53,7 +53,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     onCanvasClick?: () => void;
     isMobile?: boolean; // Added isMobile prop
     onOpenPropertyPanel?: () => void;
-}>(({ onCanvasClick, isMobile, onOpenPropertyPanel }, ref) => {
+    fontsLoaded?: boolean;
+}>(({ onCanvasClick, isMobile, onOpenPropertyPanel, fontsLoaded }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { 
     nodes, 
@@ -254,9 +255,21 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
     // 寸法が確定していない場合は処理を保留（previousNodesLengthも更新しない）
     // これにより、寸法確定後の再レンダリングで正しく処理される
+    // ノードのサイズが確定していない場合は処理を保留（previousNodesLengthも更新しない）
+    // これにより、寸法確定後の再レンダリングで正しく処理される
     if (nodes.length > 0 && !allNodesHaveDimensions) {
       console.log('[Viewport] Waiting for node dimensions...');
       return;
+    }
+    
+    // Remove initial loader 
+    // This logic has been moved to a separate useEffect below to ensure dependencies are tracked correctly
+    const isFontReady = fontsLoaded === undefined || fontsLoaded === true;
+    
+    // Safety check just in case, but primary removal is in the dedicated effect
+    const loader = document.getElementById('initial-loader');
+    if (loader && isFontReady && (nodes.length > 0 || gameState.variables || nodes.length === 0 /* Empty project */)) {
+         // Logic primarily handled by separate effect
     }
     
     if (nodesJustLoaded || nodesChanged) {
@@ -334,7 +347,26 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     }
     
     previousNodesLength.current = nodes.length;
+    previousNodesLength.current = nodes.length;
   }, [nodes, pendingViewport, fitView, setViewport]);
+
+  // Dedicated effect for removing the loader
+  useEffect(() => {
+    const isFontReady = fontsLoaded === undefined || fontsLoaded === true;
+    const loader = document.getElementById('initial-loader');
+
+    // Remove if:
+    // 1. Loader exists
+    // 2. Fonts are ready
+    // 3. (Nodes exist OR Variables exist OR it's been mounted long enough to act as safety)
+    if (loader && isFontReady) {
+        // Simple fade out
+        loader.style.opacity = '0';
+        setTimeout(() => {
+            if (loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 500);
+    }
+  }, [fontsLoaded, nodes.length, gameState.variables]);
   
 
 
@@ -1510,6 +1542,7 @@ export const Canvas = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     onCanvasClick?: () => void;
     isMobile?: boolean; // Added prop
     onOpenPropertyPanel?: () => void;
+    fontsLoaded?: boolean;
 }>((props, ref) => {
   return (
       <CanvasContent 
