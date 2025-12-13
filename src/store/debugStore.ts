@@ -107,6 +107,48 @@ const defaultAssertionRules: AssertionRule[] = [
     severity: 'error',
     enabled: true,
   },
+  {
+    id: 'empty-title',
+    name: 'タイトル未設定',
+    description: 'タイトルが設定されていないノードを検出',
+    condition: (state) => {
+      const targetNodes = state.nodes.filter((n: any) => 
+        !['sticky', 'memo', 'group'].includes(n.type)
+      );
+      return targetNodes.every((n: any) => n.data?.label && n.data.label.trim().length > 0);
+    },
+    severity: 'warning',
+    enabled: true,
+  },
+  {
+    id: 'dead-end-nodes',
+    name: '行き止まりノード',
+    description: '次のノードに繋がっていないノードを検出（エンディングの可能性あり）',
+    condition: (state) => {
+      const sourceIds = new Set(state.edges.map((e: any) => e.source));
+      const targetNodes = state.nodes.filter((n: any) => 
+        !['sticky', 'memo', 'group'].includes(n.type)
+      );
+      
+      const deadEnds = targetNodes.filter((n: any) => !sourceIds.has(n.id));
+      return deadEnds.length === 0;
+    },
+    severity: 'info',
+    enabled: true,
+  },
+  {
+    id: 'long-description',
+    name: '長文テキスト検出',
+    description: '本文が長すぎる(400文字以上)ノードを検出',
+    condition: (state) => {
+      return state.nodes.every((n: any) => {
+        if (!n.data?.description) return true;
+        return n.data.description.length < 400;
+      });
+    },
+    severity: 'warning',
+    enabled: true,
+  },
 ];
 
 export const useDebugStore = create<DebugState>()(
@@ -471,11 +513,35 @@ export const useDebugStore = create<DebugState>()(
         snapshotCompareMode: state.snapshotCompareMode,
         snapshotSelectedIds: state.snapshotSelectedIds,
         snapshotDetailView: state.snapshotDetailView,
-        logFilter: state.logFilter,
+        logFilter: {
+          ...state.logFilter,
+          levels: Array.from(state.logFilter.levels),
+          tags: Array.from(state.logFilter.tags),
+        },
         isDebugPanelOpen: state.isDebugPanelOpen,
         activeTab: state.activeTab,
-               // assertionRulesなどは関数を含むため除外
       }),
+      merge: (persistedState: any, currentState) => {
+        if (!persistedState) return currentState;
+
+        const merged = { ...currentState, ...persistedState };
+
+        if (persistedState.logFilter) {
+          merged.logFilter = {
+            ...currentState.logFilter,
+            ...persistedState.logFilter,
+            // Setを再構築
+            levels: Array.isArray(persistedState.logFilter.levels)
+              ? new Set(persistedState.logFilter.levels)
+              : currentState.logFilter.levels,
+            tags: Array.isArray(persistedState.logFilter.tags)
+              ? new Set(persistedState.logFilter.tags)
+              : currentState.logFilter.tags,
+          };
+        }
+
+        return merged;
+      },
     }
   )
 );
