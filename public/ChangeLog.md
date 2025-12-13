@@ -1,7 +1,7 @@
 <!-- SECTION: ja -->
 # 更新履歴
 
-## v2.0.0 (2025-12-xx)
+## v2.0.0 (2025-12-13)
 ### 機能追加
 - モバイルデバイス(スマートフォン・タブレット)向けレイアウトへ対応
 - 内部エラーを表示する機能を追加
@@ -40,12 +40,13 @@
 <!-- SECTION: en -->
 # Update History
 
-## v2.0.0 (2025-12-xx)
+## v2.0.0 (2025-12-13)
 ### New Features
 - Added support for mobile device layouts (Smartphones/Tablets)
 - Added internal error display feature
 - Added update history display feature
 - Added data deletion feature
+- Added Zoom In/Out shortcut keys
 
 ### Changes & Improvements
 - Adjusted PC layout
@@ -55,6 +56,8 @@
 ### Bug Fixes
 - Fixed issue where multiple nodes on canvas could not be selected
 - Fixed issue where text on UI could not be copied
+- Fixed issue where properties of Variable/Element nodes would mismatch with node display in certain cases
+- Fixed issue where loading screen would not dismiss on PC
 
 ### Others
 - Performance improvements
