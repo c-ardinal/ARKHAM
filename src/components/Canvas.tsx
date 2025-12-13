@@ -411,7 +411,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       }
   }, [bringNodeToFront, mode]);
 
-  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+  const onNodeDragStop = useCallback((event: React.MouseEvent | React.TouchEvent | any, node: Node) => {
       if (!node) return;
       pushHistory(); // Push history on drag stop
 
@@ -422,10 +422,23 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
       const groups = allNodes.filter(n => n.type === 'group' && n.id !== node.id);
       
+      // Get pointer position (mouse or touch)
+      let clientX, clientY;
+      if (event.changedTouches && event.changedTouches.length > 0) {
+          clientX = event.changedTouches[0].clientX;
+          clientY = event.changedTouches[0].clientY;
+      } else if (event.clientX !== undefined) {
+          clientX = event.clientX;
+          clientY = event.clientY;
+      } else {
+        // Fallback or exit if no coordinates found
+        return;
+      }
+
       // Calculate drop position in canvas coordinates using screenToFlowPosition
       const dropPosition = screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
+          x: clientX,
+          y: clientY,
       });
       
       const nodeRect = {
@@ -558,48 +571,24 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   const lastClickNodeId = useRef<string | null>(null);
 
   // Stop propagation to prevent canvas click (deselection) and zoom
+  // Stop propagation to prevent canvas click (deselection) and zoom
+  // Stop propagation to prevent canvas click (deselection) and zoom
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     event.stopPropagation();
 
-    if (mode === 'play') {
-          // Play Mode Logic
-          const currentTime = Date.now();
-          const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 500;
-          lastClickTime.current = currentTime;
-          lastClickNodeId.current = node.id;
-
-          if (isDoubleClick) {
-              if (node.type === 'sticky') {
-                  // Sticky: Open Property Panel on Double Click
-                  onOpenPropertyPanel?.();
-              }
-              // Char/Resource: Do NOTHING on double click (User request)
-              // Other nodes: Do nothing
-          }
-          
-          return;
-    }
-    
-    // Explicitly set selection on click (needed for Play Mode where selection behavior might differ)
-    // REMOVED: setSelectedNode(node.id); 
-    // Handled by onSelectionChange to support multi-selection (Shift/Ctrl).
-    // If we force set here, it clears other selections.
-
     const currentTime = Date.now();
-    const isDoubleClick = node.id === lastClickNodeId.current && (currentTime - lastClickTime.current) < 500;
-    
-    // Mobile double tap logic
-    if (isMobile && isDoubleClick && onOpenPropertyPanel) {
-        onOpenPropertyPanel();
-    }
+    const timeDiff = currentTime - lastClickTime.current;
+
+    // Prevent ghost clicks / chattering: ignore if too fast (< 50ms)
+    // This helps prevent single taps from being registered as double taps due to event duplication
+    if (timeDiff < 50) return;
+
+    const isDoubleClick = node.id === lastClickNodeId.current && timeDiff < 500;
     
     lastClickTime.current = currentTime;
     lastClickNodeId.current = node.id;
 
-    if (isDoubleClick && node.type === 'jump' && node.data.jumpTarget) {
-        // Jump Node Logic
-        const targetId = node.data.jumpTarget;
-        
+    const handleJump = (targetId: string) => {
         // Use setTimeout to ensure state updates and rendering settle before moving view
         setTimeout(() => {
             const targetNode = getNodes().find(n => n.id === targetId);
@@ -615,6 +604,36 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
                 setSelectedNode(targetId);
             }
         }, 50);
+    };
+
+    if (mode === 'play') {
+          // Play Mode Logic
+          if (isDoubleClick) {
+              if (node.type === 'sticky') {
+                  // Sticky: Open Property Panel on Double Click
+                  onOpenPropertyPanel?.();
+              } else if (node.type === 'jump' && node.data.jumpTarget) {
+                  // Jump Node: Jump on Double Click
+                  handleJump(node.data.jumpTarget);
+              }
+              // Other nodes: Do nothing
+          }
+          return;
+    }
+    
+    // Edit Mode Logic
+
+    // Mobile double tap logic (Property Panel)
+    if (isMobile && onOpenPropertyPanel && isDoubleClick) {
+        onOpenPropertyPanel();
+    }
+
+    if (isDoubleClick && node.type === 'jump' && node.data.jumpTarget) {
+        // Jump Node Logic
+        // In Edit Mode: Only jump if NOT mobile. 
+        if (!isMobile) {
+            handleJump(node.data.jumpTarget);
+        }
     }
 
     if (node.type === 'group') {
@@ -750,24 +769,64 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     }
 
     const touch = e.touches[0];
-    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    const clientX = touch.clientX;
+    const clientY = touch.clientY;
+    
+    // Save start pos for move detection
+    touchStartPos.current = { x: clientX, y: clientY };
     isLongPressTriggered.current = false;
     
-    e.persist();
-
+    // We don't need e.persist() anymore if we just capture primitives and use state/refs
+    
     longPressTimer.current = setTimeout(() => {
         isLongPressTriggered.current = true;
         
-        const clientX = touch.clientX;
-        const clientY = touch.clientY;
-        const element = document.elementFromPoint(clientX, clientY);
-        const nodeElement = element?.closest('.react-flow__node');
+        // Robust Hit Testing: Use Flow coordinates and node bounds
+        const flowPos = screenToFlowPosition({ x: clientX, y: clientY });
         
-        let targetNodeId: string | null = null;
-        if (nodeElement) {
-             targetNodeId = nodeElement.getAttribute('data-id');
+        // Find top-most node at this position
+        // We iterate in reverse to find the one "on top" (assuming last rendered is on top, check z-index if needed)
+        // Note: Simple reverse iteration of 'nodes' array is usually sufficient for standard ReactFlow
+        // If z-indexes vary wildly, we might need real sort.
+        const nodes = getNodes();
+        let targetNode: Node | null = null;
+        
+        // Sort by z-index (if present) then by array order? 
+        // For now, let's just search reverse.
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const n = nodes[i];
+            const nX = n.positionAbsolute?.x ?? n.position.x;
+            const nY = n.positionAbsolute?.y ?? n.position.y;
+            const nW = n.width || 150; // Default fallback if not measured yet
+            const nH = n.height || 40; 
+            
+            if (
+                flowPos.x >= nX && flowPos.x <= nX + nW &&
+                flowPos.y >= nY && flowPos.y <= nY + nH
+            ) {
+                // If it's a group, we should only pick it if we didn't hit a child inside it?
+                // Actually, if we iterate reverse, we might hit a child first if it's rendered later (on top).
+                // But groups are often rendered "behind".
+                // ReactFlow rendering order depends on array order + z-index.
+                
+                // Let's refine: If we found a candidate, is there a better one?
+                // With reverse loop, we find the "last" one.
+                // However, children are often after parents in the array? Or before?
+                // It's safer to check if the node is "visible" / clickable.
+                if (!n.hidden) {
+                    targetNode = n;
+                    break;
+                }
+            }
         }
-
+        
+        // Special case: If we hit a GroupNode, but there might be a child...
+        // The loop above finds the "last" node in the list that intersects.
+        // If children are added *after* parents, this works.
+        // If we hit a group, we might want to check if there is a child *inside* it at that position.
+        // But if children are in the list after parents, we hit child first (break).
+        // Let's assume standard ReactFlow order.
+        
         const fakeEvent = {
             preventDefault: () => {},
             ctrlKey: false,
@@ -776,19 +835,15 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
             clientY: clientY,
         } as any;
 
-        if (targetNodeId) {
-            const node = getNodes().find(n => n.id === targetNodeId);
-            if (node) {
-                if (!node.selected) setSelectedNode(node.id);
-                onNodeContextMenu(fakeEvent, node);
-                return;
-            }
+        if (targetNode) {
+             if (!targetNode.selected) setSelectedNode(targetNode.id);
+             onNodeContextMenu(fakeEvent, targetNode);
+        } else {
+             onPaneContextMenu(fakeEvent);
         }
         
-        onPaneContextMenu(fakeEvent);
-        
     }, 500);
-  }, [getNodes, onNodeContextMenu, onPaneContextMenu, setSelectedNode]);
+  }, [getNodes, onNodeContextMenu, onPaneContextMenu, setSelectedNode, screenToFlowPosition]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
@@ -815,25 +870,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         if (e.cancelable) e.preventDefault();
         return;
     }
-    
-    // Manual Double Tap Check for Nodes
-    const touch = e.changedTouches[0];
-    const element = document.elementFromPoint(touch.clientX, touch.clientY);
-    const nodeElement = element?.closest('.react-flow__node');
-    
-    if (nodeElement) {
-        const nodeId = nodeElement.getAttribute('data-id');
-        if (nodeId) {
-             const currentTime = Date.now();
-             // Check against lastClickNodeId (shared with click handler)
-             if (nodeId === lastClickNodeId.current && (currentTime - lastClickTime.current) < 500) {
-                 if (onOpenPropertyPanel) onOpenPropertyPanel();
-             }
-             lastClickNodeId.current = nodeId;
-             lastClickTime.current = currentTime;
-        }
-    }
-  }, [onOpenPropertyPanel]);
+  }, []);
 
 
 
@@ -1039,13 +1076,21 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       setMenu(null);
   }, [menu, ungroupNodes]);
 
-  const handleCopyText = useCallback((type: 'all' | 'label' | 'description' | 'value' | 'condition' | 'cases') => {
-    if (!menu || !menu.data) return;
+  const handleCopyText = useCallback(async (type: 'all' | 'label' | 'description' | 'value' | 'condition' | 'cases') => {
+    if (!menu || !menu.data) {
+        console.warn('[Canvas] Copy aborted: Menu state invalid');
+        return;
+    }
     
-    // Get selected nodes
+    // Get selected nodes or target node
     const selectedNodes = getNodes().filter(n => n.selected);
     const nodesToCopy = selectedNodes.length > 0 ? selectedNodes : getNodes().filter(n => n.id === menu.id);
     
+    if (nodesToCopy.length === 0) {
+        console.warn('[Canvas] Copy aborted: No nodes found');
+        return;
+    }
+
     const variables = gameState.variables;
     const process = (t: string) => substituteVariables(t, variables);
     
@@ -1098,7 +1143,50 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       return text;
     });
     
-    navigator.clipboard.writeText(texts.join('\n\n'));
+    const finalString = texts.join('\n\n');
+    if (!finalString) {
+         console.warn('[Canvas] Copy aborted: Generated text is empty');
+         setMenu(null);
+         return;
+    }
+
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(finalString);
+            console.log('[Canvas] Text copied to clipboard (API):', finalString.substring(0, 50) + '...');
+        } else {
+            throw new Error('Clipboard API unavailable or non-secure context');
+        }
+    } catch (err) {
+        console.warn('[Canvas] Clipboard API failed, trying fallback:', err);
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = finalString;
+            
+            // Ensure element is part of document but hidden visually
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            textArea.setAttribute('readonly', ''); // Prevent keyboard popup on mobile
+            
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            if (successful) {
+                console.log('[Canvas] Text copied to clipboard (Fallback)');
+            } else {
+                throw new Error('execCommand returned false');
+            }
+        } catch (fallbackErr) {
+            console.error('[Canvas] Failed to copy text (Fallback):', fallbackErr);
+            // Optional: Alert user if critical
+            // alert('Failed to copy text. Please check browser permissions.');
+        }
+    }
     setMenu(null);
   }, [menu, gameState.variables, getNodes]);
 

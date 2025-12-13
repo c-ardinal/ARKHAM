@@ -90,6 +90,7 @@ export const ContextMenu = ({
   const { mode } = useScenarioStore();
   
   const [safePos, setSafePos] = useState({ top: menu.top, left: menu.left });
+  const [subMenuDirection, setSubMenuDirection] = useState<'right' | 'left'>('right');
 
   useLayoutEffect(() => {
      if (ref.current) {
@@ -104,6 +105,14 @@ export const ContextMenu = ({
          if (newTop + height > screenH) newTop = screenH - height - 10;
 
          setSafePos({ top: Math.max(0, newTop), left: Math.max(0, newLeft) });
+
+         // Check if there is space for submenu on the right
+         // Assuming submenu width is approx 150px
+         if (newLeft + width + 150 > screenW) {
+             setSubMenuDirection('left');
+         } else {
+             setSubMenuDirection('right');
+         }
      }
   }, [menu.top, menu.left]);
 
@@ -123,20 +132,22 @@ export const ContextMenu = ({
 
             <div className="relative group">
                 <MenuButton className="justify-between group">
-                  {t('contextMenu.copyText')} <span>▶</span>
+                  {t('contextMenu.copyText')} <span>{subMenuDirection === 'right' ? '▶' : '◀'}</span>
                 </MenuButton>
                 
-                <div className="absolute left-full top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] hidden group-hover:flex flex-col">
-                    <MenuButton onClick={() => onCopyText?.('all')}>{t('contextMenu.all')}</MenuButton>
-                    <MenuButton onClick={() => onCopyText?.('label')}>{t('contextMenu.label')}</MenuButton>
-                    <MenuButton onClick={() => onCopyText?.('description')}>{t('contextMenu.description')}</MenuButton>
+                <div className={`absolute top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] hidden group-hover:flex flex-col ${
+                    subMenuDirection === 'right' ? 'left-full' : 'right-full'
+                }`}>
+                    <MenuButton onClick={() => { onCopyText?.('all'); onClose(); }}>{t('contextMenu.all')}</MenuButton>
+                    <MenuButton onClick={() => { onCopyText?.('label'); onClose(); }}>{t('contextMenu.label')}</MenuButton>
+                    <MenuButton onClick={() => { onCopyText?.('description'); onClose(); }}>{t('contextMenu.description')}</MenuButton>
                     {['element', 'variable'].includes(menu.nodeType || '') && (
-                        <MenuButton onClick={() => onCopyText?.('value')}>{t('contextMenu.value')}</MenuButton>
+                        <MenuButton onClick={() => { onCopyText?.('value'); onClose(); }}>{t('contextMenu.value')}</MenuButton>
                     )}
                     {menu.nodeType === 'branch' && (
                         <>
-                            <MenuButton onClick={() => onCopyText?.('condition')}>{t('contextMenu.condition')}</MenuButton>
-                            <MenuButton onClick={() => onCopyText?.('cases')}>{t('contextMenu.cases')}</MenuButton>
+                            <MenuButton onClick={() => { onCopyText?.('condition'); onClose(); }}>{t('contextMenu.condition')}</MenuButton>
+                            <MenuButton onClick={() => { onCopyText?.('cases'); onClose(); }}>{t('contextMenu.cases')}</MenuButton>
                         </>
                     )}
                 </div>
