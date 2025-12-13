@@ -1,13 +1,29 @@
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { Variable, ArrowLeft, StickyNote } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 
-const VariableNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
-  const { gameState } = useScenarioStore();
+const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
+  const { gameState, updateNodeData } = useScenarioStore();
   const description = data.description;
+
+  // Auto-healing: If no variable is selected but variables exist, select the first one.
+  useEffect(() => {
+    if (!data.targetVariable && Object.keys(gameState.variables).length > 0) {
+      const firstVar = Object.keys(gameState.variables)[0];
+       // Use timeout to avoid "cannot update while rendering"
+       const timer = setTimeout(() => {
+          updateNodeData(id, { targetVariable: firstVar });
+       }, 0);
+       return () => clearTimeout(timer);
+    }
+  }, [data.targetVariable, gameState.variables, id, updateNodeData]);
+
+  // Determine the display variable (optimistic update to prevent flicker)
+  const displayVariable = data.targetVariable || 
+    (Object.keys(gameState.variables).length > 0 ? Object.keys(gameState.variables)[0] : 'None');
 
   return (
     <div className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] relative transition-all duration-200
@@ -15,7 +31,7 @@ const VariableNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       border-red-200 dark:border-red-800
       bg-red-50 dark:bg-red-900/40 text-red-900 dark:text-red-100
       hover:shadow-lg
-      ${data.revealed ? 'ring-2 ring-green-400' : ''}
+      ${data.revealed ? '' : ''}
     `}>
 
       {data.hasSticky && (
@@ -36,7 +52,7 @@ const VariableNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
             <Variable size={16} />
           </div>
           <div className="text-base font-bold text-red-900 dark:text-red-100">
-              {substituteVariables(data.label, gameState.variables)}
+              {displayVariable}
           </div>
         </div>
 
@@ -49,8 +65,8 @@ const VariableNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
         )}
 
         <div className="mt-2 pt-2 border-t flex items-center justify-between gap-2 border-red-200 dark:border-red-800">
-           <div className="text-sm font-mono bg-black/10 dark:bg-black/30 px-1 rounded truncate max-w-[80px]" title={data.targetVariable}>
-               {data.targetVariable || 'None'}
+           <div className="text-sm font-mono bg-black/10 dark:bg-black/30 px-1 rounded truncate max-w-[80px]" title={displayVariable}>
+               {displayVariable}
            </div>
            <ArrowLeft size={12} className="opacity-50" />
            <div className="text-sm font-mono bg-black/10 dark:bg-black/30 px-1 rounded truncate max-w-[80px]" title={data.variableValue}>

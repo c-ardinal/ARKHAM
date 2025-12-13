@@ -16,14 +16,13 @@
       },
       "width": 168,
       "height": 134,
-      "selected": false,
       "positionAbsolute": {
         "x": 556.6590990377287,
         "y": 1576.3739618751977
       },
-      "dragging": false,
       "parentNode": "group-1764912848357",
-      "extent": "parent"
+      "extent": "parent",
+      "selected": false
     },
     {
       "id": "group-1764912848357",
@@ -47,12 +46,11 @@
       },
       "width": 1536,
       "height": 1561,
-      "selected": false,
       "positionAbsolute": {
         "x": -202.19422647053523,
         "y": -19.471253522374013
       },
-      "dragging": false
+      "selected": false
     },
     {
       "id": "variable-1764912881419",
@@ -70,14 +68,13 @@
       },
       "width": 183,
       "height": 126,
-      "selected": false,
       "positionAbsolute": {
         "x": 550.2701620022754,
         "y": 1350.3739618751977
       },
-      "dragging": false,
       "parentNode": "group-1764912825017",
-      "extent": "parent"
+      "extent": "parent",
+      "selected": false
     },
     {
       "id": "group-1764912825017",
@@ -101,15 +98,14 @@
       },
       "width": 1433,
       "height": 1212,
-      "selected": false,
       "positionAbsolute": {
         "x": -139.47988132963246,
         "y": 304.81048494348306
       },
-      "dragging": false,
       "parentNode": "group-1764912848357",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "group-1764912826688",
@@ -133,15 +129,14 @@
       },
       "width": 887,
       "height": 822,
-      "selected": false,
       "positionAbsolute": {
         "x": -77.16241000724301,
         "y": 428.48511150356046
       },
-      "dragging": false,
       "parentNode": "group-1764912825017",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "event-1764912838005",
@@ -156,15 +151,14 @@
       },
       "width": 162,
       "height": 52,
-      "selected": false,
       "positionAbsolute": {
         "x": 296.6113396772646,
         "y": 1118.3739618751977
       },
-      "dragging": false,
       "parentNode": "group-1764912839272",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "group-1764912839272",
@@ -188,15 +182,14 @@
       },
       "width": 790,
       "height": 660,
-      "selected": false,
       "positionAbsolute": {
         "x": -20.844938684853446,
         "y": 550.4593429577611
       },
-      "dragging": false,
       "parentNode": "group-1764912826688",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "memo-initial-warning",
@@ -212,15 +205,14 @@
       },
       "width": 561,
       "height": 219,
-      "selected": false,
       "positionAbsolute": {
         "x": 128.4662426728513,
         "y": 821.3739618751977
       },
-      "dragging": false,
       "parentNode": "group-1764912844966",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "group-1764912844966",
@@ -244,15 +236,14 @@
       },
       "width": 689,
       "height": 392,
-      "selected": false,
       "positionAbsolute": {
         "x": 40.29197948930846,
         "y": 688.5923100731567
       },
-      "dragging": false,
       "parentNode": "group-1764912839272",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "group-1764912829754",
@@ -276,15 +267,14 @@
       },
       "width": 410,
       "height": 475,
-      "selected": false,
       "positionAbsolute": {
         "x": 843.4662426728513,
         "y": 425.0664548635411
       },
-      "dragging": false,
       "parentNode": "group-1764912825017",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "branch-1764912880232",
@@ -312,15 +302,14 @@
       },
       "width": 220,
       "height": 178,
-      "selected": false,
       "positionAbsolute": {
         "x": 953.4766570239341,
         "y": 641.9157946475118
       },
-      "dragging": false,
       "parentNode": "group-1764912909579",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "group-1764912909579",
@@ -344,15 +333,14 @@
       },
       "width": 316,
       "height": 335,
-      "selected": false,
       "positionAbsolute": {
         "x": 873.3794227650709,
         "y": 469.28085200273324
       },
-      "dragging": false,
       "parentNode": "group-1764912829754",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "group-1764912873361",
@@ -376,15 +364,14 @@
       },
       "width": 332,
       "height": 305,
-      "selected": false,
       "positionAbsolute": {
         "x": 863.4662426728513,
         "y": 937.9157946475118
       },
-      "dragging": false,
       "parentNode": "group-1764912825017",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     },
     {
       "id": "branch-1764912901742",
@@ -402,15 +389,14 @@
       },
       "width": 229,
       "height": 162,
-      "selected": false,
       "positionAbsolute": {
         "x": 693.3576052780382,
         "y": 858.3562687745637
       },
-      "dragging": false,
       "parentNode": "group-1764912873361",
       "extent": "parent",
-      "hidden": false
+      "hidden": false,
+      "selected": false
     }
   ],
   "edges": [],
@@ -418,6 +404,7 @@
     "currentNodes": [],
     "revealedNodes": [],
     "inventory": {},
+    "equipment": {},
     "knowledge": {
       "${Demo}": 0
     },
@@ -430,5 +417,13 @@
         "value": "Demo String"
       }
     }
+  },
+  "characters": [],
+  "resources": [],
+  "edgeType": "default",
+  "viewport": {
+    "x": 288.8998942827825,
+    "y": -27.04949151985545,
+    "zoom": 0.8061071962417254
   }
 }

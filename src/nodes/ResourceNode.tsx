@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { NodeProps } from 'reactflow';
+import { Handle, Position, type NodeProps } from 'reactflow';
 import { Package } from 'lucide-react';
 import { getIconForResourceType } from '../utils/iconUtils';
 import { useScenarioStore } from '../store/scenarioStore';
@@ -50,6 +50,13 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       transition-colors duration-200
       ${selected ? `border-primary ring-2 ${getBorderColor(resource.type)}` : 'border-border'}
     `}>
+      {/* Revealed/Unrevealed Indicator */}
+      {data.revealed && (
+          <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm z-10 border-2 border-background">
+              <span className="text-white font-bold text-xs">✓</span>
+          </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-2 p-2 border-b border-border bg-muted/30">
         <div className="p-1.5 rounded-full bg-primary/10 text-primary">
@@ -87,7 +94,22 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           )}
       </div>
 
-      {/* No handles */}
+      {/* Sticky Note Icon */}
+      {data.hasSticky && (
+          <div className="absolute -top-5 -right-5 w-7 h-7 bg-yellow-400 text-yellow-900 rounded-sm flex items-center justify-center shadow-md border border-yellow-600 rotate-6" title="Has Sticky Notes">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/></svg>
+          </div>
+      )}
+
+      {/* Sticky Note Connection Handle */}
+      <Handle 
+          type="source" 
+          id="sticky-origin" 
+          position={Position.Right} 
+          className="!w-1 !h-1 !bg-transparent !border-none !min-w-0 !min-h-0" 
+          style={{ top: -7, right: -7, position: 'absolute' }}   
+          isConnectable={false} 
+      />
     </div>
   );
 };

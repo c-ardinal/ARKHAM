@@ -1,19 +1,17 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import { Package, StickyNote } from 'lucide-react';
-import { getIconForResourceType } from '../utils/iconUtils';
+import { StickyNote, Plus, Minus } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 
 const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
-  const { gameState, resources } = useScenarioStore();
+  const { gameState } = useScenarioStore();
   const description = data.description;
-  const resource = resources.find(r => r.id === data.referenceId);
   
   const getIcon = () => {
-    if (!resource) return <Package size={16} />;
-    return getIconForResourceType(resource.type, 16);
+    if (data.actionType === 'consume') return <Minus size={16} />;
+    return <Plus size={16} />;
   };
 
   return (
@@ -22,7 +20,7 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       border-blue-200 dark:border-blue-800
       bg-blue-50 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100
       hover:shadow-lg
-      ${data.revealed ? 'ring-2 ring-green-400' : ''}
+      ${data.revealed ? '' : ''}
     `}>
 
       {data.hasSticky && (
@@ -43,7 +41,7 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
             {getIcon()}
           </div>
           <div className="text-base font-bold flex items-center gap-1 text-blue-900 dark:text-blue-100">
-              {substituteVariables(data.label, gameState.variables)}
+              {substituteVariables(data.infoValue || 'None', gameState.variables)}
           </div>
         </div>
         

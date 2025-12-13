@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=block" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWdpdC1jb21wYXJlLWFycm93cy1pY29uIGx1Y2lkZS1naXQtY29tcGFyZS1hcnJvd3MiPjxjaXJjbGUgY3g9IjUiIGN5PSI2IiByPSIzIi8+PHBhdGggZD0iTTEyIDZoNWEyIDIgMCAwIDEgMiAydjciLz48cGF0aCBkPSJtMTUgOS0zLTMgMy0zIi8+PGNpcmNsZSBjeD0iMTkiIGN5PSIxOCIgcj0iMyIvPjxwYXRoIGQ9Ik0xMiAxOEg3YTIgMiAwIDAgMS0yLTJWOSIvPjxwYXRoIGQ9Im05IDE1IDMgMy0zIDMiLz48L3N2Zz4=" />
 
     <!-- Google tag (gtag.js) -->
@@ -16,10 +16,53 @@
       gtag('config', 'G-6CDFLQRTER');
     </script>
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>ARKHAM</title>
   </head>
   <body>
+    <div id="initial-loader" class="initial-loader">
+        <style>
+          html, body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              background-color: #0c0a09; /* warm-gray-950 */
+              overflow: hidden;
+          }
+          .initial-loader {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            background-color: #0c0a09;
+            color: #e7e5e4;
+            font-family: sans-serif;
+            flex-direction: column;
+            gap: 1rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+          }
+          .spinner {
+            width: 40px;
+            height: 40px;
+            box-sizing: border-box;
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            border-top-color: #8E24AA ; /* purple-600 */
+            animation: spin 1s ease-in-out infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        </style>
+        <div class="spinner"></div>
+        <div>Loading Arkham...</div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

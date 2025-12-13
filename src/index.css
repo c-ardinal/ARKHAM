@@ -70,8 +70,41 @@
   * {
     @apply border-border;
   }
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    overscroll-behavior: none; /* Prevent pull-to-refresh on mobile */
+  }
+
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Enable text selection for all text content */
+  p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, pre, code {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+  
+  /* Disable text selection for interactive elements */
+  button, input, select, textarea {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+  
+  /* Re-enable text selection for input fields */
+  input, textarea {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
   }
 }
 
@@ -96,4 +129,49 @@
 
 .dark .react-flow__controls-button svg {
   fill: hsl(var(--foreground));
+}
+
+/* Disable text selection in canvas to prevent text highlighting during drag selection */
+.react-flow, .react-flow__node, .react-flow__node * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Specifically target attribution to solve "React" text selection issue on mobile */
+.react-flow__attribution, .react-flow__attribution a {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-touch-callout: none !important; /* iOS specific */
+}
+
+/* Mobile Optimizations from Canvas.tsx */
+@media (max-width: 1366px) and (pointer: coarse) {
+  .react-flow__handle {
+      width: 14px !important;
+      height: 14px !important;
+  }
+  .react-flow__handle-right { right: -7px !important; }
+  .react-flow__handle-left { left: -7px !important; }
+  .react-flow__handle-top { top: -7px !important; }
+  .react-flow__handle-bottom { bottom: -7px !important; }
+  .react-flow__node { touch-action: none !important; }
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Force StickyNode handle to center, overriding mobile directional styles */
+.sticky-handle-center {
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    bottom: auto !important;
+    right: auto !important;
 }

@@ -72,14 +72,14 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
       {data.branchType === 'switch' && data.branches && (
           <div className="flex flex-col mt-2 gap-2">
               {data.branches.map((branch) => (
-                  <div key={branch.id} className="relative flex items-center justify-end">
+                  <div key={branch.id} className="relative flex items-center justify-end h-4">
                       <span className="text-xs text-purple-900 dark:text-purple-200 mr-2 font-bold">{substituteVariables(branch.label, gameState.variables)}</span>
                       <Handle 
                         type="source" 
                         position={Position.Right} 
                         id={branch.id} 
                         className="!bg-purple-500 !top-auto"
-                        style={{ top: '50%' }}
+                        style={{ top: '50%', transform: 'translateY(0%)' }}
                       />
                   </div>
               ))}

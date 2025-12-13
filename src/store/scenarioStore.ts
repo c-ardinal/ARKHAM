@@ -67,6 +67,7 @@ interface ScenarioState {
   deleteResource: (id: string) => void;
 
   // Game Logic
+  reset: () => void;
   resetGame: () => void;
   recalculateGameState: () => void;
   revealAll: () => void;
@@ -105,25 +106,63 @@ interface ScenarioState {
   pushHistory: () => void;
   undo: () => void;
   redo: () => void;
+
+  // LocalStorage Persistence
+  saveToLocalStorage: () => void;
+  loadFromLocalStorage: () => void;
+  clearLocalStorage: () => void;
+  resetToInitialState: () => void;
 }
 
+// LocalStorage key
+const STORAGE_KEY = 'trpg-scenario-storage';
+
+// Load initial state from LocalStorage
+const loadInitialState = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Sanitize nodes to prevent crash due to invalid data
+      if (parsed && Array.isArray(parsed.nodes)) {
+          parsed.nodes = parsed.nodes.filter((n: any) => 
+               n && 
+               typeof n.id === 'string' && 
+               n.position && 
+               typeof n.position.x === 'number' && !isNaN(n.position.x) &&
+               typeof n.position.y === 'number' && !isNaN(n.position.y)
+          ).map((n: any) => ({
+              ...n,
+              selected: false // Reset selection to prevent infinite loop on reload
+          }));
+      }
+      return parsed;
+    }
+  } catch (error) {
+    console.error('Failed to load from LocalStorage:', error);
+  }
+  return null;
+};
+
+const initialStoredState = loadInitialState();
+
 export const useScenarioStore = create<ScenarioState>((set, get) => ({
-  nodes: [
+  nodes: initialStoredState?.nodes || [
     {
       id: 'memo-initial-warning',
       type: 'memo',
       position: { x: 100, y: 100 },
       data: {
         label: '注意事項 / Warnings',
-        description: '・本ツールにはデータの自動保存機能は有りません。\n ページ再読み込み(更新)や再アクセスをするとそれまで編集していたデータは消えます。\n データを保持したい場合は「ファイル→保存」を実行または「Ctrl+S」押下で手動保存して下さい。\n・使用例を見たい場合は、「ファイル→サンプルデータ読込」を実行して下さい。\n・その他の注意事項や使い方は「ヘルプ→マニュアル」をご覧下さい。\n\n上記を読み終わったらこのノードは削除して問題有りません。'
+        description: '・本ツールには自動保存機能が実装されています。\n ページを再読み込みしても、最後の作業状態が自動的に復元されます。\n ただし、ブラウザのキャッシュをクリアすると保存データも削除されます。\n 重要なデータは「ファイル→保存」で手動保存することをお勧めします。\n・使用例を見たい場合は、「ファイル→サンプルデータ読込」を実行して下さい。\n・その他の注意事項や使い方は「ヘルプ→マニュアル」をご覧下さい。\n\n上記を読み終わったらこのノードは削除して問題有りません。'
       },
       width: 400,
       height: 200,
       draggable: true
     }
   ],
-  edges: [],
-  gameState: {
+  edges: initialStoredState?.edges || [],
+  gameState: initialStoredState?.gameState || {
     currentNodes: [],
     revealedNodes: [],
     inventory: {},
@@ -133,9 +172,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     stats: {},
     variables: {},
   },
-  mode: 'edit',
-  characters: [],
-  resources: [],
+  mode: initialStoredState?.mode || 'edit',
+  characters: initialStoredState?.characters || [],
+  resources: initialStoredState?.resources || [],
 
   addCharacter: (char) => set((state) => ({ characters: [...state.characters, char] })),
   updateCharacter: (id, char) => set((state) => ({
@@ -156,10 +195,54 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       };
   }),
 
-  addResource: (res) => set((state) => ({ resources: [...state.resources, res] })),
-  updateResource: (id, res) => set((state) => ({
-      resources: state.resources.map((r) => (r.id === id ? { ...r, ...res } : r))
-  })),
+  addResource: (res) => set((state) => {
+      const newResources = [...state.resources, res];
+      
+      // Auto-assign to unassigned element nodes
+      const updatedNodes = state.nodes.map(node => {
+          if ((node.type === 'element' || node.type === 'information') && !node.data.referenceId) {
+             return {
+                 ...node,
+                 data: {
+                     ...node.data,
+                     referenceId: res.id,
+                     infoValue: res.name
+                 }
+             };
+          }
+          return node;
+      });
+
+      return { 
+          resources: newResources,
+          nodes: updatedNodes
+      };
+  }),
+  updateResource: (id, res) => set((state) => {
+      const updatedResources = state.resources.map((r) => (r.id === id ? { ...r, ...res } : r));
+      
+      // Update element nodes that reference this resource
+      const updatedNodes = state.nodes.map(node => {
+          if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
+             const updatedResource = updatedResources.find(r => r.id === id);
+             if (updatedResource) {
+                 return {
+                     ...node,
+                     data: {
+                         ...node.data,
+                         infoValue: updatedResource.name
+                     }
+                 };
+             }
+          }
+          return node;
+      });
+
+      return {
+          resources: updatedResources,
+          nodes: updatedNodes
+      };
+  }),
   deleteResource: (id) => set((state) => {
        const resources = state.resources.filter((r) => r.id !== id);
        const fallbackResource = resources.length > 0 ? resources[0] : null;
@@ -202,14 +285,18 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   selectedNodeId: null,
   
   // Settings
-  language: 'ja',
+  language: initialStoredState?.language || 'ja',
   setLanguage: (lang) => set({ language: lang }),
-  theme: 'dark',
+  theme: initialStoredState?.theme || 'dark',
   setTheme: (theme) => set({ theme }),
-  edgeType: 'default',
+  edgeType: initialStoredState?.edgeType || 'default',
   setEdgeType: (type) => {
       const { edges } = get();
-      const updatedEdges = edges.map(edge => ({ ...edge, type }));
+      // Exclude sticky note edges from the update
+      const updatedEdges = edges.map(edge => {
+          if (edge.targetHandle === 'sticky-target') return edge;
+          return { ...edge, type };
+      });
       set({ edgeType: type, edges: updatedEdges });
   },
   
@@ -265,7 +352,21 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   onNodesChange: (changes: NodeChange[]) => {
     const state = get();
     
-    // Sticky Note Following Logic
+    // Filter changes if in Play Mode
+    let validChanges = changes;
+    if (state.mode === 'play') {
+        validChanges = changes.filter(change => {
+            if (change.type === 'position' || change.type === 'dimensions') {
+                 const node = state.nodes.find(n => n.id === change.id);
+                 if (node && node.type !== 'sticky') {
+                     return false; // Prevent movement for non-sticky nodes in Play Mode
+                 }
+            }
+            return true;
+        });
+    }
+
+    // Sticky Note Following Logic (using filtered changes)
     const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
     const stickyUpdates = new Map<string, {x: number, y: number}>();
     
@@ -279,7 +380,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         return descendants;
     };
 
-    changes.forEach(change => {
+    validChanges.forEach(change => {
         // Track movement of nodes that are not stickies themselves, but might be targets
         if (change.type === 'position' && change.position && change.dragging) {
             const oldNode = nodeMap.get(change.id);
@@ -323,7 +424,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     });
 
     // 1. Apply all changes
-    let nodesAfterChanges = applyNodeChanges(changes, state.nodes);
+    let nodesAfterChanges = applyNodeChanges(validChanges, state.nodes);
     
     // Apply sticky updates
     if (stickyUpdates.size > 0) {
@@ -373,7 +474,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     // 3. Update group sizes for moved or resized nodes
     // Using filtered 'currentNodes'
     const finalNodeIds = new Set(currentNodes.map(n => n.id));
-    changes.forEach(change => {
+    validChanges.forEach(change => {
         if ((change.type === 'position' && change.position) || change.type === 'dimensions') {
             // Only strictly valid checks
              if (!finalNodeIds.has(change.id)) return;
@@ -414,7 +515,25 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
   addNode: (node: ScenarioNode) => {
     get().pushHistory();
-    set({ nodes: [...get().nodes, node] });
+    
+    let nodeToAdd = node;
+    const state = get();
+    
+    // Auto-assign variable for new Variable nodes
+    if (node.type === 'variable' && !node.data.targetVariable) {
+        const variableNames = Object.keys(state.gameState.variables);
+        if (variableNames.length > 0) {
+            nodeToAdd = {
+                ...node,
+                data: {
+                    ...node.data,
+                    targetVariable: variableNames[0]
+                }
+            };
+        }
+    }
+
+    set({ nodes: [...state.nodes, nodeToAdd] });
     get().recalculateGameState();
   },
   updateNodeData: (id: string, data: any) => {
@@ -496,8 +615,14 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
   loadScenario: (data) => {
        const { nodes, edges, gameState, characters, resources, edgeType } = data as any; // Type assertion to allow new props
+              // ノードから一時的なプロパティを削除（dragging, selectedのみ）
+        const cleanedNodes = (nodes || []).map((node: any) => {
+          const { dragging, selected, ...cleanNode } = node;
+          return cleanNode;
+        });
+        
        set({ 
-           nodes: nodes || [], 
+           nodes: cleanedNodes, 
            edges: edges || [], 
            gameState: gameState || {
               currentNodes: [],
@@ -515,23 +640,29 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
            past: [], 
            future: [] 
        });
+       
+       // After loading, apply mode-specific behavior
+       const currentMode = get().mode;
+       if (currentMode === 'play') {
+           // In play mode, recalculate game state to ensure consistency
+           get().recalculateGameState();
+       }
   },
   setMode: (mode) => {
       const state = get();
-      // Update draggable state: stickies are always draggable (or only in play/edit), others only in edit
-      // Spec: Sticky can be moved in play mode too.
-      // Other nodes: only in edit mode.
-      const updatedNodes = state.nodes.map(n => ({
-          ...n,
-          draggable: mode === 'edit' || n.type === 'sticky'
-      }));
+       const updatedNodes = state.nodes.map(n => ({
+           ...n,
+           // Enable draggable for ALL nodes in both modes to mimic Edit Mode interaction (prevents double-tap zoom),
+           // but we will restrict actual movement in onNodesChange for Play Mode.
+           draggable: true 
+       }));
       set({ mode, nodes: updatedNodes });
   },
   
   addSticky: (targetNodeId, position) => {
       const state = get();
       state.pushHistory();
-      const id = `sticky-${Date.now()}`;
+      const id = `sticky-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
       const newNode: ScenarioNode = {
           id,
@@ -543,6 +674,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           },
           draggable: true, // Always draggable
           width: 180,
+          zIndex: 2001, // Ensure sticky is above the edge (2000)
       };
       
       let newEdges = state.edges;
@@ -554,7 +686,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               sourceHandle: 'sticky-origin',
               target: id,
               targetHandle: 'sticky-target',
-              type: 'straight',
+              type: 'sticky',
+              zIndex: 2000, // Ensure line is above other nodes
               style: { stroke: 'rgba(217, 119, 6, 0.5)', strokeWidth: 2 }, // Amber-600/50
               markerEnd: { type: MarkerType.ArrowClosed, width: 0, height: 0, color: 'transparent' }, // Hide arrow
               animated: false,
@@ -915,10 +1048,26 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
 
   deleteVariable: (name) => {
+    get().pushHistory();
     const state = get();
     const newVariables = { ...state.gameState.variables };
     delete newVariables[name];
+
+    const updatedNodes = state.nodes.map(node => {
+        if (node.type === 'variable' && node.data.targetVariable === name) {
+            return {
+                ...node,
+                data: {
+                    ...node.data,
+                    targetVariable: undefined
+                }
+            };
+        }
+        return node;
+    });
+
     set({
+      nodes: updatedNodes,
       gameState: {
         ...state.gameState,
         variables: newVariables
@@ -1053,7 +1202,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // 3. Update sticky status on nodes
       const stickyTargets = new Set<string>();
       state.nodes.forEach(n => {
-          if (n.type === 'sticky' && n.data.targetNodeId && !n.hidden) {
+          if (n.type === 'sticky' && n.data.targetNodeId) {
               stickyTargets.add(n.data.targetNodeId);
           }
       });
@@ -2107,5 +2256,123 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               get().updateGroupSize(node.parentNode);
           }
       }
-  }
+  },
+  reset: () => {
+    set({
+      nodes: [],
+      edges: [],
+      gameState: { 
+        currentNodes: [], 
+        revealedNodes: [], 
+        inventory: {}, 
+        equipment: {}, 
+        knowledge: {}, 
+        skills: {}, 
+        stats: {}, 
+        variables: {} 
+      },
+      characters: [],
+      resources: [],
+      mode: 'edit',
+      past: [],
+      future: [],
+      selectedNodeId: null
+    });
+  },
+
+  // LocalStorage Persistence Methods
+  saveToLocalStorage: () => {
+    const state = get();
+    const dataToSave = {
+      nodes: state.nodes,
+      edges: state.edges,
+      gameState: state.gameState,
+      mode: state.mode,
+      characters: state.characters,
+      resources: state.resources,
+      language: state.language,
+      theme: state.theme,
+      edgeType: state.edgeType,
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    } catch (error) {
+      console.error('Failed to save to LocalStorage:', error);
+    }
+  },
+
+  loadFromLocalStorage: () => {
+    if (initialStoredState) {
+      set({
+        nodes: initialStoredState.nodes || get().nodes,
+        edges: initialStoredState.edges || get().edges,
+        gameState: initialStoredState.gameState || get().gameState,
+        mode: initialStoredState.mode || get().mode,
+        characters: initialStoredState.characters || get().characters,
+        resources: initialStoredState.resources || get().resources,
+        language: initialStoredState.language || get().language,
+        theme: initialStoredState.theme || get().theme,
+        edgeType: initialStoredState.edgeType || get().edgeType,
+      });
+    }
+  },
+
+  clearLocalStorage: () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear LocalStorage:', error);
+    }
+  },
+
+  resetToInitialState: () => {
+    console.log('[DEBUG] resetToInitialState called');
+    const currentLanguage = get().language;
+    const currentTheme = get().theme;
+    const currentEdgeType = get().edgeType;
+
+    set({
+      nodes: [
+        {
+          id: 'memo-initial-warning',
+          type: 'memo',
+          position: { x: 100, y: 100 },
+          data: {
+            label: '注意事項 / Warnings',
+            description: '・本ツールには自動保存機能が実装されています。\n ページを再読み込みしても、最後の作業状態が自動的に復元されます。\n ただし、ブラウザのキャッシュをクリアすると保存データも削除されます。\n 重要なデータは「ファイル→保存」で手動保存することをお勧めします。\n・使用例を見たい場合は、「ファイル→サンプルデータ読込」を実行して下さい。\n・その他の注意事項や使い方は「ヘルプ→マニュアル」をご覧下さい。\n\n上記を読み終わったらこのノードは削除して問題有りません。'
+          },
+          width: 400,
+          height: 200,
+          draggable: true
+        }
+      ],
+      edges: [],
+      gameState: {
+        currentNodes: [],
+        revealedNodes: [],
+        inventory: {},
+        equipment: {},
+        knowledge: {},
+        skills: {},
+        stats: {},
+        variables: {},
+      },
+      mode: 'edit',
+      characters: [],
+      resources: [],
+      past: [],
+      future: [],
+      selectedNodeId: null,
+      // 設定は保持
+      language: currentLanguage,
+      theme: currentTheme,
+      edgeType: currentEdgeType,
+    });
+
+    // LocalStorageも更新
+    get().saveToLocalStorage();
+    
+    // ビューポートもリセット
+    localStorage.setItem('canvas-viewport', JSON.stringify({ x: 0, y: 0, zoom: 1 }));
+  },
 }));
