@@ -1,6 +1,10 @@
 <!-- SECTION: ja -->
 # 更新履歴
 
+## v2.0.1 (2025-12-13)
+### バグ修正
+- マニュアル・更新履歴が表示されない問題を修正
+
 ## v2.0.0 (2025-12-13)
 ### 機能追加
 - モバイルデバイス(スマートフォン・タブレット)向けレイアウトへ対応
@@ -39,6 +43,10 @@
 
 <!-- SECTION: en -->
 # Update History
+
+## v2.0.1 (2025-12-13)
+### Bug Fixes
+- Fixed issue where manual and update history would not display in production environment
 
 ## v2.0.0 (2025-12-13)
 ### New Features

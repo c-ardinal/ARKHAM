@@ -10,7 +10,7 @@ interface UpdateHistoryModalProps {
 
 export const UpdateHistoryModal = ({ isOpen, onClose }: UpdateHistoryModalProps) => {
     const { t } = useTranslation();
-    const markdown = useLocalizedMarkdown('/ChangeLog.md');
+    const markdown = useLocalizedMarkdown('ChangeLog.md');
 
     if (!isOpen) return null;
 
