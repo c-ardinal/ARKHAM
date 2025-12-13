@@ -347,7 +347,6 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     }
     
     previousNodesLength.current = nodes.length;
-    previousNodesLength.current = nodes.length;
   }, [nodes, pendingViewport, fitView, setViewport]);
 
   // Dedicated effect for removing the loader
