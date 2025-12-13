@@ -10,7 +10,7 @@ interface ManualModalProps {
 
 export const ManualModal = ({ isOpen, onClose }: ManualModalProps) => {
   const { t } = useTranslation();
-  const markdown = useLocalizedMarkdown('/Manual.md');
+  const markdown = useLocalizedMarkdown('Manual.md');
 
   if (!isOpen) return null;
 
