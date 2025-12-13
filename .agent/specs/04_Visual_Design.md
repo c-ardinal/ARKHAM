@@ -49,7 +49,7 @@ Tailwind CSSフレームワークをベースに、Light/Darkモードに対応�
 ノードの状態を示すための小型アイコン/バッジ。位置はノードの絶対座標に対する相対位置。
 
 - **開始ノード**: ★ 金色の星 (text-yellow-500) - ラベル左
-- **公開済み (Revealed)**: ✓ 緑の円 (bg-green-500, white check) - 左上 (-8px, -8px)
+- **公開済み (Revealed)**: ✓ 緑の円 (bg-green-500, white check) - 左上 (-8px, -8px) ※ノード本体の枠線色は変更しない
 - **付箋あり (Has Sticky)**: 📝 黄色の付箋 (bg-yellow-400, rotate-6deg, shadow-md) - 右上 (-20px, -20px)
 - **Resource Type**: リソース種別に応じた枠線色（Item=緑, Equip=青, etc.）
 

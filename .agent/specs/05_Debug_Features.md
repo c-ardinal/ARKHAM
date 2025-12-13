@@ -116,8 +116,6 @@ interface AssertionRule {
 
 ## 5. データフロー
 - パフォーマンス: Component -> useEffect -> Performance API -> Store
-## 5. データフロー
-- パフォーマンス: Component -> useEffect -> Performance API -> Store
 - アサーション: 手動実行 (Button Click -> Engine Run -> Log/Store)
 
 ## 5. 技術スタック

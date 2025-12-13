@@ -101,7 +101,12 @@ OSのクリップボードとアプリ内メモリを使い分ける設計とな
   - Edge Style (Default, Straight, Step, SmoothStep)
 - **Help**: Manual, Update History, About
 
-### 3.10 インタラクションマトリクス (Interaction Matrix)
+### 3.10 初期化挙動 (Initialization Behavior)
+- **初回アクセス**: 保存されたビューポートデータが存在しない場合、キャンバス上の全ノードが画面に収まるように自動調整（`Fit View`）を行う。
+- **データ読み込み時**: 保存されたビューポート座標を復元する。
+- **リトライロジック**: 初回描画時のレイアウト計算遅延を考慮し、寸法確定後に調整を再試行する。
+
+### 3.11 インタラクションマトリクス (Interaction Matrix)
 デバイスごとの入力操作フローを以下に示す。
 
 ```mermaid
