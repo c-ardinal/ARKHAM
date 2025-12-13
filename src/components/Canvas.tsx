@@ -249,11 +249,17 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       nodesJustLoaded,
       nodesChanged,
       allNodesHaveDimensions,
-      nodesWithoutDimensionsCount: nodesWithoutDimensions.length,
-      nodesWithoutDimensions: nodesWithoutDimensions.map(n => ({ id: n.id, type: n.type, width: n.width, height: n.height }))
+      nodesWithoutDimensionsCount: nodesWithoutDimensions.length
     });
+
+    // 寸法が確定していない場合は処理を保留（previousNodesLengthも更新しない）
+    // これにより、寸法確定後の再レンダリングで正しく処理される
+    if (nodes.length > 0 && !allNodesHaveDimensions) {
+      console.log('[Viewport] Waiting for node dimensions...');
+      return;
+    }
     
-    if ((nodesJustLoaded || nodesChanged) && allNodesHaveDimensions) {
+    if (nodesJustLoaded || nodesChanged) {
       console.log('[Viewport] Conditions met for viewport action');
       
       if (pendingViewport && !hasAppliedViewport) {
@@ -302,7 +308,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
               
               if (isStable) {
                 stableFrames++;
-                if (stableFrames >= 3) {
+                if (stableFrames >= 3) { // 3フレーム安定したら完了
                   localStorage.setItem('canvas-viewport', JSON.stringify(currentViewport));
                   console.log('[Viewport] Saved after fitView');
                   return;
@@ -316,7 +322,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
             };
             requestAnimationFrame(checkStability);
           });
-        }, 100);
+        }, 300);
       } else {
         console.log('[Viewport] Skipping action:', { 
           hasApplied: hasAppliedViewport, 
@@ -1235,6 +1241,19 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onReconnect={onReconnect}
+        onInit={() => {
+          // 初期ロード時の安全策：保存されたビューポートがない場合、遅延させてfitViewを実行
+          // useEffect側のロジックでカバーできないケース（タイミング問題など）を救済
+          const savedViewport = localStorage.getItem('canvas-viewport');
+          if (!savedViewport && nodes.length > 0) {
+            console.log('[Viewport] onInit: Scheduling fallback fitView');
+            setTimeout(() => {
+               window.requestAnimationFrame(() => {
+                 fitView({ padding: 0.2, duration: 800 });
+               });
+            }, 600);
+          }
+        }}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultViewport={(() => {
