@@ -35,12 +35,19 @@ TRPGシナリオマネージャーのデバッグ機能を拡張し、開発者�
 ### 2.3 アサーション機能
 **目的**: 期待される状態との差異を自動検出
 
-#### デフォルトルール
-1. 開始ノード存在チェック
-2. 孤立ノード検出
-3. 変数未定義参照
-4. 循環参照検出
-5. ジャンプノードターゲット不正
+#### デフォルトルール一覧
+| ID | ルール名 | 重大度 | 説明・条件 |
+| :--- | :--- | :--- | :--- |
+| `start-node-exists` | 開始ノード存在チェック | Warning | `isStart`フラグを持つノードが1つ以上存在するか |
+| `orphan-nodes` | 孤立ノード検出 | Info | エッジに接続されていないノード（付箋・メモ・グループを除く）を検出 |
+| `undefined-variables` | 変数未定義参照 | Error | `${VarName}`形式で参照されているが未定義の変数を検出 |
+| `jump-target-validity` | ジャンプノードターゲット検証 | Error | ジャンプノードのターゲットIDが存在するノードか |
+| `empty-title` | タイトル未設定 | Warning | タイトルが空、または空白のみのノードを検出（付箋・メモ・グループを除く） |
+| `dead-end-nodes` | 行き止まりノード | Info | アウトゴーイングエッジがないノードを検出（エンディングの可能性あり） |
+| `long-description` | 長文テキスト検出 | Warning | 本文が400文字を超えるノードを検出 |
+
+#### 永続化の技術詳細
+- **ログフィルタ**: `Set` オブジェクトを含む設定は、JSONシリアライズ時に配列へ変換・復元されることで永続化される。
 
 #### カスタムルール (Dynamic Assertion)
 - 「アサーションタブ」から動的にルールを追加可能
@@ -61,12 +68,53 @@ TRPGシナリオマネージャーのデバッグ機能を拡張し、開発者�
 - **ログ**: フィルタ後のログをテキストエクスポート
 - **警告**: 機密情報を含む可能性がある旨の警告ダイアログを表示
 
-## 3. UI/UX仕様
+## 3. データモデル (Data Models)
+
+### 3.1 ログエントリ (`LogEntry`)
+```typescript
+interface LogEntry {
+  timestamp: string;      // "HH:MM:SS.mmm"
+  level: 'log' | 'warn' | 'error' | 'info';
+  message: string;
+  args: any[];            // 元の引数リスト
+  tags: string[];         // 自動抽出されたタグ ("[Tag]")
+}
+```
+
+### 3.2 ログフィルタ (`LogFilter`)
+永続化時には `Set` が `Array` に変換される。
+```typescript
+interface LogFilter {
+  levels: Set<'log' | 'warn' | 'error' | 'info'>;
+  keyword: string;
+  isRegex: boolean;       // 正規表現モード
+  tags: Set<string>;      // 選択されたタグ
+  timeRange: { 
+    start: string | null; 
+    end: string | null; 
+  };
+}
+```
+
+### 3.3 アサーションルール (`AssertionRule`)
+```typescript
+interface AssertionRule {
+  id: string;
+  name: string;
+  description: string;
+  condition: (state: any) => boolean; // 検証関数
+  severity: 'error' | 'warning' | 'info';
+  enabled: boolean;
+  conditionCode?: string; // カスタムルール用のソースコード文字列
+}
+```
+
+## 4. UI/UX仕様
 - **デスクトップ**: フローティングウィンドウ (React Rnd)
 - **モバイル**: フルスクリーンモーダル (Overlay)
 - **タブ構成**: ログ, パフォーマンス, スナップショット, アサーション
 
-## 4. データフロー
+## 5. データフロー
 - パフォーマンス: Component -> useEffect -> Performance API -> Store
 - アサーション: Store Update -> Debounce -> Engine Run -> Log/Store
 
