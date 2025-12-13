@@ -1,8 +1,8 @@
 # ビジュアルデザイン仕様 (Visual Design)
 
-**文書バージョン**: 1.0.0
+**文書バージョン**: 2.0.0
 **最終更新日**: 2025-12-13
-**対象バージョン**: 1.0.2
+**対象バージョン**: 2.0.0
 
 ## 1. 概要
 本ドキュメントは、アプリケーションの色彩設計、コンポーネントスタイル、およびZ-Index階層構造を定義する。
@@ -58,7 +58,7 @@ Tailwind CSSフレームワークをベースに、Light/Darkモードに対応�
 
 | レイヤー名 | Z-Index | 説明 |
 | :--- | :--- | :--- |
-| **Loading Overlay** | 2000 | 最前面ロード画面 |
+| **Loading Overlay** | 9999 | 最前面ロード画面 (HTML直下) |
 | **Mobile Drag Ghost** | 2500 | ドラッグ中のポータル要素 |
 | **Sticky Note** | 2000-2001 | 付箋およびそのエッジ |
 | **Modals** | 100-150 | モーダルウィンドウ |
@@ -74,6 +74,15 @@ Tailwind CSSフレームワークをベースに、Light/Darkモードに対応�
 | **Default** | 通常の接続線 | Gray-400, Smooth Step |
 | **Selected** | 選択時のハイライト | Stroke: 6px, Color: Primary |
 | **StickyEdge** | 付箋と親ノードを結ぶ線 | Straight Line, 始点を親ノード中心からオフセット |
+
+### 3.7 ローディング画面 (Loading Screen)
+初期ロード時に表示されるオーバーレイ画面のデザイン。
+- **背景**: `#0c0a09` (Warm Gray 950)
+- **スピナー**:
+  - サイズ: 40px
+  - 色: Amber-400 (`#fbbf24`)
+  - アニメーション: 回転 (1s infinite ease-in-out)
+- **テキスト**: "Loading Arkham..." (Sans-serif, Text-gray-200)
 
 ---
 *End of Document*
