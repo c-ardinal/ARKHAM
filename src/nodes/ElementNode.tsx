@@ -20,7 +20,7 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       border-blue-200 dark:border-blue-800
       bg-blue-50 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100
       hover:shadow-lg
-      ${data.revealed ? 'ring-2 ring-green-400' : ''}
+      ${data.revealed ? '' : ''}
     `}>
 
       {data.hasSticky && (

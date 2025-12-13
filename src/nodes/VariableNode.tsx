@@ -31,7 +31,7 @@ const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
       border-red-200 dark:border-red-800
       bg-red-50 dark:bg-red-900/40 text-red-900 dark:text-red-100
       hover:shadow-lg
-      ${data.revealed ? 'ring-2 ring-green-400' : ''}
+      ${data.revealed ? '' : ''}
     `}>
 
       {data.hasSticky && (
