@@ -11,9 +11,9 @@ const iconMap: Record<ToastType, typeof CheckCircle2> = {
 };
 
 const colorMap: Record<ToastType, string> = {
-  success: 'border-emerald-500/40 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100 dark:border-emerald-500/60',
-  error: 'border-destructive/40 bg-destructive/10 text-destructive dark:bg-destructive/20',
-  info: 'border-sky-500/40 bg-sky-50 text-sky-900 dark:bg-sky-950 dark:text-sky-100 dark:border-sky-500/60',
+  success: 'border-emerald-500 bg-emerald-500 text-white dark:bg-emerald-600 dark:border-emerald-500',
+  error: 'border-destructive bg-destructive text-destructive-foreground',
+  info: 'border-sky-500 bg-sky-500 text-white dark:bg-sky-600 dark:border-sky-500',
 };
 
 const ToastItem = memo(({ toast: item, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) => {
@@ -22,7 +22,9 @@ const ToastItem = memo(({ toast: item, onDismiss }: { toast: Toast; onDismiss: (
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setVisible(true));
-    const timer = setTimeout(() => onDismiss(item.id), item.duration ?? 3000);
+    const timer = setTimeout(() => {
+      onDismiss(item.id);
+    }, item.duration ?? 4000);
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(timer);
@@ -33,15 +35,15 @@ const ToastItem = memo(({ toast: item, onDismiss }: { toast: Toast; onDismiss: (
     <div
       role={item.type === 'error' ? 'alert' : 'status'}
       aria-live={item.type === 'error' ? 'assertive' : 'polite'}
-      className={`pointer-events-auto flex items-start gap-3 rounded-md border px-4 py-3 shadow-lg backdrop-blur-sm transition-all duration-200 ${colorMap[item.type]} ${
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+      className={`pointer-events-auto flex items-start gap-3 rounded-lg border-2 px-4 py-3 shadow-2xl transition-all duration-300 ${colorMap[item.type]} ${
+        visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-6'
       }`}
     >
-      <Icon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
-      <span className="text-sm flex-1 leading-relaxed">{item.message}</span>
+      <Icon size={20} className="mt-0.5 shrink-0" aria-hidden="true" strokeWidth={2.5} />
+      <span className="text-sm font-medium flex-1 leading-relaxed">{item.message}</span>
       <button
         onClick={() => onDismiss(item.id)}
-        className="shrink-0 rounded p-1 opacity-60 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="shrink-0 rounded p-1 opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 transition-opacity"
         aria-label="Close notification"
       >
         <X size={14} aria-hidden="true" />
@@ -69,7 +71,7 @@ export const Toaster = memo(() => {
 
   return (
     <div
-      className="pointer-events-none fixed bottom-4 right-4 z-[200] flex flex-col gap-2 w-[320px] max-w-[calc(100vw-2rem)]"
+      className="pointer-events-none fixed top-20 right-6 z-[200] flex flex-col gap-3 w-[360px] max-w-[calc(100vw-2rem)]"
       aria-live="polite"
     >
       {items.map((item) => (

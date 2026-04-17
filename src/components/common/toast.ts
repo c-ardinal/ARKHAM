@@ -19,7 +19,7 @@ class ToastStore {
     };
   }
 
-  push(type: ToastType, message: string, duration = 3000): void {
+  push(type: ToastType, message: string, duration = 4000): void {
     const toast: Toast = {
       id: `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       type,
