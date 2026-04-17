@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useTranslation } from '../hooks/useTranslation';
-import { Plus, Trash2, Edit2, Save, X, ArrowDownAZ, ArrowUpAZ, Variable as VariableIcon } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, ArrowDownAZ, ArrowUpAZ, Variable as VariableIcon, ChevronLeft } from 'lucide-react';
 import type { VariableType } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 import { INPUT_CLASS } from '../styles/common';
@@ -112,8 +112,8 @@ const VariableListItem = React.memo(({
                         onChange={(e) => setEditName(e.target.value)}
                         className={inputClass}
                     />
-                    {isChecking && <span className="absolute right-2 top-1 text-[10px] text-yellow-500">Checking...</span>}
-                    {duplicateError && <span className="absolute right-2 top-1 text-[10px] text-destructive">Duplicate</span>}
+                    {isChecking && <span className="absolute right-2 top-1 text-xs text-yellow-500">Checking...</span>}
+                    {duplicateError && <span className="absolute right-2 top-1 text-xs text-destructive">Duplicate</span>}
                 </div>
                 {mode === 'edit' && (
                     <select
@@ -143,7 +143,7 @@ const VariableListItem = React.memo(({
                         className={`${inputClass} mb-2`}
                     />
                 )}
-                {validationError && <div className="text-[10px] text-destructive mb-1">{validationError}</div>}
+                {validationError && <div className="text-xs text-destructive mb-1">{validationError}</div>}
                 <div className="flex justify-end gap-2 items-center">
                     <button 
                         onClick={cancelEdit} 
@@ -187,9 +187,12 @@ const VariableListItem = React.memo(({
              >
                 <div className="flex justify-between items-start mb-1">
                     <span className="font-medium text-base whitespace-normal break-all text-primary">{variable.name}</span>
-                    <div className="flex gap-1 shrink-0">
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); startEditing(variable.name); }} 
+                    <div className="flex gap-1 shrink-0 items-center">
+                        {mode === 'edit' && !isSwiped && (
+                            <ChevronLeft size={12} aria-hidden="true" className="md:hidden text-muted-foreground/50 mr-1" />
+                        )}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); startEditing(variable.name); }}
                             onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); startEditing(variable.name); }}
                             className="p-1 hover:bg-accent hover:text-accent-foreground active:bg-accent rounded text-muted-foreground"
                         >
@@ -451,8 +454,8 @@ export const VariableList = React.memo(() => {
                     placeholder="Variable name"
                     className={inputClass}
                 />
-                {isChecking && <span className="absolute right-2 top-1 text-[10px] text-yellow-500">Checking...</span>}
-                {duplicateError && <span className="absolute right-2 top-1 text-[10px] text-destructive">Duplicate</span>}
+                {isChecking && <span className="absolute right-2 top-1 text-xs text-yellow-500">Checking...</span>}
+                {duplicateError && <span className="absolute right-2 top-1 text-xs text-destructive">Duplicate</span>}
             </div>
             <select
                 value={newType}
@@ -481,7 +484,7 @@ export const VariableList = React.memo(() => {
                     className={`${inputClass} mb-2`}
                 />
             )}
-            {validationError && <div className="text-[10px] text-destructive mb-1">{validationError}</div>}
+            {validationError && <div className="text-xs text-destructive mb-1">{validationError}</div>}
              <div className="flex justify-end gap-2 items-center">
                 <button 
                     onClick={() => { setIsAdding(false); setDuplicateError(null); setValidationError(null); }} 

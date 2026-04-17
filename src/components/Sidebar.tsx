@@ -247,15 +247,17 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
         onClick={handleTap}
         onTouchStart={(e) => e.stopPropagation()}
         onTouchEnd={(e) => {
-            e.preventDefault(); 
+            e.preventDefault();
             e.stopPropagation();
             handleTap();
         }}
-        className={`p-1 w-12 h-12 rounded-md transition-colors flex flex-col items-center justify-center gap-1 shrink-0 ${activeTab === id && isOpen ? 'bg-primary text-primary-foreground' : 'text-accent-foreground active:bg-accent'}`}
+        aria-label={label}
+        aria-pressed={activeTab === id && isOpen}
+        className={`p-1 w-12 h-12 rounded-md transition-colors flex flex-col items-center justify-center gap-1 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeTab === id && isOpen ? 'bg-primary text-primary-foreground' : 'text-accent-foreground active:bg-accent'}`}
         style={{ touchAction: 'manipulation' }}
       >
-        <Icon size={24} />
-        <span className="text-[10px] font-medium leading-none truncate max-w-full">{label}</span>
+        <Icon size={22} aria-hidden="true" />
+        <span className="text-xs font-medium leading-none truncate max-w-full">{label}</span>
       </button>
       );
   };

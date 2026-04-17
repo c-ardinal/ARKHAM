@@ -3,12 +3,16 @@ import { Handle, Position, type NodeProps } from 'reactflow';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
+import { RevealedBadge } from '../components/common/RevealedBadge';
+import { StickyIndicator } from '../components/common/StickyIndicator';
+import { useTranslation } from '../hooks/useTranslation';
 
-import { Flag, StickyNote } from 'lucide-react';
+import { Flag, Star } from 'lucide-react';
 
 const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { gameState } = useScenarioStore();
-  
+  const { t } = useTranslation();
+
   const label = substituteVariables(data.label, gameState.variables);
   const description = substituteVariables(data.description || '', gameState.variables);
 
@@ -16,26 +20,23 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
     <div className={`relative px-4 py-2 shadow-md hover:shadow-lg rounded-md border-2 min-w-[150px] transition-all ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
     } border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20`}>
-      {/* Sticky Note Connection Handle */}
-      {data.hasSticky && (
-          <div className="absolute -top-5 -right-5 w-7 h-7 bg-yellow-400 text-yellow-900 rounded-sm flex items-center justify-center shadow-md border border-yellow-600 rotate-6" title="Has Sticky Notes">
-            <StickyNote size={14} />
-          </div>
-      )}
-      {data.revealed && (
-          <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm z-10 border-2 border-background">
-              <span className="text-white font-bold text-xs">✓</span>
-          </div>
-      )}
+      {data.hasSticky && <StickyIndicator />}
+      {data.revealed && <RevealedBadge />}
       {!data.isStart && <Handle type="target" position={Position.Top} className="w-16 !bg-orange-400 dark:!bg-orange-600" />}
-      
+
       <div className="flex flex-col">
         <div className="flex items-center">
           <div className="rounded-full p-2 mr-2 bg-orange-100 text-orange-600 dark:bg-orange-800 dark:text-orange-300 shrink-0">
             <Flag size={16} />
           </div>
           <div className="flex items-center">
-            {data.isStart && <span className="mr-2 text-yellow-500">★</span>}
+            {data.isStart && (
+              <Star
+                size={14}
+                className="mr-2 fill-yellow-400 text-yellow-500"
+                aria-label={t('common.startNode') || 'Start Node'}
+              />
+            )}
             <div className="text-lg font-bold text-orange-900 dark:text-orange-100">{label}</div>
           </div>
         </div>

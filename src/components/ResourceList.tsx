@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useTranslation } from '../hooks/useTranslation';
-import { Plus, Trash2, GripVertical, Package, Edit2 } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Package, Edit2, ChevronLeft } from 'lucide-react';
 import { getIconForResourceType } from '../utils/iconUtils';
 import type { ResourceType } from '../types';
 
@@ -182,16 +182,26 @@ const ResourceListItem = React.memo(({
                          )}
                          <div className="font-bold truncate text-base">{res.name || 'New Element'}</div>
                     </div>
+                    {/* Mobile swipe hint */}
+                    {mode === 'edit' && !isSwiped && (
+                        <ChevronLeft
+                            size={14}
+                            aria-hidden="true"
+                            className="md:hidden text-muted-foreground/50 shrink-0"
+                        />
+                    )}
+
                     {/* Mobile Edit Button */}
                     {mode === 'edit' && (
-                        <button 
+                        <button
                             onTouchStart={(e) => e.stopPropagation()}
                             onClick={(e) => { onSelect(e, res.id); onEdit && onEdit(); }}
                             onTouchEnd={(e) => { e.preventDefault(); onSelect(e, res.id); onEdit && onEdit(); }}
-                            className="md:hidden p-2 hover:bg-accent rounded text-muted-foreground shrink-0"
+                            className="md:hidden inline-flex items-center justify-center min-w-[44px] min-h-[44px] hover:bg-accent rounded-md text-muted-foreground shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             style={{ touchAction: 'manipulation' }}
+                            aria-label={t('common.edit' as any) || 'Edit'}
                         >
-                            <Edit2 size={18} />
+                            <Edit2 size={18} aria-hidden="true" />
                         </button>
                     )}
                      {/* Desktop Actions (Always Visible) */}

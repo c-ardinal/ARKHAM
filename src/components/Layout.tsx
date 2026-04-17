@@ -9,6 +9,7 @@ import { ValidationErrorModal } from './ValidationErrorModal';
 import { UpdateHistoryModal } from './UpdateHistoryModal';
 import { DebugPanel } from './DebugPanel/DebugPanel';
 import { LoadingOverlay } from './LoadingOverlay';
+import { Toaster, toast } from './common/Toaster';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useDebugStore } from '../store/debugStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
@@ -33,16 +34,17 @@ interface MenuItemProps {
 }
 
 const MenuItem = ({ onClick, icon: Icon, label, danger = false, checked = false, onClose }: MenuItemProps) => (
-    <button 
+    <button
+        role="menuitem"
         onClick={(e) => {
             onClick?.(e);
             onClose?.();
         }}
-        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors relative hover:bg-accent hover:text-accent-foreground whitespace-nowrap ${danger ? 'text-red-600 dark:text-red-400 font-medium hover:bg-red-100 dark:hover:bg-red-900/30' : ''}`}
+        className={`w-full min-h-[40px] text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors relative hover:bg-accent hover:text-accent-foreground whitespace-nowrap focus-visible:outline-none focus-visible:bg-accent focus-visible:text-accent-foreground ${danger ? 'text-red-600 dark:text-red-400 font-medium hover:bg-red-100 dark:hover:bg-red-900/30 focus-visible:bg-red-100 dark:focus-visible:bg-red-900/30' : ''}`}
     >
-        {checked && <Check size={14} className="absolute left-2 text-primary" />}
+        {checked && <Check size={14} className="absolute left-2 text-primary" aria-hidden="true" />}
         <div className={`flex items-center gap-2 ${checked ? 'ml-6' : ''}`}>
-            {Icon && <Icon size={14} />}
+            {Icon && <Icon size={14} aria-hidden="true" />}
             {label}
         </div>
     </button>
@@ -58,31 +60,41 @@ interface SubMenuProps {
 const SubMenu = ({ label, children, onClose, icon: Icon }: SubMenuProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const isMobile = useMediaQuery('(max-width: 768px)');
-    
-    // Toggle on click for mobile friendliness
+    const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const handleToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setIsOpen(!isOpen);
+        setIsOpen(prev => !prev);
+    };
+
+    const clearHoverTimer = () => {
+        if (hoverTimerRef.current) {
+            clearTimeout(hoverTimerRef.current);
+            hoverTimerRef.current = null;
+        }
     };
 
     if (isMobile) {
         return (
             <div className="w-full">
-                <button 
+                <button
+                    role="menuitem"
+                    aria-expanded={isOpen}
+                    aria-haspopup="menu"
                     onClick={handleToggle}
-                    className="w-full text-left px-4 py-2 text-sm flex items-center justify-between transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
+                    className="w-full min-h-[40px] text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap focus-visible:outline-none focus-visible:bg-accent focus-visible:text-accent-foreground"
                 >
                     <div className="flex items-center gap-2">
-                        {Icon && <Icon size={14} />}
+                        {Icon && <Icon size={14} aria-hidden="true" />}
                         {label}
                     </div>
-                    <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={12} aria-hidden="true" className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isOpen && (
-                    <div className="pl-4 border-l border-border ml-2 my-1 space-y-1">
-                        {React.Children.map(children, child => 
-                            React.isValidElement(child) 
-                                ? React.cloneElement(child as React.ReactElement<{ onClose?: () => void }>, { onClose }) 
+                    <div role="menu" className="pl-4 border-l border-border ml-2 my-1 space-y-1">
+                        {React.Children.map(children, child =>
+                            React.isValidElement(child)
+                                ? React.cloneElement(child as React.ReactElement<{ onClose?: () => void }>, { onClose })
                                 : child
                         )}
                     </div>
@@ -92,26 +104,35 @@ const SubMenu = ({ label, children, onClose, icon: Icon }: SubMenuProps) => {
     }
 
     return (
-        <div 
+        <div
             className="relative"
-            onMouseEnter={() => setIsOpen(true)}
-            onMouseLeave={() => setIsOpen(false)}
+            onMouseEnter={() => {
+                clearHoverTimer();
+                hoverTimerRef.current = setTimeout(() => setIsOpen(true), 150);
+            }}
+            onMouseLeave={() => {
+                clearHoverTimer();
+                hoverTimerRef.current = setTimeout(() => setIsOpen(false), 150);
+            }}
         >
-            <button 
+            <button
+                role="menuitem"
+                aria-expanded={isOpen}
+                aria-haspopup="menu"
                 onClick={handleToggle}
-                className="w-full text-left px-4 py-2 text-sm flex items-center justify-between transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
+                className="w-full min-h-[40px] text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap focus-visible:outline-none focus-visible:bg-accent focus-visible:text-accent-foreground"
             >
                 <div className="flex items-center gap-2">
-                    {Icon && <Icon size={14} />}
+                    {Icon && <Icon size={14} aria-hidden="true" />}
                     {label}
                 </div>
-                <ChevronRight size={12} className={`transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                <ChevronRight size={12} aria-hidden="true" className={`transition-transform ${isOpen ? 'rotate-90' : ''}`} />
             </button>
             {isOpen && (
-                <div className="absolute left-full top-0 w-max min-w-[14rem] rounded-md shadow-lg border border-border py-1 z-50 bg-popover text-popover-foreground">
-                    {React.Children.map(children, child => 
-                        React.isValidElement(child) 
-                            ? React.cloneElement(child as React.ReactElement<{ onClose?: () => void }>, { onClose }) 
+                <div role="menu" className="absolute left-full top-0 w-max min-w-[14rem] rounded-md shadow-lg border border-border py-1 z-50 bg-popover text-popover-foreground">
+                    {React.Children.map(children, child =>
+                        React.isValidElement(child)
+                            ? React.cloneElement(child as React.ReactElement<{ onClose?: () => void }>, { onClose })
                             : child
                     )}
                 </div>
@@ -156,15 +177,18 @@ const MenuDropdown = ({ label, children, isOpen, onToggle, onClose, icon: Icon }
 
     return (
         <>
-            <button 
+            <button
                 ref={ref}
                 onClick={onToggle}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground text-sm font-medium transition-colors ${isOpen ? 'bg-accent/50 text-accent-foreground' : ''}`}
+                aria-haspopup="menu"
+                aria-expanded={isOpen}
+                aria-label={isCompactMenu ? label : undefined}
+                className={`inline-flex items-center gap-2 px-3 py-2 min-h-[44px] rounded-md hover:bg-accent hover:text-accent-foreground text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isOpen ? 'bg-accent/50 text-accent-foreground' : ''}`}
                 title={isCompactMenu ? label : undefined}
             >
-                {Icon && (isCompactMenu || !label) && <Icon size={18} />}
+                {Icon && (isCompactMenu || !label) && <Icon size={18} aria-hidden="true" />}
                 {!isCompactMenu && label}
-                {!isCompactMenu && <ChevronDown size={14} className="opacity-50" />}
+                {!isCompactMenu && <ChevronDown size={14} className="opacity-50" aria-hidden="true" />}
             </button>
             {isOpen && position && createPortal(
                 <div 
@@ -190,30 +214,57 @@ interface ConfirmationModalProps {
     message: string;
     onConfirm: () => void;
     onClose: () => void;
+    danger?: boolean;
+    confirmLabel?: string;
+    cancelLabel?: string;
 }
 
-const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose }: ConfirmationModalProps) => {
+const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger = false, confirmLabel, cancelLabel }: ConfirmationModalProps) => {
+    const confirmRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                onClose();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                onConfirm();
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        // Focus the confirm button for keyboard users
+        confirmRef.current?.focus();
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [isOpen, onClose, onConfirm]);
+
     if (!isOpen) return null;
+    const confirmButtonClass = danger
+        ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+        : 'bg-primary text-primary-foreground hover:bg-primary/90';
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" role="dialog" aria-modal="true" aria-labelledby="confirmation-title" aria-describedby="confirmation-message">
             <div className="bg-card border border-border rounded-lg shadow-xl p-6 w-[400px] max-w-full">
-                <h3 className="text-lg font-bold mb-2 text-card-foreground">{title}</h3>
-                <p className="text-muted-foreground mb-6">{message}</p>
+                <h2 id="confirmation-title" className="text-lg font-bold mb-2 text-card-foreground">{title}</h2>
+                <p id="confirmation-message" className="text-muted-foreground mb-6 whitespace-pre-wrap">{message}</p>
                 <div className="flex justify-end gap-2">
-                    <button 
+                    <button
                         onClick={onClose}
-                        className="px-4 py-2 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                        className="min-h-[44px] px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                        Cancel
+                        {cancelLabel ?? 'Cancel'}
                     </button>
-                    <button 
+                    <button
+                        ref={confirmRef}
                         onClick={() => {
                             onConfirm();
                             onClose();
                         }}
-                        className="px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                        className={`min-h-[44px] px-4 py-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${confirmButtonClass}`}
                     >
-                        Confirm
+                        {confirmLabel ?? 'Confirm'}
                     </button>
                 </div>
             </div>
@@ -230,7 +281,7 @@ export const Layout = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; danger?: boolean; confirmLabel?: string; cancelLabel?: string } | null>(null);
   const [validationError, setValidationError] = useState<{ errors: string[]; warnings: string[]; corrections?: string[]; jsonContent?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const isDebugModeEnabled = (() => {
@@ -347,38 +398,44 @@ export const Layout = () => {
   }, []);
 
   const handleSave = () => {
-    const data = {
-      nodes,
-      edges,
-      gameState,
-      characters,
-      resources,
-      edgeType,
-      viewport: canvasRef.current?.getViewport()
-    };
-    
-    // Validate and correct the data before saving
-    const validation = validateScenarioData(data);
-    const dataToSave = validation.correctedData || data;
-    
-    const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    // Generate timestamp: YYYYMMDDHHmmssSSS
-    const now = new Date();
-    const timestamp = now.getFullYear().toString() +
-        (now.getMonth() + 1).toString().padStart(2, '0') +
-        now.getDate().toString().padStart(2, '0') +
-        now.getHours().toString().padStart(2, '0') +
-        now.getMinutes().toString().padStart(2, '0') +
-        now.getSeconds().toString().padStart(2, '0') +
-        now.getMilliseconds().toString().padStart(3, '0');
-        
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `TRPGScenarioManager_${timestamp}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const data = {
+        nodes,
+        edges,
+        gameState,
+        characters,
+        resources,
+        edgeType,
+        viewport: canvasRef.current?.getViewport()
+      };
+
+      // Validate and correct the data before saving
+      const validation = validateScenarioData(data);
+      const dataToSave = validation.correctedData || data;
+
+      const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      // Generate timestamp: YYYYMMDDHHmmssSSS
+      const now = new Date();
+      const timestamp = now.getFullYear().toString() +
+          (now.getMonth() + 1).toString().padStart(2, '0') +
+          now.getDate().toString().padStart(2, '0') +
+          now.getHours().toString().padStart(2, '0') +
+          now.getMinutes().toString().padStart(2, '0') +
+          now.getSeconds().toString().padStart(2, '0') +
+          now.getMilliseconds().toString().padStart(3, '0');
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `TRPGScenarioManager_${timestamp}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t('toast.scenarioSaved' as any));
+    } catch (err) {
+      console.error('[Layout] Save failed:', err);
+      toast.error(t('toast.saveFailed' as any));
+    }
   };
 
   const handleZoomIn = useCallback(() => {
@@ -526,6 +583,7 @@ export const Layout = () => {
           errors: ['シナリオの読み込みに失敗しました。不正なJSONです。', error instanceof Error ? error.message : String(error)],
           warnings: []
         });
+        toast.error(t('toast.loadFailed' as any));
       }
     };
     reader.readAsText(file);
@@ -579,37 +637,50 @@ const menuActions = {
             isOpen: true,
             title: t('menu.loadSample'),
             message: t('menu.confirmLoadSample'),
+            danger: true,
+            confirmLabel: t('common.confirm' as any),
+            cancelLabel: t('common.cancel' as any),
             onConfirm: () => {
                 const sampleData = type === 'story' ? sampleStory : sampleNestedGroup;
                 console.log('[Layout] Loading sample data:', { type, hasViewport: !!(sampleData as any).viewport, viewport: (sampleData as any).viewport });
                 // @ts-ignore
                 loadScenarioWithStabilization(sampleData);
+                toast.success(t('toast.sampleLoaded' as any));
             }
         });
     },
     onExport: (type: 'text' | 'markdown') => {
-        const text = generateScenarioText(nodes, edges, gameState.variables, type);
-        const blob = new Blob([text], { type: type === 'text' ? 'text/plain' : 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `scenario_export_${Date.now()}.${type === 'text' ? 'txt' : 'md'}`;
-        a.click();
-        URL.revokeObjectURL(url);
+        try {
+            const text = generateScenarioText(nodes, edges, gameState.variables, type);
+            const blob = new Blob([text], { type: type === 'text' ? 'text/plain' : 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `scenario_export_${Date.now()}.${type === 'text' ? 'txt' : 'md'}`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success(t('toast.scenarioExported' as any));
+        } catch (err) {
+            console.error('[Layout] Export failed:', err);
+            toast.error(t('toast.exportFailed' as any));
+        }
     },
-    onReset: () => setConfirmModal({ 
-      isOpen: true, 
-      title: t('common.reset' as any), 
-      message: t('common.confirmReset' as any), 
-      onConfirm: async () => { 
-        useScenarioStore.getState().resetToInitialState(); 
+    onReset: () => setConfirmModal({
+      isOpen: true,
+      title: t('common.reset' as any),
+      message: t('common.confirmReset' as any),
+      danger: true,
+      confirmLabel: t('common.confirm' as any),
+      cancelLabel: t('common.cancel' as any),
+      onConfirm: async () => {
+        useScenarioStore.getState().resetToInitialState();
         // リセット後にfitViewを実行し、完了後にビューポートを保存
         setTimeout(async () => {
           if (canvasRef.current) {
             await canvasRef.current.fitViewWithSave();
           }
         }, 100);
-      } 
+      }
     }),
     onToggleTheme: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
     onToggleLang: () => setLanguage(language === 'en' ? 'ja' : 'en'),
@@ -686,7 +757,7 @@ const menuActions = {
         <div className="flex items-center gap-4">
              <div className="flex flex-col items-center mr-4">
                 <h1 className={`text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-green-800 drop-shadow-sm tracking-wider transition-opacity duration-300 ${fontsLoaded ? 'opacity-100' : 'opacity-0'}`} style={{ fontFamily: '"Cinzel Decorative", cursive', lineHeight: '0.8' }}>ARKHAM</h1>
-                <span className="text-[0.6rem] tracking-widest mt-1 text-muted-foreground hidden lg:block"><span className="text-purple-500 font-bold">A</span>dventure <span className="text-purple-500 font-bold">R</span>outing & <span className="text-purple-500 font-bold">K</span>eeper <span className="text-purple-500 font-bold">H</span>andling <span className="text-purple-500 font-bold">A</span>ssistant <span className="text-purple-500 font-bold">M</span>anager</span>
+                <span className="text-xs tracking-widest mt-1 text-muted-foreground hidden lg:block"><span className="text-purple-500 font-bold">A</span>dventure <span className="text-purple-500 font-bold">R</span>outing & <span className="text-purple-500 font-bold">K</span>eeper <span className="text-purple-500 font-bold">H</span>andling <span className="text-purple-500 font-bold">A</span>ssistant <span className="text-purple-500 font-bold">M</span>anager</span>
              </div>
 
             {/* Desktop Menu */}
@@ -710,30 +781,43 @@ const menuActions = {
         <div className="flex items-center gap-2">
             {/* Undo/Redo */}
             <div className="flex items-center gap-1 border-r border-border pr-2 mr-2">
-                <button onClick={undo} disabled={past.length === 0} className="p-2 rounded hover:bg-accent disabled:opacity-50" title={t('menu.undo' as any)}>
-                    <Undo size={18} />
+                <button
+                    onClick={undo}
+                    disabled={past.length === 0}
+                    className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    title={t('menu.undo' as any)}
+                    aria-label={t('menu.undo' as any)}
+                >
+                    <Undo size={18} aria-hidden="true" />
                 </button>
-                <button onClick={redo} disabled={future.length === 0} className="p-2 rounded hover:bg-accent disabled:opacity-50" title={t('menu.redo' as any)}>
-                    <Redo size={18} />
+                <button
+                    onClick={redo}
+                    disabled={future.length === 0}
+                    className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    title={t('menu.redo' as any)}
+                    aria-label={t('menu.redo' as any)}
+                >
+                    <Redo size={18} aria-hidden="true" />
                 </button>
             </div>
 
             {/* Mode Toggle */}
              <button
                 onClick={() => setMode(mode === 'edit' ? 'play' : 'edit')}
-                className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded font-medium transition-colors text-sm md:text-base ${
-                  mode === 'play' 
-                    ? 'bg-green-600 hover:bg-green-700 text-white' 
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                aria-label={mode === 'edit' ? t('common.playMode' as any) : t('common.editMode' as any)}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 min-h-[44px] rounded-md font-medium transition-colors text-sm md:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                  mode === 'play'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-sky-600 hover:bg-sky-700 text-white'
                 }`}
               >
-                {mode === 'edit' ? <Play size={16} /> : <Edit size={16} />}
-                
+                {mode === 'edit' ? <Play size={16} aria-hidden="true" /> : <Edit size={16} aria-hidden="true" />}
+
                 {/* Large screens: Full text */}
                 <span className="hidden lg:inline">
                     {mode === 'edit' ? t('common.playMode') : t('common.editMode')}
                 </span>
-                
+
                 {/* Medium screens: Short text */}
                 <span className="hidden md:inline lg:hidden">
                     {mode === 'edit' ? t('common.playModeShort') : t('common.editModeShort')}
@@ -775,10 +859,16 @@ const menuActions = {
         
         {/* Helper for property resizing (Desktop) */}
         {!isMobile && selectedNodeId && (mode === 'edit' || nodes.find(n => n.id === selectedNodeId)?.type === 'sticky') && (
-            <div 
-                className="w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-10"
+            <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t('common.resizePanel' as any)}
+                tabIndex={0}
+                className="group relative w-3 cursor-col-resize z-10 flex items-center justify-center"
                 onMouseDown={() => setIsResizingProperty(true)}
-            />
+            >
+                <div className={`w-px h-full transition-colors ${isResizingProperty ? 'bg-primary' : 'bg-border group-hover:bg-primary/60'}`} />
+            </div>
         )}
 
         {(isMobile ? mobilePropertyPanelOpen : (selectedNodeId && (mode === 'edit' || nodes.find(n => n.id === selectedNodeId)?.type === 'sticky'))) && (
@@ -800,10 +890,13 @@ const menuActions = {
        />
 
       {confirmModal && (
-        <ConfirmationModal 
+        <ConfirmationModal
             isOpen={confirmModal.isOpen}
             title={confirmModal.title}
             message={confirmModal.message}
+            danger={confirmModal.danger}
+            confirmLabel={confirmModal.confirmLabel}
+            cancelLabel={confirmModal.cancelLabel}
             onConfirm={confirmModal.onConfirm}
             onClose={() => setConfirmModal(null)}
         />
@@ -821,6 +914,7 @@ const menuActions = {
       />
       {isDebugModeEnabled && <DebugPanel />}
       <LoadingOverlay isLoading={isLoading} message="シナリオを読み込んでいます..." />
+      <Toaster />
 
       </div>
     </ReactFlowProvider>

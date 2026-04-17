@@ -4,6 +4,8 @@ import { getIconForCharacterType } from '../utils/iconUtils';
 import { useScenarioStore } from '../store/scenarioStore';
 import type { CharacterType, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
+import { RevealedBadge } from '../components/common/RevealedBadge';
+import { StickyIndicator } from '../components/common/StickyIndicator';
 
 
 
@@ -34,12 +36,7 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       transition-colors duration-200
       ${selected ? 'border-primary ring-2 ring-primary/20' : 'border-border'}
     `}>
-      {/* Revealed/Unrevealed Indicator */}
-      {data.revealed && (
-          <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm z-10 border-2 border-background">
-              <span className="text-white font-bold text-xs">✓</span>
-          </div>
-      )}
+      {data.revealed && <RevealedBadge />}
 
       {/* Header */}
       <div className="flex items-center gap-2 p-2 border-b border-border bg-muted/30">
@@ -51,7 +48,7 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
                 {getTypeLabel(character.type)}
             </div>
             {character.reading && (
-               <div className="text-[10px] text-muted-foreground leading-none mb-0.5">{character.reading}</div>
+               <div className="text-xs text-muted-foreground leading-none mb-0.5">{character.reading}</div>
             )}
             <div className="text-sm font-bold truncate">
                 {character.name || '(No Name)'}
@@ -71,7 +68,7 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           {/* Abilities and Skills content */}
           {character.abilities && (
              <div className="pb-1">
-                 <div className="text-[10px] font-semibold text-blue-800 dark:text-blue-300 mb-0.5">{t('characters.abilities')}</div>
+                 <div className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-0.5">{t('characters.abilities')}</div>
                  <div className="whitespace-pre-wrap break-words text-muted-foreground">
                      {character.abilities}
                  </div>
@@ -79,7 +76,7 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           )}
           {character.skills && (
              <div className="pb-1">
-                 <div className="text-[10px] font-semibold text-green-800 dark:text-green-300 mb-0.5">{t('characters.skills')}</div>
+                 <div className="text-xs font-semibold text-green-800 dark:text-green-300 mb-0.5">{t('characters.skills')}</div>
                  <div className="whitespace-pre-wrap break-words text-muted-foreground">
                      {character.skills}
                  </div>
@@ -87,12 +84,7 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           )}
       </div>
 
-      {/* Sticky Note Icon */}
-      {data.hasSticky && (
-          <div className="absolute -top-5 -right-5 w-7 h-7 bg-yellow-400 text-yellow-900 rounded-sm flex items-center justify-center shadow-md border border-yellow-600 rotate-6" title="Has Sticky Notes">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/></svg>
-          </div>
-      )}
+      {data.hasSticky && <StickyIndicator />}
 
       {/* Sticky Note Connection Handle */}
       <Handle 

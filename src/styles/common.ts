@@ -1,3 +1,4 @@
-export const INPUT_CLASS = "w-full border rounded px-3 py-2 focus:outline-none focus:border-primary bg-background border-input text-foreground";
+export const INPUT_CLASS = "w-full border rounded px-3 py-2 bg-background border-input text-foreground focus:outline-none focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-shadow";
 export const LABEL_CLASS = "block text-sm font-medium mb-1 text-foreground";
 export const ERROR_MSG_CLASS = "text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 p-2 rounded";
+export const ICON_BUTTON_CLASS = "inline-flex items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:pointer-events-none";

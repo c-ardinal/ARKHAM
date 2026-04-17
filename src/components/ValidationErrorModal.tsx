@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 
 interface ValidationErrorModalProps {
   isOpen: boolean;
@@ -486,7 +486,7 @@ export const ValidationErrorModal: React.FC<ValidationErrorModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border bg-destructive/10">
           <h2 className="text-xl font-bold text-destructive flex items-center gap-2">
-            <span className="text-2xl">⚠️</span>
+            <AlertTriangle size={24} aria-hidden="true" />
             JSONバリデーションエラー
           </h2>
           <button

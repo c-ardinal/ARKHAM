@@ -23,6 +23,29 @@ export type TranslationKeys = {
     reset: string;
     confirmReset: string;
     deleteConfirm: string;
+    revealed: string;
+    startNode: string;
+    hasStickyNotes: string;
+    confirm: string;
+    cancel: string;
+    resizePanel: string;
+    swipeToDelete: string;
+  };
+  toast: {
+    scenarioSaved: string;
+    scenarioExported: string;
+    sampleLoaded: string;
+    saveFailed: string;
+    loadFailed: string;
+    exportFailed: string;
+  };
+  accessibility: {
+    openMenu: string;
+    closeMenu: string;
+    closePanel: string;
+    previousSubmenu: string;
+    nextSubmenu: string;
+    miniMap: string;
   };
   menu: {
     file: string;

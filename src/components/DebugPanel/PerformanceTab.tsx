@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Activity, Cpu, HardDrive, Zap, Database, Trash2 } from 'lucide-react';
+import { Activity, Cpu, HardDrive, Zap, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { useDebugStore } from '../../store/debugStore';
 
 export const PerformanceTab: React.FC = () => {
@@ -98,8 +98,8 @@ export const PerformanceTab: React.FC = () => {
           <span className="text-sm text-muted-foreground">fps</span>
         </div>
         {fpsWarning && (
-          <div className="mt-2 text-xs text-yellow-500">
-            ⚠️ フレームレートが低下しています
+          <div className="mt-2 text-xs text-yellow-500 flex items-center gap-1">
+            <AlertTriangle size={12} aria-hidden="true" /> フレームレートが低下しています
           </div>
         )}
       </div>
@@ -139,8 +139,8 @@ export const PerformanceTab: React.FC = () => {
               </div>
             </div>
             {memoryWarning && (
-              <div className="text-xs text-yellow-500">
-                ⚠️ メモリ使用率が高くなっています ({memoryUsagePercent.toFixed(1)}%)
+              <div className="text-xs text-yellow-500 flex items-center gap-1">
+                <AlertTriangle size={12} aria-hidden="true" /> メモリ使用率が高くなっています ({memoryUsagePercent.toFixed(1)}%)
               </div>
             )}
           </div>
@@ -182,8 +182,8 @@ export const PerformanceTab: React.FC = () => {
               </span>
             </div>
             {localStorageWarning && (
-              <div className="text-xs text-yellow-500">
-                ⚠️ LocalStorage使用率が高くなっています
+              <div className="text-xs text-yellow-500 flex items-center gap-1">
+                <AlertTriangle size={12} aria-hidden="true" /> LocalStorage使用率が高くなっています
               </div>
             )}
           </div>

@@ -1,9 +1,11 @@
 import { memo, useEffect } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import { Rabbit, StickyNote } from 'lucide-react';
+import { Rabbit } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
+import { RevealedBadge } from '../components/common/RevealedBadge';
+import { StickyIndicator } from '../components/common/StickyIndicator';
 
 const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   const { nodes, gameState, updateNodeData } = useScenarioStore();
@@ -28,16 +30,8 @@ const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
       hover:shadow-lg
     `}>
 
-      {data.hasSticky && (
-          <div className="absolute -top-5 -right-5 w-7 h-7 bg-yellow-400 text-yellow-900 rounded-sm flex items-center justify-center shadow-md border border-yellow-600 rotate-6" title="Has Sticky Notes">
-            <StickyNote size={14} />
-          </div>
-      )}
-      {data.revealed && (
-          <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm z-10 border-2 border-background">
-              <span className="text-white font-bold text-xs">✓</span>
-          </div>
-      )}
+      {data.hasSticky && <StickyIndicator />}
+      {data.revealed && <RevealedBadge />}
       <div className="flex flex-col">
         <div className="flex items-center">
             <div className="rounded-full p-2 mr-2 bg-yellow-200 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-300 shrink-0">

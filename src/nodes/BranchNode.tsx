@@ -3,13 +3,14 @@ import { Handle, Position, type NodeProps } from 'reactflow';
 import type { BranchNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
+import { RevealedBadge } from '../components/common/RevealedBadge';
+import { StickyIndicator } from '../components/common/StickyIndicator';
 
-
-import { GitBranch, StickyNote } from 'lucide-react';
+import { GitBranch } from 'lucide-react';
 
 const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
   const { gameState } = useScenarioStore();
-  
+
   const label = substituteVariables(data.label, gameState.variables);
   const description = substituteVariables(data.description || '', gameState.variables);
   const conditionValue = substituteVariables(data.conditionValue || '', gameState.variables);
@@ -19,16 +20,8 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
     } border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/40`}>
 
-      {data.hasSticky && (
-          <div className="absolute -top-5 -right-5 w-7 h-7 bg-yellow-400 text-yellow-900 rounded-sm flex items-center justify-center shadow-md border border-yellow-600 rotate-6" title="Has Sticky Notes">
-            <StickyNote size={14} />
-          </div>
-      )}
-      {data.revealed && (
-          <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm z-10 border-2 border-background">
-              <span className="text-white font-bold text-xs">✓</span>
-          </div>
-      )}
+      {data.hasSticky && <StickyIndicator />}
+      {data.revealed && <RevealedBadge />}
       <Handle type="target" position={Position.Top} className="w-16 !bg-purple-400 dark:!bg-purple-500" />
       
       <div className="flex flex-col">
