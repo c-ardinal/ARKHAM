@@ -571,11 +571,13 @@ export const Layout = () => {
           setTimeout(() => {
             const data = validation.correctedData;
             loadScenarioWithStabilization(data);
+            toast.success(t('toast.scenarioLoaded' as any));
           }, 100);
         } else {
           // No warnings, load directly
           const scenarioData = validation.correctedData || data;
           loadScenarioWithStabilization(scenarioData);
+          toast.success(t('toast.scenarioLoaded' as any));
         }
       } catch (error) {
         console.error('Failed to load scenario:', error);

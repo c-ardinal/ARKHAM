@@ -35,6 +35,7 @@ export const en: TranslationKeys = {
   },
   toast: {
     scenarioSaved: 'Scenario saved',
+    scenarioLoaded: 'Scenario loaded',
     scenarioExported: 'Text exported',
     sampleLoaded: 'Sample loaded',
     saveFailed: 'Failed to save',

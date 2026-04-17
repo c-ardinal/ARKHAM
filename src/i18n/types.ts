@@ -33,6 +33,7 @@ export type TranslationKeys = {
   };
   toast: {
     scenarioSaved: string;
+    scenarioLoaded: string;
     scenarioExported: string;
     sampleLoaded: string;
     saveFailed: string;

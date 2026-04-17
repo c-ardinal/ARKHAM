@@ -35,6 +35,7 @@ export const ja: TranslationKeys = {
   },
   toast: {
     scenarioSaved: 'シナリオを保存しました',
+    scenarioLoaded: 'シナリオを読み込みました',
     scenarioExported: 'テキストを出力しました',
     sampleLoaded: 'サンプルを読み込みました',
     saveFailed: '保存に失敗しました',
