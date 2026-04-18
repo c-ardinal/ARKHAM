@@ -53,7 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </p>
               <details>
                 <summary className="cursor-pointer text-slate-500 text-xs hover:text-slate-300 transition-colors select-none">Show Stack Trace</summary>
-                <pre className="mt-2 text-[10px] text-slate-400 font-mono whitespace-pre-wrap leading-relaxed">
+                <pre className="mt-2 text-xs text-slate-400 font-mono whitespace-pre-wrap leading-relaxed">
                   {this.state.errorInfo?.componentStack || 'No stack trace available'}
                 </pre>
               </details>
@@ -74,7 +74,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </button>
             </div>
             
-            <p className="mt-6 text-[10px] text-slate-500 text-center">
+            <p className="mt-6 text-xs text-slate-500 text-center">
               Please take a screenshot of this screen and report it if the issue persists.
             </p>
           </div>

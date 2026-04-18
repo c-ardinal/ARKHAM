@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { useScenarioStore } from '../store/scenarioStore';
 import type { ScenarioNodeData } from '../types';
@@ -21,16 +22,17 @@ interface MenuButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 
 const MenuButton = ({ children, onClick, danger, className = "", ...props }: MenuButtonProps) => (
   <button
+    role="menuitem"
     onClick={onClick}
     onTouchEnd={(e) => {
         e.preventDefault();
         e.stopPropagation();
         if (onClick) onClick(e as any);
     }}
-    className={`px-4 py-2 text-left w-full transition-colors flex items-center ${
-        danger 
-        ? 'hover:bg-destructive/20 text-red-600 dark:text-red-400 active:bg-destructive/30' 
-        : 'text-popover-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent'
+    className={`min-h-[44px] px-4 py-2.5 text-left w-full transition-colors flex items-center focus-visible:outline-none ${
+        danger
+        ? 'hover:bg-destructive/20 text-red-600 dark:text-red-400 active:bg-destructive/30 focus-visible:bg-destructive/20'
+        : 'text-popover-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent focus-visible:bg-accent focus-visible:text-accent-foreground'
     } ${className}`}
     style={{ touchAction: 'manipulation' }}
     {...props}
@@ -79,11 +81,19 @@ export const ContextMenu = ({
         onClose();
       }
     };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKey);
     return () => {
         document.removeEventListener('mousedown', handleClickOutside);
         document.removeEventListener('touchstart', handleClickOutside);
+        document.removeEventListener('keydown', handleKey);
     };
   }, [onClose]);
 
@@ -91,6 +101,7 @@ export const ContextMenu = ({
   
   const [safePos, setSafePos] = useState({ top: menu.top, left: menu.left });
   const [subMenuDirection, setSubMenuDirection] = useState<'right' | 'left'>('right');
+  const [isCopySubOpen, setIsCopySubOpen] = useState(false);
 
   useLayoutEffect(() => {
      if (ref.current) {
@@ -117,9 +128,11 @@ export const ContextMenu = ({
   }, [menu.top, menu.left]);
 
   return (
-    <div 
+    <div
       ref={ref}
-      style={{ top: safePos.top, left: safePos.left }} 
+      role="menu"
+      aria-label="Context menu"
+      style={{ top: safePos.top, left: safePos.left }}
       className="fixed z-50 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[160px] flex flex-col text-sm text-popover-foreground transition-opacity animate-in fade-in zoom-in-95 duration-75"
     >
       {menu.type === 'node' && (
@@ -130,27 +143,45 @@ export const ContextMenu = ({
                 </MenuButton>
             )}
 
-            <div className="relative group">
-                <MenuButton className="justify-between group">
-                  {t('contextMenu.copyText')} <span>{subMenuDirection === 'right' ? '▶' : '◀'}</span>
+            <div
+                className="relative"
+                onMouseEnter={() => setIsCopySubOpen(true)}
+                onMouseLeave={() => setIsCopySubOpen(false)}
+            >
+                <MenuButton
+                    className="justify-between"
+                    aria-haspopup="menu"
+                    aria-expanded={isCopySubOpen}
+                    onClick={(e) => { e.stopPropagation(); setIsCopySubOpen(prev => !prev); }}
+                >
+                  <span>{t('contextMenu.copyText')}</span>
+                  {subMenuDirection === 'right'
+                    ? <ChevronRight size={14} aria-hidden="true" />
+                    : <ChevronLeft size={14} aria-hidden="true" />
+                  }
                 </MenuButton>
-                
-                <div className={`absolute top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] hidden group-hover:flex flex-col ${
-                    subMenuDirection === 'right' ? 'left-full' : 'right-full'
-                }`}>
-                    <MenuButton onClick={() => { onCopyText?.('all'); onClose(); }}>{t('contextMenu.all')}</MenuButton>
-                    <MenuButton onClick={() => { onCopyText?.('label'); onClose(); }}>{t('contextMenu.label')}</MenuButton>
-                    <MenuButton onClick={() => { onCopyText?.('description'); onClose(); }}>{t('contextMenu.description')}</MenuButton>
-                    {['element', 'variable'].includes(menu.nodeType || '') && (
-                        <MenuButton onClick={() => { onCopyText?.('value'); onClose(); }}>{t('contextMenu.value')}</MenuButton>
-                    )}
-                    {menu.nodeType === 'branch' && (
-                        <>
-                            <MenuButton onClick={() => { onCopyText?.('condition'); onClose(); }}>{t('contextMenu.condition')}</MenuButton>
-                            <MenuButton onClick={() => { onCopyText?.('cases'); onClose(); }}>{t('contextMenu.cases')}</MenuButton>
-                        </>
-                    )}
-                </div>
+
+                {isCopySubOpen && (
+                    <div
+                        role="menu"
+                        className={`absolute top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[140px] flex flex-col ${
+                            subMenuDirection === 'right' ? 'left-full' : 'right-full'
+                        }`}
+                    >
+                        <MenuButton onClick={() => { onCopyText?.('all'); onClose(); }}>{t('contextMenu.all')}</MenuButton>
+                        <MenuButton onClick={() => { onCopyText?.('label'); onClose(); }}>{t('contextMenu.label')}</MenuButton>
+                        <MenuButton onClick={() => { onCopyText?.('description'); onClose(); }}>{t('contextMenu.description')}</MenuButton>
+                        {['element', 'variable'].includes(menu.nodeType || '') && (
+                            <MenuButton onClick={() => { onCopyText?.('value'); onClose(); }}>{t('contextMenu.value')}</MenuButton>
+                        )}
+                        {menu.nodeType === 'branch' && (
+                            <>
+                                <MenuButton onClick={() => { onCopyText?.('condition'); onClose(); }}>{t('contextMenu.condition')}</MenuButton>
+                                <MenuButton onClick={() => { onCopyText?.('cases'); onClose(); }}>{t('contextMenu.cases')}</MenuButton>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
 
             {menu.nodeType !== 'sticky' && (

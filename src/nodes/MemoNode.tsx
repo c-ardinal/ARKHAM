@@ -4,6 +4,8 @@ import { StickyNote } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
+import { RevealedBadge } from '../components/common/RevealedBadge';
+import { StickyIndicator } from '../components/common/StickyIndicator';
 
 const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { gameState } = useScenarioStore();
@@ -16,16 +18,8 @@ const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       hover:shadow-lg
     `}>
 
-      {data.hasSticky && (
-          <div className="absolute -top-5 -right-5 w-7 h-7 bg-yellow-400 text-yellow-900 rounded-sm flex items-center justify-center shadow-md border border-yellow-600 rotate-6" title="Has Sticky Notes">
-            <StickyNote size={14} />
-          </div>
-      )}
-      {data.revealed && (
-          <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm z-10 border-2 border-background">
-              <span className="text-white font-bold text-xs">✓</span>
-          </div>
-      )}
+      {data.hasSticky && <StickyIndicator />}
+      {data.revealed && <RevealedBadge />}
       <div className="flex items-center mb-2">
         <StickyNote size={16} className="mr-2 opacity-70" />
         <div className="font-bold text-base">{substituteVariables(data.label, gameState.variables)}</div>

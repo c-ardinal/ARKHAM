@@ -82,8 +82,12 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
             )}
           </div>
           {isMobile && onClose && (
-              <button onClick={onClose} className="p-1 -mr-2 -mt-2 text-muted-foreground hover:text-foreground">
-                  <X size={20} />
+              <button
+                  onClick={onClose}
+                  className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -mr-2 -mt-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-colors"
+                  aria-label={t('accessibility.closePanel' as any) || t('common.close')}
+              >
+                  <X size={20} aria-hidden="true" />
               </button>
           )}
       </div>

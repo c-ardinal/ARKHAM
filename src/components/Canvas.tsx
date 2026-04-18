@@ -1,9 +1,10 @@
 import React, { useCallback, useRef, useState, useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { Plus, Minus, Maximize } from 'lucide-react';
-import ReactFlow, { 
-  Background, 
-  Controls, 
+import ReactFlow, {
+  Background,
+  Controls,
   ControlButton,
+  MiniMap,
   type Edge,
   type Node,
   MarkerType,
@@ -1427,14 +1428,41 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         <Background color="hsl(var(--muted-foreground) / 0.2)" gap={16} />
 
         {!isMobile && (
-            <Controls 
+            <MiniMap
+                aria-label={t('accessibility.miniMap' as any) || 'Mini map'}
+                className="!bg-card !border !border-border !rounded-md shadow-sm"
+                maskColor="hsl(var(--muted-foreground) / 0.2)"
+                nodeStrokeColor="hsl(var(--muted-foreground))"
+                nodeColor={(n) => {
+                    switch (n.type) {
+                        case 'event': return '#fed7aa';
+                        case 'element': return '#bfdbfe';
+                        case 'information': return '#bfdbfe';
+                        case 'branch': return '#e9d5ff';
+                        case 'variable': return '#fecaca';
+                        case 'group': return '#e2e8f0';
+                        case 'jump': return '#fef08a';
+                        case 'memo': return '#f5f5f4';
+                        case 'character': return '#fde68a';
+                        case 'resource': return '#bbf7d0';
+                        case 'sticky': return '#fde68a';
+                        default: return '#e5e7eb';
+                    }
+                }}
+                pannable
+                zoomable
+            />
+        )}
+
+        {!isMobile && (
+            <Controls
                 className="bg-card border-border fill-foreground flex flex-col items-center gap-0.5 p-1 w-auto shadow-sm !overflow-visible rounded-full group" 
                 showZoom={false} 
                 showFitView={false} 
                 showInteractive={false}
             >
-                <ControlButton onClick={() => setZoom(Math.min(2, zoom + 0.05))} title="Zoom In (+5%)" className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
-                    <Plus size={14} />
+                <ControlButton onClick={() => setZoom(Math.min(2, zoom + 0.05))} title={t('menu.zoomIn' as any)} aria-label={t('menu.zoomIn' as any)} className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-11 h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1">
+                    <Plus size={16} aria-hidden="true" />
                 </ControlButton>
                 
                 <div className="relative flex items-center justify-center h-44 w-full my-0">
@@ -1465,8 +1493,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
                     </div>
                 </div>
 
-                <ControlButton onClick={() => setZoom(Math.max(0.01, zoom - 0.05))} title="Zoom Out (-5%)" className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
-                    <Minus size={14} />
+                <ControlButton onClick={() => setZoom(Math.max(0.01, zoom - 0.05))} title={t('menu.zoomOut' as any)} aria-label={t('menu.zoomOut' as any)} className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-11 h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1">
+                    <Minus size={16} aria-hidden="true" />
                 </ControlButton>
                 
                 <ControlButton onClick={() => {
@@ -1495,8 +1523,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
                     requestAnimationFrame(checkStability);
                   };
                   requestAnimationFrame(checkStability);
-                }} title="Fit View" className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-8 h-8">
-                    <Maximize size={14} />
+                }} title={t('menu.fitView' as any)} aria-label={t('menu.fitView' as any)} className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-11 h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1">
+                    <Maximize size={16} aria-hidden="true" />
                 </ControlButton>
             </Controls> 
         )}
