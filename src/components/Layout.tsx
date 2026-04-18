@@ -7,6 +7,7 @@ import { ManualModal } from './ManualModal';
 import { AboutModal } from './AboutModal';
 import { ValidationErrorModal } from './ValidationErrorModal';
 import { UpdateHistoryModal } from './UpdateHistoryModal';
+import { LegalModal, type LegalDocumentType } from './LegalModal';
 import { DebugPanel } from './DebugPanel/DebugPanel';
 import { LoadingOverlay } from './LoadingOverlay';
 import { Toaster, toast } from './common/Toaster';
@@ -279,6 +280,7 @@ export const Layout = () => {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [legalModal, setLegalModal] = useState<LegalDocumentType | null>(null);
   
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; danger?: boolean; confirmLabel?: string; cancelLabel?: string } | null>(null);
@@ -689,6 +691,8 @@ const menuActions = {
     onOpenManual: () => setIsManualOpen(true),
     onOpenAbout: () => setIsAboutOpen(true),
     onOpenUpdateHistory: () => setIsHistoryOpen(true),
+    onOpenTerms: () => setLegalModal('terms'),
+    onOpenPrivacy: () => setLegalModal('privacy'),
     onOpenDebugPanel: () => {
       useDebugStore.getState().setDebugPanelOpen(true);
     },
@@ -906,6 +910,11 @@ const menuActions = {
       <UpdateHistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
       <ManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
+      <LegalModal
+        isOpen={legalModal !== null}
+        documentType={legalModal ?? 'terms'}
+        onClose={() => setLegalModal(null)}
+      />
       <ValidationErrorModal
         isOpen={validationError !== null}
         errors={validationError?.errors || []}

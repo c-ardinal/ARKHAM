@@ -2,12 +2,13 @@
 
 import { useTranslation } from '../hooks/useTranslation';
 import { useScenarioStore } from '../store/scenarioStore';
-import { 
-    FileText, Save, Upload, Book, Folder, Download, Trash2, 
-    Edit, StickyNote, Eye, EyeOff, Sun, Moon, 
-    Eye as ViewIcon, Settings, HelpCircle, History, Info, 
+import {
+    FileText, Save, Upload, Book, Folder, Download, Trash2,
+    Edit, StickyNote, Eye, EyeOff, Sun, Moon,
+    Eye as ViewIcon, Settings, HelpCircle, History, Info,
     Languages, Activity,
-    Maximize, Spline, Minus, CornerDownRight, Route
+    Maximize, Spline, Minus, CornerDownRight, Route,
+    Shield
 } from 'lucide-react';
 import type { MenuSection } from '../types/menu';
 import { ZoomControls } from '../components/common/ZoomControls';
@@ -22,6 +23,8 @@ export interface MenuExternalActions {
     onOpenManual: () => void;
     onOpenUpdateHistory: () => void;
     onOpenAbout: () => void;
+    onOpenTerms: () => void;
+    onOpenPrivacy: () => void;
     onOpenDebugPanel: () => void;
     // View actions
     onZoomIn: () => void;
@@ -184,6 +187,9 @@ export const useMenuStructure = (actions: MenuExternalActions, isDebugModeEnable
                 { id: 'manual', type: 'item', label: t('common.manual'), icon: Book, action: actions.onOpenManual },
                 { id: 'history', type: 'item', label: t('menu.updateHistory'), icon: History, action: actions.onOpenUpdateHistory },
                 { id: 'about', type: 'item', label: t('menu.about'), icon: Info, action: actions.onOpenAbout },
+                { id: 'sep_legal', type: 'divider' },
+                { id: 'terms', type: 'item', label: t('menu.terms'), icon: FileText, action: actions.onOpenTerms },
+                { id: 'privacy', type: 'item', label: t('menu.privacy'), icon: Shield, action: actions.onOpenPrivacy },
                 ...(isDebugModeEnabled ? [
                     { id: 'sep_help', type: 'divider' as const },
                     { id: 'debug_panel', type: 'item' as const, label: 'デバッグパネル', icon: Activity, action: actions.onOpenDebugPanel },

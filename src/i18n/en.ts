@@ -76,6 +76,8 @@ export const en: TranslationKeys = {
     switchToJa: 'Switch to Japanese',
     switchToEn: 'Switch to English',
     about: 'Versions',
+    terms: 'Terms of Service',
+    privacy: 'Privacy Policy',
     export: 'Export Text',
     exportSimple: 'Simple Text',
     exportMarkdown: 'Markdown',
