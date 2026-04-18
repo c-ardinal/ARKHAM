@@ -75,6 +75,8 @@ export type TranslationKeys = {
     switchToJa: string;
     switchToEn: string;
     about: string;
+    terms: string;
+    privacy: string;
     export: string;
     exportSimple: string;
     exportMarkdown: string;

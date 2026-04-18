@@ -2,6 +2,12 @@
 
 # 更新履歴
 
+## v2.1.1 (2026-04-18)
+
+### 機能追加
+
+- ヘルプメニューに「利用規約」「プライバシーポリシー」を追加し、モーダルから日本語／英語で閲覧可能に
+
 ## v2.1.0 (2026-04-18)
 
 ### 機能追加
@@ -84,6 +90,12 @@
 <!-- SECTION: en -->
 
 # Update History
+
+## v2.1.1 (2026-04-18)
+
+### New Features
+
+- Added "Terms of Service" and "Privacy Policy" entries to the Help menu, viewable via a modal in both Japanese and English
 
 ## v2.1.0 (2026-04-18)
 
