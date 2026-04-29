@@ -8,7 +8,9 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
 const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
-  const { toggleGroup, updateGroupSize, gameState } = useScenarioStore();
+  const toggleGroup = useScenarioStore((s) => s.toggleGroup);
+  const updateGroupSize = useScenarioStore((s) => s.updateGroupSize);
+  const variables = useScenarioStore((s) => s.gameState.variables);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,11 +61,11 @@ const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
             <div className="rounded-full p-1 bg-muted text-muted-foreground">
                 <Folder size={12} />
             </div>
-            {substituteVariables(data.label, gameState.variables)}
+            {substituteVariables(data.label, variables)}
         </div>
         {data.description && (
             <div className="text-xs opacity-80 whitespace-pre-wrap border-t border-border pt-1 mt-1">
-                {substituteVariables(data.description || '', gameState.variables)}
+                {substituteVariables(data.description || '', variables)}
             </div>
         )}
       </div>

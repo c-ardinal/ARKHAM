@@ -5,7 +5,7 @@ import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 
 const StickyNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const { gameState } = useScenarioStore();
+  const variables = useScenarioStore((s) => s.gameState.variables);
   const updateNodeInternals = useUpdateNodeInternals();
 
   useEffect(() => {
@@ -19,7 +19,7 @@ const StickyNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   // We place it at center to make the link look like it's pointing to the note body.
   
   return (
-    <div className={`px-4 py-3 shadow-lg rounded-sm min-w-[150px] min-h-[80px] relative transition-all duration-200
+    <div className={`px-4 py-3 shadow-lg rounded-sm min-w-[150px] min-h-[80px] w-max relative transition-all duration-200
       ${selected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
       bg-yellow-100 text-yellow-900
       border border-yellow-300
@@ -38,11 +38,11 @@ const StickyNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
       
       {data.label && (
           <div className="font-bold text-base mb-1 break-words">
-            {substituteVariables(data.label, gameState.variables)}
+            {substituteVariables(data.label, variables)}
           </div>
       )}
       <div className="text-sm whitespace-pre-wrap opacity-90 leading-snug break-words">
-        {substituteVariables(data.description || '', gameState.variables)}
+        {substituteVariables(data.description || '', variables)}
       </div>
     </div>
   );

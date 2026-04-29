@@ -8,7 +8,9 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
 const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const { nodes, gameState, updateNodeData } = useScenarioStore();
+  const nodes = useScenarioStore((s) => s.nodes);
+  const variables = useScenarioStore((s) => s.gameState.variables);
+  const updateNodeData = useScenarioStore((s) => s.updateNodeData);
   const description = data.description;
 
   // Auto-select first available node if target is empty
@@ -23,7 +25,7 @@ const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
 
   return (
     <div 
-        className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] min-h-[80px] relative transition-all duration-200 cursor-pointer
+        className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] min-h-[80px] w-max relative transition-all duration-200 cursor-pointer
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       border-yellow-400 dark:border-yellow-600
       bg-yellow-100 dark:bg-yellow-900/60 text-yellow-900 dark:text-yellow-100
@@ -38,14 +40,14 @@ const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
                 <Rabbit size={16} />
             </div>
             <div className="font-bold text-base text-yellow-900 dark:text-yellow-100">
-                {substituteVariables(data.label, gameState.variables)}
+                {substituteVariables(data.label, variables)}
             </div>
         </div>
 
         {description && (
             <div className="mt-2 pt-2 border-t border-yellow-300 dark:border-yellow-700">
                 <div className="text-sm opacity-90 whitespace-pre-wrap text-yellow-900 dark:text-yellow-100">
-                    {substituteVariables(data.description || '', gameState.variables)}
+                    {substituteVariables(data.description || '', variables)}
                 </div>
             </div>
         )}
@@ -54,7 +56,7 @@ const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
           <label className="text-sm uppercase font-bold opacity-70 block mb-1 cursor-pointer text-yellow-900 dark:text-yellow-100">Jump To</label>
           <div className="text-sm p-1 rounded border border-yellow-300 dark:border-yellow-700 bg-white/50 dark:bg-black/20 min-h-[24px] cursor-pointer">
               {data.jumpTarget ? (
-                  substituteVariables(nodes.find(n => n.id === data.jumpTarget)?.data.label || 'Unknown Node', gameState.variables)
+                  substituteVariables(nodes.find(n => n.id === data.jumpTarget)?.data.label || 'Unknown Node', variables)
               ) : (
                   <span className="opacity-50 italic">None</span>
               )}

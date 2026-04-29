@@ -9,14 +9,14 @@ import { StickyIndicator } from '../components/common/StickyIndicator';
 import { GitBranch } from 'lucide-react';
 
 const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
-  const { gameState } = useScenarioStore();
+  const variables = useScenarioStore((s) => s.gameState.variables);
 
-  const label = substituteVariables(data.label, gameState.variables);
-  const description = substituteVariables(data.description || '', gameState.variables);
-  const conditionValue = substituteVariables(data.conditionValue || '', gameState.variables);
+  const label = substituteVariables(data.label, variables);
+  const description = substituteVariables(data.description || '', variables);
+  const conditionValue = substituteVariables(data.conditionValue || '', variables);
 
   return (
-    <div className={`relative px-4 py-2 shadow-md hover:shadow-lg rounded-md border-2 min-w-[150px] transition-all ${
+    <div className={`relative px-4 py-2 shadow-md hover:shadow-lg rounded-md border-2 min-w-[150px] w-max transition-all ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
     } border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/40`}>
 
@@ -66,7 +66,7 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
           <div className="flex flex-col mt-2 gap-2">
               {data.branches.map((branch) => (
                   <div key={branch.id} className="relative flex items-center justify-end h-4">
-                      <span className="text-xs text-purple-900 dark:text-purple-200 mr-2 font-bold">{substituteVariables(branch.label, gameState.variables)}</span>
+                      <span className="text-xs text-purple-900 dark:text-purple-200 mr-2 font-bold">{substituteVariables(branch.label, variables)}</span>
                       <Handle 
                         type="source" 
                         position={Position.Right} 
