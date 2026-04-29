@@ -17,6 +17,11 @@ import type {
 import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 
+// Per-group rAF id for drag-time throttled updateGroupSize calls. A flurry
+// of position changes within the same animation frame collapses into a
+// single updateGroupSize per affected group.
+const _groupSizeRafIds = new Map<string, number>();
+
 interface ScenarioState {
   nodes: ScenarioNode[];
   edges: ScenarioEdge[];
@@ -471,29 +476,54 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         return true;
     });
 
-    // 3. Update group sizes for moved or resized nodes
-    // Using filtered 'currentNodes'
+    // 3. Update group sizes for moved or resized nodes.
+    // Collect affected group ids in a Set so a single drag (which fires many
+    // position changes per frame) triggers updateGroupSize at most once per
+    // group per animation frame via rAF throttling.
     const finalNodeIds = new Set(currentNodes.map(n => n.id));
-    validChanges.forEach(change => {
-        if ((change.type === 'position' && change.position) || change.type === 'dimensions') {
-            // Only strictly valid checks
-             if (!finalNodeIds.has(change.id)) return;
-             
-             const node = currentNodes.find(n => n.id === change.id);
-             if (node && node.parentNode) {
-                setTimeout(() => {
-                    get().updateGroupSize(node.parentNode!);
-                }, 0);
-            }
-        }
-    });
+    const affectedGroupIds = new Set<string>();
+    const finalNodeIndex = new Map(currentNodes.map(n => [n.id, n]));
+    for (const change of validChanges) {
+        const isDim = change.type === 'dimensions';
+        const isPos = change.type === 'position' && change.position;
+        if (!isDim && !isPos) continue;
+        if (!finalNodeIds.has(change.id)) continue;
+        const node = finalNodeIndex.get(change.id);
+        if (node?.parentNode) affectedGroupIds.add(node.parentNode);
+    }
+    for (const gid of affectedGroupIds) {
+        const existing = _groupSizeRafIds.get(gid);
+        if (existing !== undefined) cancelAnimationFrame(existing);
+        const rafId = requestAnimationFrame(() => {
+            _groupSizeRafIds.delete(gid);
+            get().updateGroupSize(gid);
+        });
+        _groupSizeRafIds.set(gid, rafId);
+    }
 
-    // 4. Cleanup Edges connected to removed nodes
-    const finalNodeIdSet = new Set(currentNodes.map(n => n.id));
-    const cleanEdges = state.edges.filter(e => finalNodeIdSet.has(e.source) && finalNodeIdSet.has(e.target));
+    // 4. Cleanup Edges connected to removed nodes. Only walk edges if the
+    // node set actually shrank (orphan removal); otherwise the existing
+    // edges array reference is reusable and we save an O(E) filter every
+    // tick.
+    let cleanEdges = state.edges;
+    if (currentNodes.length !== state.nodes.length) {
+        const finalNodeIdSet = new Set(currentNodes.map(n => n.id));
+        cleanEdges = state.edges.filter(e => finalNodeIdSet.has(e.source) && finalNodeIdSet.has(e.target));
+    }
 
     set({ nodes: currentNodes, edges: cleanEdges });
-    get().recalculateGameState();
+
+    // recalculateGameState walks every node twice. Skip it for pure mid-drag
+    // streams (select + dragging:true position), which can never affect
+    // derived game state. Programmatic moves, dimension updates, drag
+    // settle (dragging:false), add/remove/reset all still trigger recalc.
+    const isMidDragOnly = validChanges.length > 0 && validChanges.every(c =>
+        c.type === 'select' ||
+        (c.type === 'position' && c.dragging === true)
+    );
+    if (!isMidDragOnly) {
+        get().recalculateGameState();
+    }
   },
   onEdgesChange: (changes: EdgeChange[]) => {
     set({
@@ -1655,16 +1685,48 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               });
               
               if (rootsToMove.length > 0) {
-                  const shiftY = newHeight; // Shift by the new height
-                  
+                  // Decide push direction per node from the relative center
+                  // position so a node sitting beside the group is pushed
+                  // sideways instead of always straight down.
+                  const groupCenter = {
+                      x: groupAbs.x + newWidth / 2,
+                      y: groupAbs.y + newHeight / 2,
+                  };
+                  const shiftMap = new Map<string, { dx: number; dy: number }>();
+                  rootsToMove.forEach(n => {
+                      const nAbs = getAbsPos(n, state.nodes);
+                      const nW = n.width || 150;
+                      const nH = n.height || 50;
+                      const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
+                      const diffX = nCenter.x - groupCenter.x;
+                      const diffY = nCenter.y - groupCenter.y;
+                      const overlapX = (newWidth / 2 + nW / 2) - Math.abs(diffX);
+                      const overlapY = (newHeight / 2 + nH / 2) - Math.abs(diffY);
+                      let dx = 0;
+                      let dy = 0;
+                      if (overlapX > 0 && overlapY > 0) {
+                          if (overlapY <= overlapX) {
+                              dy = diffY >= 0
+                                  ? (groupAbs.y + newHeight + 20) - nAbs.y
+                                  : (groupAbs.y - 20) - (nAbs.y + nH);
+                          } else {
+                              dx = diffX >= 0
+                                  ? (groupAbs.x + newWidth + 20) - nAbs.x
+                                  : (groupAbs.x - 20) - (nAbs.x + nW);
+                          }
+                      }
+                      shiftMap.set(n.id, { dx, dy });
+                  });
+
                   updatedNodes = updatedNodes.map(n => {
-                      if (rootsToMove.some(rt => rt.id === n.id)) {
+                      const shift = shiftMap.get(n.id);
+                      if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
                           return {
                               ...n,
                               position: {
-                                  ...n.position,
-                                  y: n.position.y + shiftY
-                              }
+                                  x: n.position.x + shift.dx,
+                                  y: n.position.y + shift.dy,
+                              },
                           };
                       }
                       return n;
