@@ -1354,8 +1354,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       get().recalculateGameState();
   },
 
-  triggerNode: (nodeId: string) => {
-    console.log('Trigger node (Logic only)', nodeId);
+  triggerNode: (_nodeId: string) => {
+    // No-op placeholder for legacy callers; reveal flow handles state changes.
   },
 
   toggleNodeState: (nodeId: string) => {
@@ -2388,7 +2388,6 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
   },
 
   resetToInitialState: () => {
-    console.log('[DEBUG] resetToInitialState called');
     const currentLanguage = get().language;
     const currentTheme = get().theme;
     const currentEdgeType = get().edgeType;
