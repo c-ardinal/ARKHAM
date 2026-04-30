@@ -1254,9 +1254,22 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         return getScore(a.type || '') - getScore(b.type || '');
       });
   }, [nodes]);
-  
+
   // Use sortedNodes directly. Removed processedNodes to avoid object reference changes.
   const processedNodes = sortedNodes;
+
+  // Stabilize defaultEdgeOptions across renders so ReactFlow's internal
+  // memoization isn't invalidated by a fresh inline object every render.
+  const defaultEdgeOptions = useMemo(() => ({
+      type: edgeType || 'default',
+      style: { strokeWidth: 2 },
+      markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
+          color: 'hsl(var(--muted-foreground))',
+      },
+  }), [edgeType]);
 
   // Manual Pane Double Click - Behaves like Shift+Click (neutral, no zoom)
   const lastPaneClickTime = useRef(0);
@@ -1388,17 +1401,13 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         // scenarios this slashes both React render work and Compositor
         // layer count.
         onlyRenderVisibleElements
+        // Don't let ReactFlow mutate node zIndex on selection -- we manage
+        // ordering ourselves via sortedNodes, so the auto-elevate just
+        // causes redundant re-renders.
+        elevateNodesOnSelect={false}
+        elevateEdgesOnSelect={false}
         className="select-none touch-none bg-background"
-        defaultEdgeOptions={{
-            type: edgeType || 'default',
-            style: { strokeWidth: 2 },
-            markerEnd: {
-                type: MarkerType.ArrowClosed,
-                width: 20,
-                height: 20,
-                color: 'hsl(var(--muted-foreground))',
-            },
-        }}
+        defaultEdgeOptions={defaultEdgeOptions}
       >
         <Background color="hsl(var(--muted-foreground) / 0.2)" gap={16} />
 
