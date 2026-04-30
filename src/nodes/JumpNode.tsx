@@ -25,7 +25,7 @@ const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
 
   return (
     <div 
-        className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] min-h-[80px] w-max relative transition-all duration-200 cursor-pointer
+        className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] min-h-[80px] w-max relative transition-shadow duration-200 cursor-pointer
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       border-yellow-400 dark:border-yellow-600
       bg-yellow-100 dark:bg-yellow-900/60 text-yellow-900 dark:text-yellow-100

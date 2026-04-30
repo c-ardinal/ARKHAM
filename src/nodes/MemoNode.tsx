@@ -11,7 +11,7 @@ const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const variables = useScenarioStore((s) => s.gameState.variables);
 
   return (
-    <div className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] min-h-[100px] w-max relative transition-all duration-200
+    <div className={`px-4 py-3 shadow-md rounded-md border-2 min-w-[180px] min-h-[100px] w-max relative transition-shadow duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       border-slate-200 dark:border-slate-700
       bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100
