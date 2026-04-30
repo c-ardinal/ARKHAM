@@ -29,7 +29,7 @@ const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
     (Object.keys(variables).length > 0 ? Object.keys(variables)[0] : 'None');
 
   return (
-    <div className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] w-max relative transition-all duration-200
+    <div className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] w-max relative transition-shadow duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       border-red-200 dark:border-red-800
       bg-red-50 dark:bg-red-900/40 text-red-900 dark:text-red-100

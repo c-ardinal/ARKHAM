@@ -31,7 +31,7 @@ const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
 
   return (
     <div 
-    className={`relative w-full h-full border-2 rounded-xl transition-all flex flex-col shadow-xl hover:shadow-2xl ${
+    className={`relative w-full h-full border-2 rounded-xl transition-shadow duration-200 flex flex-col shadow-xl hover:shadow-2xl ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
     } border-border/60 ${
       !data.expanded 

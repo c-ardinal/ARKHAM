@@ -19,7 +19,7 @@ const StickyNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   // We place it at center to make the link look like it's pointing to the note body.
   
   return (
-    <div className={`px-4 py-3 shadow-lg rounded-sm min-w-[150px] min-h-[80px] w-max relative transition-all duration-200
+    <div className={`px-4 py-3 shadow-lg rounded-sm min-w-[150px] min-h-[80px] w-max relative transition-shadow duration-200
       ${selected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
       bg-yellow-100 text-yellow-900
       border border-yellow-300

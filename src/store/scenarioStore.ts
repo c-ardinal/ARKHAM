@@ -22,6 +22,13 @@ import { evaluateFormula } from '../utils/textUtils';
 // single updateGroupSize per affected group.
 const _groupSizeRafIds = new Map<string, number>();
 
+// Debounce window for pushHistory. Bursts of pushHistory within this window
+// (e.g. each keystroke during continuous typing in the property panel)
+// collapse into a single snapshot, reducing memory and structuredClone cost.
+const PUSH_HISTORY_DEBOUNCE_MS = 200;
+let _pushHistoryWindowOpen = false;
+let _pushHistoryTimer: number | null = null;
+
 interface ScenarioState {
   nodes: ScenarioNode[];
   edges: ScenarioEdge[];
@@ -310,6 +317,20 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   future: [],
   
   pushHistory: () => {
+      // First call in the debounce window: take a snapshot now. Subsequent
+      // calls within the window only refresh the timer so we don't take a
+      // snapshot per keystroke during continuous edits. Undo granularity
+      // becomes "edits at least 200ms apart" instead of "every action",
+      // which matches typical user expectation.
+      if (_pushHistoryWindowOpen) {
+          if (_pushHistoryTimer !== null) clearTimeout(_pushHistoryTimer);
+          _pushHistoryTimer = window.setTimeout(() => {
+              _pushHistoryWindowOpen = false;
+              _pushHistoryTimer = null;
+          }, PUSH_HISTORY_DEBOUNCE_MS);
+          return;
+      }
+
       const { nodes, edges, gameState, past } = get();
       // Deep copy to avoid reference issues. structuredClone is several
       // times faster than JSON.parse(JSON.stringify(...)) and preserves
@@ -322,6 +343,13 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
       const newPast = [...past, snapshot].slice(-50); // Limit history
       set({ past: newPast, future: [] });
+
+      _pushHistoryWindowOpen = true;
+      if (_pushHistoryTimer !== null) clearTimeout(_pushHistoryTimer);
+      _pushHistoryTimer = window.setTimeout(() => {
+          _pushHistoryWindowOpen = false;
+          _pushHistoryTimer = null;
+      }, PUSH_HISTORY_DEBOUNCE_MS);
   },
 
   undo: () => {
