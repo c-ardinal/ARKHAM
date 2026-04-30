@@ -1954,16 +1954,24 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
           const MAX_ITERATIONS = 500;
           let iterations = 0;
 
+          // Build an id -> node index once and keep it in sync as we shift
+          // nodes. Inside the loop, this turns the previous O(N) lookups
+          // (currentNodes.find / allNodes.find for parent walking) into
+          // O(1) Map.get calls. With MAX_ITERATIONS=500 this cuts the
+          // dominant collision-resolution cost from O(N^2 * iterations)
+          // to roughly O(N * iterations).
+          const nodeMap = new Map<string, ScenarioNode>(currentNodes.map(n => [n.id, n]));
+
           // Helper to get absolute position
-          const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
+          const getAbsPos = (n: ScenarioNode) => {
               // Always calculate from relative positions because positionAbsolute might be stale
               // during this simulation update loop.
               let x = n.position.x;
               let y = n.position.y;
               let current = n;
-              while(current.parentNode) {
-                  const parent = allNodes.find(p => p.id === current.parentNode);
-                  if(parent) {
+              while (current.parentNode) {
+                  const parent = nodeMap.get(current.parentNode);
+                  if (parent) {
                       x += parent.position.x;
                       y += parent.position.y;
                       current = parent;
@@ -1990,14 +1998,14 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               // Allow re-visiting if pushed again? No, to prevent loops, maybe limit per node?
               // But a node might need to move multiple times if pushed by different sources.
               // Let's just rely on MAX_ITERATIONS for safety.
-              
-              const pusher = currentNodes.find(n => n.id === pusherId);
+
+              const pusher = nodeMap.get(pusherId);
               if (!pusher) continue;
 
-              const pusherAbs = getAbsPos(pusher, currentNodes);
+              const pusherAbs = getAbsPos(pusher);
               let pusherW = (pusher.style?.width as number) || pusher.width || 150;
               let pusherH = (pusher.style?.height as number) || pusher.height || 50;
-              
+
               // Special case for the GroupNode being resized: use new dimensions
               if (pusherId === groupId) {
                   pusherW = newWidth;
@@ -2011,32 +2019,32 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               const overlaps = currentNodes.filter(n => {
                   if (n.id === pusherId) return false;
                   if (n.type === 'sticky') return false;
-                  
+
                   // Exclude descendants (they move with parent)
                   let p = n.parentNode;
-                  while(p) {
+                  while (p) {
                       if (p === pusherId) return false;
-                      const parent = currentNodes.find(pn => pn.id === p);
+                      const parent = nodeMap.get(p);
                       p = parent ? parent.parentNode : undefined;
                   }
 
                   // Exclude ancestors (parent groups don't move for children)
                   let currentParent = pusher.parentNode;
-                  while(currentParent) {
+                  while (currentParent) {
                       if (currentParent === n.id) return false;
-                      const parent = currentNodes.find(pn => pn.id === currentParent);
+                      const parent = nodeMap.get(currentParent);
                       currentParent = parent ? parent.parentNode : undefined;
                   }
 
-                  const nAbs = getAbsPos(n, currentNodes);
+                  const nAbs = getAbsPos(n);
                   const nW = (n.style?.width as number) || n.width || 150;
                   const nH = (n.style?.height as number) || n.height || 50;
-                  
+
                   return checkRectOverlap(pusherRect, { x: nAbs.x, y: nAbs.y, width: nW, height: nH });
               });
 
               overlaps.forEach(n => {
-                  const nAbs = getAbsPos(n, currentNodes);
+                  const nAbs = getAbsPos(n);
                   const nW = (n.style?.width as number) || n.width || 150;
                   const nH = (n.style?.height as number) || n.height || 50;
                   const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
@@ -2118,6 +2126,15 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                           }
                           return node;
                       });
+                      // Keep nodeMap in sync. Only the pushed node and any
+                      // sticky that follows it have new object identities;
+                      // everything else is reference-equal so a single pass
+                      // catches them in O(N) (not O(N*moved)).
+                      for (const node of currentNodes) {
+                          if (nodeMap.get(node.id) !== node) {
+                              nodeMap.set(node.id, node);
+                          }
+                      }
                       if (!queue.includes(n.id)) {
                           queue.push(n.id);
                       }
@@ -2198,15 +2215,18 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
       let iterations = 0;
       let hasChanges = false;
 
+      // id -> node index for O(1) lookups inside the iteration loop. Kept
+      // in sync as nodes shift below.
+      const nodeMap = new Map<string, ScenarioNode>(currentNodes.map(n => [n.id, n]));
+
       // Helper to get absolute position
-      const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
-          // Always calculate from relative positions
+      const getAbsPos = (n: ScenarioNode) => {
           let x = n.position.x;
           let y = n.position.y;
           let current = n;
-          while(current.parentNode) {
-              const parent = allNodes.find(p => p.id === current.parentNode);
-              if(parent) {
+          while (current.parentNode) {
+              const parent = nodeMap.get(current.parentNode);
+              if (parent) {
                   x += parent.position.x;
                   y += parent.position.y;
                   current = parent;
@@ -2230,31 +2250,31 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
       while (queue.length > 0 && iterations < MAX_ITERATIONS) {
           iterations++;
           const pusherId = queue.shift()!;
-          const pusher = currentNodes.find(n => n.id === pusherId);
+          const pusher = nodeMap.get(pusherId);
           if (!pusher) continue;
 
-          const pusherAbs = getAbsPos(pusher, currentNodes);
+          const pusherAbs = getAbsPos(pusher);
           const pusherW = (pusher.style?.width as number) || pusher.width || 150;
           const pusherH = (pusher.style?.height as number) || pusher.height || 50;
-          
+
           const pusherRect = { x: pusherAbs.x, y: pusherAbs.y, width: pusherW, height: pusherH };
           const pusherCenter = { x: pusherRect.x + pusherRect.width / 2, y: pusherRect.y + pusherRect.height / 2 };
 
           // Find overlaps with SIBLING GROUPS only
           const overlaps = currentNodes.filter(n => {
               if (n.id === pusherId) return false;
-              if (n.type !== 'group') return false; 
+              if (n.type !== 'group') return false;
               if (n.parentNode !== pusher.parentNode) return false;
 
-              const nAbs = getAbsPos(n, currentNodes);
+              const nAbs = getAbsPos(n);
               const nW = (n.style?.width as number) || n.width || 150;
               const nH = (n.style?.height as number) || n.height || 50;
-              
+
               return checkRectOverlap(pusherRect, { x: nAbs.x, y: nAbs.y, width: nW, height: nH });
           });
 
           overlaps.forEach(n => {
-              const nAbs = getAbsPos(n, currentNodes);
+              const nAbs = getAbsPos(n);
               const nW = (n.style?.width as number) || n.width || 150;
               const nH = (n.style?.height as number) || n.height || 50;
               const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
@@ -2305,6 +2325,12 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                       }
                       return node;
                   });
+                  // Sync nodeMap for any nodes whose object identity changed.
+                  for (const node of currentNodes) {
+                      if (nodeMap.get(node.id) !== node) {
+                          nodeMap.set(node.id, node);
+                      }
+                  }
                   if (!queue.includes(n.id)) {
                       queue.push(n.id);
                   }
