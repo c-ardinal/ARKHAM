@@ -311,13 +311,15 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   
   pushHistory: () => {
       const { nodes, edges, gameState, past } = get();
-      // Deep copy to avoid reference issues
+      // Deep copy to avoid reference issues. structuredClone is several
+      // times faster than JSON.parse(JSON.stringify(...)) and preserves
+      // additional types (Map, Set, Date, etc).
       const snapshot = {
-          nodes: JSON.parse(JSON.stringify(nodes)),
-          edges: JSON.parse(JSON.stringify(edges)),
-          gameState: JSON.parse(JSON.stringify(gameState))
+          nodes: structuredClone(nodes),
+          edges: structuredClone(edges),
+          gameState: structuredClone(gameState),
       };
-      
+
       const newPast = [...past, snapshot].slice(-50); // Limit history
       set({ past: newPast, future: [] });
   },
