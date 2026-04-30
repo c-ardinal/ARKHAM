@@ -3,15 +3,20 @@ import { useDebugStore } from '../store/debugStore';
 
 /**
  * FPSとメモリ使用量を定期的に計測するフック
- * デバッグモードが有効な場合のみ動作
+ *
+ * 計測自体が rAF loop + 1秒ごとの localStorage / memory 走査 + Zustand
+ * 通知という重さを持つため、**デバッグパネルが開いている時のみ** 起動する。
+ * これにより本番ユーザーや閉じている開発時に計測 overhead が乗らない。
  */
 export const usePerformanceMonitor = () => {
   const updatePerformanceMetrics = useDebugStore((state) => state.updatePerformanceMetrics);
-  const isDebugMode = typeof window !== 'undefined' && 
+  const isDebugPanelOpen = useDebugStore((state) => state.isDebugPanelOpen);
+  const isDebugMode = typeof window !== 'undefined' &&
     (import.meta.env.DEV || localStorage.getItem('debugModeEnabled') === 'true');
 
   useEffect(() => {
     if (!isDebugMode) return;
+    if (!isDebugPanelOpen) return;
 
     let frameCount = 0;
     let lastTime = performance.now();
@@ -80,5 +85,5 @@ export const usePerformanceMonitor = () => {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [isDebugMode, updatePerformanceMetrics]);
+  }, [isDebugMode, isDebugPanelOpen, updatePerformanceMetrics]);
 };

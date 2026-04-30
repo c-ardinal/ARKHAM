@@ -245,21 +245,10 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     
     // ノードのサイズがすべて確定しているかチェック
     const allNodesHaveDimensions = nodes.every(n => n.width && n.height);
-    const nodesWithoutDimensions = nodes.filter(n => !n.width || !n.height);
-    
-    console.log('[Viewport] Node analysis:', {
-      nodesJustLoaded,
-      nodesChanged,
-      allNodesHaveDimensions,
-      nodesWithoutDimensionsCount: nodesWithoutDimensions.length
-    });
 
     // 寸法が確定していない場合は処理を保留（previousNodesLengthも更新しない）
     // これにより、寸法確定後の再レンダリングで正しく処理される
-    // ノードのサイズが確定していない場合は処理を保留（previousNodesLengthも更新しない）
-    // これにより、寸法確定後の再レンダリングで正しく処理される
     if (nodes.length > 0 && !allNodesHaveDimensions) {
-      console.log('[Viewport] Waiting for node dimensions...');
       return;
     }
     
@@ -274,29 +263,22 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     }
     
     if (nodesJustLoaded || nodesChanged) {
-      console.log('[Viewport] Conditions met for viewport action');
-      
       if (pendingViewport && !hasAppliedViewport) {
         // ノードのサイズが確定してからビューポートを復元
         const viewport = pendingViewport;
         setHasAppliedViewport(true);
         nodesDimensionsInitialized.current = true;
-        
+
         // モバイルデバイスではレンダリングに時間がかかるため、より長い遅延を設定
         const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const delay = isMobileDevice ? 5000 : 300;
-        
-        console.log('[Viewport] Scheduling viewport restoration:', { viewport, delay, isMobileDevice });
-        
+
         // 少し遅延させてReactFlowのレイアウト計算を待つ
         setTimeout(() => {
-          console.log('[Viewport] Executing setViewport now');
           window.requestAnimationFrame(() => {
             setViewport(viewport);
-            console.log('[Viewport] setViewport executed');
             // 適用後にpendingViewportをクリア
             setTimeout(() => {
-              console.log('[Viewport] Clearing pendingViewport');
               setPendingViewport(null);
             }, 100);
           });
@@ -304,49 +286,39 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       } else if (!hasAppliedViewport && !pendingViewport && nodes.length > 0) {
         // ビューポートがない場合はfitView
         setHasAppliedViewport(true);
-        console.log('[Viewport] No pending viewport, scheduling fitView');
         setTimeout(() => {
           window.requestAnimationFrame(async () => {
-            console.log('[Viewport] Executing fitView');
             fitView({ padding: 0.2 });
-            
+
             // fitView完了を待ってビューポートを保存
             let prevViewport = getViewport();
             let stableFrames = 0;
             const checkStability = () => {
               const currentViewport = getViewport();
-              const isStable = 
+              const isStable =
                 Math.abs(currentViewport.x - prevViewport.x) < 0.1 &&
                 Math.abs(currentViewport.y - prevViewport.y) < 0.1 &&
                 Math.abs(currentViewport.zoom - prevViewport.zoom) < 0.001;
-              
+
               if (isStable) {
                 stableFrames++;
                 if (stableFrames >= 3) { // 3フレーム安定したら完了
                   localStorage.setItem('canvas-viewport', JSON.stringify(currentViewport));
-                  console.log('[Viewport] Saved after fitView');
                   return;
                 }
               } else {
                 stableFrames = 0;
               }
-              
+
               prevViewport = currentViewport;
               requestAnimationFrame(checkStability);
             };
             requestAnimationFrame(checkStability);
           });
         }, 300);
-      } else {
-        console.log('[Viewport] Skipping action:', { 
-          hasApplied: hasAppliedViewport, 
-          hasPending: !!pendingViewport 
-        });
       }
-    } else {
-      console.log('[Viewport] Conditions not met for viewport action');
     }
-    
+
     previousNodesLength.current = nodes.length;
   }, [nodes, pendingViewport, fitView, setViewport]);
 
@@ -1366,7 +1338,6 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
           // useEffect側のロジックでカバーできないケース（タイミング問題など）を救済
           const savedViewport = localStorage.getItem('canvas-viewport');
           if (!savedViewport && nodes.length > 0) {
-            console.log('[Viewport] onInit: Scheduling fallback fitView');
             setTimeout(() => {
                window.requestAnimationFrame(() => {
                  fitView({ padding: 0.2, duration: 800 });
@@ -1413,6 +1384,10 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         selectionKeyCode="Shift" // Default behavior
         deleteKeyCode={null} // Disable default delete to handle it manually
         minZoom={0.01}
+        // Skip rendering nodes/edges outside the viewport. For large
+        // scenarios this slashes both React render work and Compositor
+        // layer count.
+        onlyRenderVisibleElements
         className="select-none touch-none bg-background"
         defaultEdgeOptions={{
             type: edgeType || 'default',
