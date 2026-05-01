@@ -25,9 +25,11 @@ import ResourceNode from '../nodes/ResourceNode';
 import type { NodeType, ScenarioNode } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
+import { getJumpTargetCenter } from '../utils/nodeAbsolutePosition';
 import { NodeInfoModal } from './NodeInfoModal';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
+import { ZoomLevelContext, resolveZoomLevel, type ZoomLevel } from '../contexts/ZoomLevelContext';
 
 const nodeTypes = {
   event: EventNode,
@@ -209,6 +211,19 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   // ビューポート復元管理（stateで変更を検知）
   const [pendingViewport, setPendingViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const [hasAppliedViewport, setHasAppliedViewport] = useState(false);
+  // Coarse zoom tier for LOD rendering. Updated on viewport changes only
+  // when the tier is actually crossed, so steady-state pan/drag never trigger
+  // re-renders here.
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>(() => {
+      try {
+          const saved = localStorage.getItem('canvas-viewport');
+          if (saved) {
+              const v = JSON.parse(saved);
+              if (typeof v?.zoom === 'number') return resolveZoomLevel(v.zoom);
+          }
+      } catch { /* ignore */ }
+      return 'high';
+  });
   const previousNodesLength = useRef(0);
   const nodesDimensionsInitialized = useRef(false);
 
@@ -596,15 +611,12 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         // Use setTimeout to ensure state updates and rendering settle before moving view
         setTimeout(() => {
             const targetNode = getNodes().find(n => n.id === targetId);
-            
+
             if (targetNode) {
-                const { x, y } = targetNode.position;
-                const width = targetNode.width || 150;
-                const height = targetNode.height || 50;
-                
+                const { cx, cy } = getJumpTargetCenter(targetNode as ScenarioNode);
                 const currentZoom = getZoom();
-                setCenter(x + width / 2, y + height / 2, { zoom: currentZoom, duration: 800 });
-                
+                setCenter(cx, cy, { zoom: currentZoom, duration: 800 });
+
                 setSelectedNode(targetId);
             }
         }, 50);
@@ -1322,9 +1334,11 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
 
   return (
-    <div 
-        className="flex-1 h-full w-full relative" 
+    <ZoomLevelContext.Provider value={zoomLevel}>
+    <div
+        className="flex-1 h-full w-full relative"
         ref={reactFlowWrapper}
+        data-zoom-level={zoomLevel}
         onTouchStartCapture={handleTouchStart}
         onTouchMoveCapture={handleTouchMove}
         onTouchEndCapture={handleTouchEnd}
@@ -1384,6 +1398,11 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         onNodeContextMenu={onNodeContextMenu}
         onSelectionContextMenu={onSelectionContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
+        onMove={(_event, viewport) => {
+          // Update zoom tier only when the threshold is actually crossed.
+          const next = resolveZoomLevel(viewport.zoom);
+          if (next !== zoomLevel) setZoomLevel(next);
+        }}
         onMoveEnd={(_event, viewport) => {
           // Save viewport to localStorage when user moves or zooms
           localStorage.setItem('canvas-viewport', JSON.stringify(viewport));
@@ -1409,7 +1428,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         className="select-none touch-none bg-background"
         defaultEdgeOptions={defaultEdgeOptions}
       >
-        <Background color="hsl(var(--muted-foreground) / 0.2)" gap={16} />
+        <Background color="hsl(var(--muted-foreground) / 0.2)" gap={32} />
 
         {!isMobile && (
             <MiniMap
@@ -1546,6 +1565,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         />
       )}
     </div>
+    </ZoomLevelContext.Provider>
   );
 }));
 

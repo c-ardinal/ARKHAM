@@ -16,6 +16,7 @@ import type {
 } from 'reactflow';
 import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
+import { recomputeEdgeVisibility } from './edgeVisibility';
 
 // Per-group rAF id for drag-time throttled updateGroupSize calls. A flurry
 // of position changes within the same animation frame collapses into a
@@ -1765,10 +1766,13 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           }
       }
 
-      set({ nodes: updatedNodes, edges: updatedEdges });
+      // Recompute edge visibility so edges between hidden children are also hidden
+      const finalEdges = recomputeEdgeVisibility(updatedNodes, updatedEdges);
+
+      set({ nodes: updatedNodes, edges: finalEdges });
       // No need to call updateGroupSize immediately as we set the size manually
   },
-  
+
   // ... (groupNodes, ungroupNodes, setNodeParent)
 
   groupNodes: (nodeIds: string[]) => {

@@ -10,18 +10,18 @@ import { StickyIndicator } from '../components/common/StickyIndicator';
 const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const variables = useScenarioStore((s) => s.gameState.variables);
   const description = data.description;
-  
+
   const getIcon = () => {
     if (data.actionType === 'consume') return <Minus size={16} />;
     return <Plus size={16} />;
   };
 
   return (
-    <div className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] max-w-[60ch] w-max relative transition-shadow duration-200
+    <div className={`px-4 py-2 shadow-sm rounded-md border-2 min-w-[150px] max-w-[60ch] w-max relative transition-shadow duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       border-blue-200 dark:border-blue-800
       bg-blue-50 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100
-      hover:shadow-lg
+      hover:shadow-md
       ${data.revealed ? '' : ''}
     `}>
 

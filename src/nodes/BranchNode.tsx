@@ -16,7 +16,7 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
   const conditionValue = substituteVariables(data.conditionValue || '', variables);
 
   return (
-    <div className={`relative px-4 py-2 shadow-md hover:shadow-lg rounded-md border-2 min-w-[150px] w-max transition-shadow duration-200 ${
+    <div className={`relative px-4 py-2 shadow-sm hover:shadow-md rounded-md border-2 min-w-[150px] w-max transition-shadow duration-200 ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
     } border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/40`}>
 
