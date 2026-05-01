@@ -2,6 +2,8 @@ import { X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 import packageJson from '../../package.json';
+import licenseMap from '../generated/licenses.json';
+import { getLibrariesWithLicenses } from '../utils/libraryList';
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -82,8 +84,7 @@ export const AboutModal = ({ isOpen, onClose }: AboutModalProps) => {
 
   if (!isOpen) return null;
 
-  const dependencies = packageJson.dependencies || {};
-  const devDependencies = packageJson.devDependencies || {};
+  const libraries = getLibrariesWithLicenses(packageJson.dependencies, licenseMap);
 
   return (
     <>
@@ -133,30 +134,14 @@ export const AboutModal = ({ isOpen, onClose }: AboutModalProps) => {
 
             <div>
               <h3 className="text-lg font-semibold mb-2 text-foreground">Libraries</h3>
-              <div className="space-y-4">
-                  <div>
-                      <h4 className="font-medium mb-1 text-sm opacity-80">Dependencies</h4>
-                      <ul className="text-sm font-mono space-y-1">
-                          {Object.entries(dependencies).map(([name, version]) => (
-                              <li key={name} className="flex justify-between">
-                                  <span>{name}</span>
-                                  <span className="opacity-70">{version as string}</span>
-                              </li>
-                          ))}
-                      </ul>
-                  </div>
-                  <div>
-                      <h4 className="font-medium mb-1 text-sm opacity-80">Dev Dependencies</h4>
-                      <ul className="text-sm font-mono space-y-1">
-                          {Object.entries(devDependencies).map(([name, version]) => (
-                              <li key={name} className="flex justify-between">
-                                  <span>{name}</span>
-                                  <span className="opacity-70">{version as string}</span>
-                              </li>
-                          ))}
-                      </ul>
-                  </div>
-              </div>
+              <ul className="text-sm font-mono space-y-1">
+                  {libraries.map(({ name, license }) => (
+                      <li key={name} className="flex justify-between gap-4">
+                          <span className="truncate">{name}</span>
+                          <span className="opacity-70 shrink-0">{license}</span>
+                      </li>
+                  ))}
+              </ul>
             </div>
           </div>
           <div className="p-4 border-t flex justify-end border-border">

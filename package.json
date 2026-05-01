@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "dev lan": "vite -- --host",
+    "prebuild": "node scripts/generate-licenses.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "licenses": "node scripts/generate-licenses.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
