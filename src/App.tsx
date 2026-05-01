@@ -10,7 +10,7 @@ setupLogCapture();
 function App() {
   const saveToLocalStorage = useScenarioStore((state) => state.saveToLocalStorage);
   const store = useScenarioStore();
-  const saveTimeoutRef = useRef<number | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // パフォーマンスモニター起動(デバッグモード時のみ)
   usePerformanceMonitor();
