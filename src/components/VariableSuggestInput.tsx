@@ -20,7 +20,7 @@ export const VariableSuggestInput = ({
     onBlur,
     onFocus
 }: VariableSuggestInputProps) => {
-    const { gameState } = useScenarioStore();
+    const variablesMap = useScenarioStore((s) => s.gameState.variables);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -48,8 +48,8 @@ export const VariableSuggestInput = ({
             const textAfterOpen = textBeforeCursor.slice(lastOpenIndex + 2);
             if (!textAfterOpen.includes('}')) {
                 const query = textAfterOpen;
-                const variables = Object.keys(gameState.variables);
-                const matches = variables.filter(v => v.toLowerCase().includes(query.toLowerCase()));
+                const variableNames = Object.keys(variablesMap);
+                const matches = variableNames.filter(v => v.toLowerCase().includes(query.toLowerCase()));
                 
                 if (matches.length > 0) {
                     setSuggestions(matches);

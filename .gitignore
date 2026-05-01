@@ -153,3 +153,4 @@ vite.config.ts.timestamp-*
 *.sw?
 .gstack/
 .playwright-mcp/
+.agent/

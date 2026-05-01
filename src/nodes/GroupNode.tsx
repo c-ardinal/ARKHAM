@@ -8,7 +8,9 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
 const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
-  const { toggleGroup, updateGroupSize, gameState } = useScenarioStore();
+  const toggleGroup = useScenarioStore((s) => s.toggleGroup);
+  const updateGroupSize = useScenarioStore((s) => s.updateGroupSize);
+  const variables = useScenarioStore((s) => s.gameState.variables);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,13 +30,13 @@ const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
   }, [id, updateGroupSize]);
 
   return (
-    <div 
-    className={`relative w-full h-full border-2 rounded-xl transition-all flex flex-col shadow-xl hover:shadow-2xl ${
+    <div
+    className={`relative w-full h-full border-2 rounded-xl transition-shadow duration-200 flex flex-col shadow-md hover:shadow-lg ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
-    } border-border/60 ${
-      !data.expanded 
-        ? 'min-w-[150px] min-h-[50px] border-dashed bg-muted/80' 
-        : '!border-solid bg-muted/30 backdrop-blur-sm'
+    } border-border/80 dark:border-border/60 ${
+      !data.expanded
+        ? 'min-w-[150px] min-h-[50px] border-dashed bg-muted/80'
+        : '!border-solid bg-muted/60 dark:bg-muted/30 backdrop-blur-sm'
     }`}
     style={{ minWidth: 'fit-content', minHeight: 'fit-content' }}
     >
@@ -44,7 +46,7 @@ const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
       
       <div 
         ref={contentRef}
-        className="px-3 py-2 m-2 rounded-md text-xs font-bold flex flex-col gap-1 bg-card/90 text-card-foreground shadow-lg border border-border/50 whitespace-nowrap w-fit backdrop-blur-md"
+        className="px-3 py-2 m-2 rounded-md text-xs font-bold flex flex-col gap-1 bg-card/90 text-card-foreground shadow-sm border border-border/50 whitespace-nowrap w-fit backdrop-blur-md"
       >
         <div className="flex items-center gap-2">
             <button 
@@ -59,11 +61,11 @@ const GroupNode = ({ id, data, selected }: NodeProps<GroupNodeData>) => {
             <div className="rounded-full p-1 bg-muted text-muted-foreground">
                 <Folder size={12} />
             </div>
-            {substituteVariables(data.label, gameState.variables)}
+            {substituteVariables(data.label, variables)}
         </div>
         {data.description && (
             <div className="text-xs opacity-80 whitespace-pre-wrap border-t border-border pt-1 mt-1">
-                {substituteVariables(data.description || '', gameState.variables)}
+                {substituteVariables(data.description || '', variables)}
             </div>
         )}
       </div>

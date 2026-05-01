@@ -48,7 +48,7 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
 
   return (
     <div className={`
-      relative min-w-[200px] max-w-[60ch] bg-card text-card-foreground rounded-lg border-2 shadow-sm
+      relative min-w-[200px] max-w-[60ch] w-max bg-card text-card-foreground rounded-lg border-2 shadow-sm
       transition-colors duration-200
       ${selected ? `border-primary ring-2 ${getBorderColor(resource.type)}` : 'border-border'}
     `}>

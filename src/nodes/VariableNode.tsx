@@ -8,31 +8,32 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
 const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const { gameState, updateNodeData } = useScenarioStore();
+  const variables = useScenarioStore((s) => s.gameState.variables);
+  const updateNodeData = useScenarioStore((s) => s.updateNodeData);
   const description = data.description;
 
   // Auto-healing: If no variable is selected but variables exist, select the first one.
   useEffect(() => {
-    if (!data.targetVariable && Object.keys(gameState.variables).length > 0) {
-      const firstVar = Object.keys(gameState.variables)[0];
+    if (!data.targetVariable && Object.keys(variables).length > 0) {
+      const firstVar = Object.keys(variables)[0];
        // Use timeout to avoid "cannot update while rendering"
        const timer = setTimeout(() => {
           updateNodeData(id, { targetVariable: firstVar });
        }, 0);
        return () => clearTimeout(timer);
     }
-  }, [data.targetVariable, gameState.variables, id, updateNodeData]);
+  }, [data.targetVariable, variables, id, updateNodeData]);
 
   // Determine the display variable (optimistic update to prevent flicker)
-  const displayVariable = data.targetVariable || 
-    (Object.keys(gameState.variables).length > 0 ? Object.keys(gameState.variables)[0] : 'None');
+  const displayVariable = data.targetVariable ||
+    (Object.keys(variables).length > 0 ? Object.keys(variables)[0] : 'None');
 
   return (
-    <div className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] relative transition-all duration-200
+    <div className={`px-4 py-2 shadow-sm rounded-md border-2 min-w-[150px] w-max relative transition-shadow duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       border-red-200 dark:border-red-800
       bg-red-50 dark:bg-red-900/40 text-red-900 dark:text-red-100
-      hover:shadow-lg
+      hover:shadow-md
       ${data.revealed ? '' : ''}
     `}>
 
@@ -53,7 +54,7 @@ const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
         {description && (
             <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
                 <div className="text-sm opacity-80 whitespace-pre-wrap text-red-900 dark:text-red-100">
-                    {substituteVariables(data.description || '', gameState.variables)}
+                    {substituteVariables(data.description || '', variables)}
                 </div>
             </div>
         )}
@@ -64,7 +65,7 @@ const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
            </div>
            <ArrowLeft size={12} className="opacity-50" />
            <div className="text-sm font-mono bg-black/10 dark:bg-black/30 px-1 rounded truncate max-w-[80px]" title={data.variableValue}>
-               {substituteVariables(data.variableValue || 'Value', gameState.variables)}
+               {substituteVariables(data.variableValue || 'Value', variables)}
            </div>
         </div>
       </div>

@@ -8,20 +8,20 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
 const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
-  const { gameState } = useScenarioStore();
+  const variables = useScenarioStore((s) => s.gameState.variables);
   const description = data.description;
-  
+
   const getIcon = () => {
     if (data.actionType === 'consume') return <Minus size={16} />;
     return <Plus size={16} />;
   };
 
   return (
-    <div className={`px-4 py-2 shadow-md rounded-md border-2 min-w-[150px] max-w-[60ch] relative transition-all duration-200
+    <div className={`px-4 py-2 shadow-sm rounded-md border-2 min-w-[150px] max-w-[60ch] w-max relative transition-shadow duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       border-blue-200 dark:border-blue-800
       bg-blue-50 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100
-      hover:shadow-lg
+      hover:shadow-md
       ${data.revealed ? '' : ''}
     `}>
 
@@ -35,14 +35,14 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
             {getIcon()}
           </div>
           <div className="text-base font-bold flex items-center gap-1 text-blue-900 dark:text-blue-100">
-              {substituteVariables(data.infoValue || 'None', gameState.variables)}
+              {substituteVariables(data.infoValue || 'None', variables)}
           </div>
         </div>
-        
+
         {description && (
             <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
                 <div className="text-sm opacity-80 whitespace-pre-wrap text-blue-900 dark:text-blue-100">
-                    {substituteVariables(data.description || '', gameState.variables)}
+                    {substituteVariables(data.description || '', variables)}
                 </div>
             </div>
         )}
@@ -54,7 +54,7 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
                     : 'bg-green-100 text-green-950 dark:bg-green-900 dark:text-green-50'
             }`} title={data.infoValue}>
               <span className="truncate max-w-[100px]">
-                  {substituteVariables(data.infoValue || 'None', gameState.variables)}
+                  {substituteVariables(data.infoValue || 'None', variables)}
               </span>
               <span className="font-bold ml-1 shrink-0 opacity-80">
                   x{data.quantity !== undefined ? data.quantity : 1}

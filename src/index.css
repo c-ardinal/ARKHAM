@@ -110,11 +110,65 @@
 
 .react-flow__node {
   padding: 0 !important;
+  /*
+   * contain hints to the engine that paint side effects from this node
+   * (and its descendants) cannot escape the node's box. The Compositor
+   * can then raster each node independently and skip work for nodes that
+   * didn't actually change between frames -- a big win during repeated
+   * zoom changes, which otherwise rasterize every layer at the new scale.
+   */
+  contain: layout style paint;
 }
 
 .react-flow__node-group {
   border: none !important;
   background-color: transparent !important;
+}
+
+/*
+ * Coarse LOD by zoom level. At low zoom (set by Canvas.tsx via data-zoom-level)
+ * we drop the GPU-expensive styling on nodes -- shadows, transitions, and
+ * backdrop blur -- without changing the DOM structure or visible content.
+ * Compositor layer count stays the same but rasterization per layer is much
+ * cheaper, which is the bottleneck during zoomed-out pan.
+ */
+[data-zoom-level="low"] .react-flow__node,
+[data-zoom-level="low"] .react-flow__node *,
+[data-zoom-level="ultra-low"] .react-flow__node,
+[data-zoom-level="ultra-low"] .react-flow__node * {
+  box-shadow: none !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/*
+ * Below ULTRA_LOW_ZOOM_THRESHOLD (0.2) glyph rasterization is the bottleneck
+ * and the text is already too small to read precisely, so we make the
+ * browser take cheaper shortcuts for text painting. Crucially we never
+ * change font-size or any other layout-affecting property -- node width
+ * is determined by the longest text run, so that would force layout
+ * reflow. The text stays visible in its natural shape; only sub-pixel
+ * antialiasing, kerning, and ligature shaping are dropped.
+ */
+[data-zoom-level="ultra-low"] .react-flow__node,
+[data-zoom-level="ultra-low"] .react-flow__node * {
+  text-rendering: optimizeSpeed !important;
+  font-variant-ligatures: none !important;
+  font-feature-settings: "kern" 0, "liga" 0, "clig" 0, "calt" 0 !important;
+  -webkit-font-smoothing: none !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/*
+ * At ultra-low zoom the dotted grid is no longer perceivable, but the
+ * Background component still draws every dot inside the (huge, because
+ * we're zoomed out) viewport rect. visibility:hidden skips paint while
+ * keeping layout / offsetWidth intact, so any internal ReactFlow code
+ * that reads the element's box still sees a sane size.
+ */
+[data-zoom-level="ultra-low"] .react-flow__background {
+  visibility: hidden !important;
 }
 
 .dark .react-flow__controls-button {

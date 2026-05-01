@@ -1,0 +1,13 @@
+{
+  "clsx": "MIT",
+  "lucide-react": "ISC",
+  "react": "MIT",
+  "react-dom": "MIT",
+  "react-markdown": "MIT",
+  "react-rnd": "MIT",
+  "react-window": "MIT",
+  "reactflow": "MIT",
+  "remark-gfm": "MIT",
+  "tailwind-merge": "MIT",
+  "zustand": "MIT"
+}

@@ -16,6 +16,19 @@ import type {
 } from 'reactflow';
 import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
+import { recomputeEdgeVisibility } from './edgeVisibility';
+
+// Per-group rAF id for drag-time throttled updateGroupSize calls. A flurry
+// of position changes within the same animation frame collapses into a
+// single updateGroupSize per affected group.
+const _groupSizeRafIds = new Map<string, number>();
+
+// Debounce window for pushHistory. Bursts of pushHistory within this window
+// (e.g. each keystroke during continuous typing in the property panel)
+// collapse into a single snapshot, reducing memory and structuredClone cost.
+const PUSH_HISTORY_DEBOUNCE_MS = 200;
+let _pushHistoryWindowOpen = false;
+let _pushHistoryTimer: number | null = null;
 
 interface ScenarioState {
   nodes: ScenarioNode[];
@@ -305,16 +318,39 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   future: [],
   
   pushHistory: () => {
+      // First call in the debounce window: take a snapshot now. Subsequent
+      // calls within the window only refresh the timer so we don't take a
+      // snapshot per keystroke during continuous edits. Undo granularity
+      // becomes "edits at least 200ms apart" instead of "every action",
+      // which matches typical user expectation.
+      if (_pushHistoryWindowOpen) {
+          if (_pushHistoryTimer !== null) clearTimeout(_pushHistoryTimer);
+          _pushHistoryTimer = window.setTimeout(() => {
+              _pushHistoryWindowOpen = false;
+              _pushHistoryTimer = null;
+          }, PUSH_HISTORY_DEBOUNCE_MS);
+          return;
+      }
+
       const { nodes, edges, gameState, past } = get();
-      // Deep copy to avoid reference issues
+      // Deep copy to avoid reference issues. structuredClone is several
+      // times faster than JSON.parse(JSON.stringify(...)) and preserves
+      // additional types (Map, Set, Date, etc).
       const snapshot = {
-          nodes: JSON.parse(JSON.stringify(nodes)),
-          edges: JSON.parse(JSON.stringify(edges)),
-          gameState: JSON.parse(JSON.stringify(gameState))
+          nodes: structuredClone(nodes),
+          edges: structuredClone(edges),
+          gameState: structuredClone(gameState),
       };
-      
+
       const newPast = [...past, snapshot].slice(-50); // Limit history
       set({ past: newPast, future: [] });
+
+      _pushHistoryWindowOpen = true;
+      if (_pushHistoryTimer !== null) clearTimeout(_pushHistoryTimer);
+      _pushHistoryTimer = window.setTimeout(() => {
+          _pushHistoryWindowOpen = false;
+          _pushHistoryTimer = null;
+      }, PUSH_HISTORY_DEBOUNCE_MS);
   },
 
   undo: () => {
@@ -471,29 +507,54 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         return true;
     });
 
-    // 3. Update group sizes for moved or resized nodes
-    // Using filtered 'currentNodes'
+    // 3. Update group sizes for moved or resized nodes.
+    // Collect affected group ids in a Set so a single drag (which fires many
+    // position changes per frame) triggers updateGroupSize at most once per
+    // group per animation frame via rAF throttling.
     const finalNodeIds = new Set(currentNodes.map(n => n.id));
-    validChanges.forEach(change => {
-        if ((change.type === 'position' && change.position) || change.type === 'dimensions') {
-            // Only strictly valid checks
-             if (!finalNodeIds.has(change.id)) return;
-             
-             const node = currentNodes.find(n => n.id === change.id);
-             if (node && node.parentNode) {
-                setTimeout(() => {
-                    get().updateGroupSize(node.parentNode!);
-                }, 0);
-            }
-        }
-    });
+    const affectedGroupIds = new Set<string>();
+    const finalNodeIndex = new Map(currentNodes.map(n => [n.id, n]));
+    for (const change of validChanges) {
+        const isDim = change.type === 'dimensions';
+        const isPos = change.type === 'position' && change.position;
+        if (!isDim && !isPos) continue;
+        if (!finalNodeIds.has(change.id)) continue;
+        const node = finalNodeIndex.get(change.id);
+        if (node?.parentNode) affectedGroupIds.add(node.parentNode);
+    }
+    for (const gid of affectedGroupIds) {
+        const existing = _groupSizeRafIds.get(gid);
+        if (existing !== undefined) cancelAnimationFrame(existing);
+        const rafId = requestAnimationFrame(() => {
+            _groupSizeRafIds.delete(gid);
+            get().updateGroupSize(gid);
+        });
+        _groupSizeRafIds.set(gid, rafId);
+    }
 
-    // 4. Cleanup Edges connected to removed nodes
-    const finalNodeIdSet = new Set(currentNodes.map(n => n.id));
-    const cleanEdges = state.edges.filter(e => finalNodeIdSet.has(e.source) && finalNodeIdSet.has(e.target));
+    // 4. Cleanup Edges connected to removed nodes. Only walk edges if the
+    // node set actually shrank (orphan removal); otherwise the existing
+    // edges array reference is reusable and we save an O(E) filter every
+    // tick.
+    let cleanEdges = state.edges;
+    if (currentNodes.length !== state.nodes.length) {
+        const finalNodeIdSet = new Set(currentNodes.map(n => n.id));
+        cleanEdges = state.edges.filter(e => finalNodeIdSet.has(e.source) && finalNodeIdSet.has(e.target));
+    }
 
     set({ nodes: currentNodes, edges: cleanEdges });
-    get().recalculateGameState();
+
+    // recalculateGameState walks every node twice. Skip it for pure mid-drag
+    // streams (select + dragging:true position), which can never affect
+    // derived game state. Programmatic moves, dimension updates, drag
+    // settle (dragging:false), add/remove/reset all still trigger recalc.
+    const isMidDragOnly = validChanges.length > 0 && validChanges.every(c =>
+        c.type === 'select' ||
+        (c.type === 'position' && c.dragging === true)
+    );
+    if (!isMidDragOnly) {
+        get().recalculateGameState();
+    }
   },
   onEdgesChange: (changes: EdgeChange[]) => {
     set({
@@ -1324,8 +1385,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       get().recalculateGameState();
   },
 
-  triggerNode: (nodeId: string) => {
-    console.log('Trigger node (Logic only)', nodeId);
+  triggerNode: (_nodeId: string) => {
+    // No-op placeholder for legacy callers; reveal flow handles state changes.
   },
 
   toggleNodeState: (nodeId: string) => {
@@ -1655,16 +1716,48 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               });
               
               if (rootsToMove.length > 0) {
-                  const shiftY = newHeight; // Shift by the new height
-                  
+                  // Decide push direction per node from the relative center
+                  // position so a node sitting beside the group is pushed
+                  // sideways instead of always straight down.
+                  const groupCenter = {
+                      x: groupAbs.x + newWidth / 2,
+                      y: groupAbs.y + newHeight / 2,
+                  };
+                  const shiftMap = new Map<string, { dx: number; dy: number }>();
+                  rootsToMove.forEach(n => {
+                      const nAbs = getAbsPos(n, state.nodes);
+                      const nW = n.width || 150;
+                      const nH = n.height || 50;
+                      const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
+                      const diffX = nCenter.x - groupCenter.x;
+                      const diffY = nCenter.y - groupCenter.y;
+                      const overlapX = (newWidth / 2 + nW / 2) - Math.abs(diffX);
+                      const overlapY = (newHeight / 2 + nH / 2) - Math.abs(diffY);
+                      let dx = 0;
+                      let dy = 0;
+                      if (overlapX > 0 && overlapY > 0) {
+                          if (overlapY <= overlapX) {
+                              dy = diffY >= 0
+                                  ? (groupAbs.y + newHeight + 20) - nAbs.y
+                                  : (groupAbs.y - 20) - (nAbs.y + nH);
+                          } else {
+                              dx = diffX >= 0
+                                  ? (groupAbs.x + newWidth + 20) - nAbs.x
+                                  : (groupAbs.x - 20) - (nAbs.x + nW);
+                          }
+                      }
+                      shiftMap.set(n.id, { dx, dy });
+                  });
+
                   updatedNodes = updatedNodes.map(n => {
-                      if (rootsToMove.some(rt => rt.id === n.id)) {
+                      const shift = shiftMap.get(n.id);
+                      if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
                           return {
                               ...n,
                               position: {
-                                  ...n.position,
-                                  y: n.position.y + shiftY
-                              }
+                                  x: n.position.x + shift.dx,
+                                  y: n.position.y + shift.dy,
+                              },
                           };
                       }
                       return n;
@@ -1673,10 +1766,13 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           }
       }
 
-      set({ nodes: updatedNodes, edges: updatedEdges });
+      // Recompute edge visibility so edges between hidden children are also hidden
+      const finalEdges = recomputeEdgeVisibility(updatedNodes, updatedEdges);
+
+      set({ nodes: updatedNodes, edges: finalEdges });
       // No need to call updateGroupSize immediately as we set the size manually
   },
-  
+
   // ... (groupNodes, ungroupNodes, setNodeParent)
 
   groupNodes: (nodeIds: string[]) => {
@@ -1890,16 +1986,24 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
           const MAX_ITERATIONS = 500;
           let iterations = 0;
 
+          // Build an id -> node index once and keep it in sync as we shift
+          // nodes. Inside the loop, this turns the previous O(N) lookups
+          // (currentNodes.find / allNodes.find for parent walking) into
+          // O(1) Map.get calls. With MAX_ITERATIONS=500 this cuts the
+          // dominant collision-resolution cost from O(N^2 * iterations)
+          // to roughly O(N * iterations).
+          const nodeMap = new Map<string, ScenarioNode>(currentNodes.map(n => [n.id, n]));
+
           // Helper to get absolute position
-          const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
+          const getAbsPos = (n: ScenarioNode) => {
               // Always calculate from relative positions because positionAbsolute might be stale
               // during this simulation update loop.
               let x = n.position.x;
               let y = n.position.y;
               let current = n;
-              while(current.parentNode) {
-                  const parent = allNodes.find(p => p.id === current.parentNode);
-                  if(parent) {
+              while (current.parentNode) {
+                  const parent = nodeMap.get(current.parentNode);
+                  if (parent) {
                       x += parent.position.x;
                       y += parent.position.y;
                       current = parent;
@@ -1926,14 +2030,14 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               // Allow re-visiting if pushed again? No, to prevent loops, maybe limit per node?
               // But a node might need to move multiple times if pushed by different sources.
               // Let's just rely on MAX_ITERATIONS for safety.
-              
-              const pusher = currentNodes.find(n => n.id === pusherId);
+
+              const pusher = nodeMap.get(pusherId);
               if (!pusher) continue;
 
-              const pusherAbs = getAbsPos(pusher, currentNodes);
+              const pusherAbs = getAbsPos(pusher);
               let pusherW = (pusher.style?.width as number) || pusher.width || 150;
               let pusherH = (pusher.style?.height as number) || pusher.height || 50;
-              
+
               // Special case for the GroupNode being resized: use new dimensions
               if (pusherId === groupId) {
                   pusherW = newWidth;
@@ -1947,32 +2051,32 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               const overlaps = currentNodes.filter(n => {
                   if (n.id === pusherId) return false;
                   if (n.type === 'sticky') return false;
-                  
+
                   // Exclude descendants (they move with parent)
                   let p = n.parentNode;
-                  while(p) {
+                  while (p) {
                       if (p === pusherId) return false;
-                      const parent = currentNodes.find(pn => pn.id === p);
+                      const parent = nodeMap.get(p);
                       p = parent ? parent.parentNode : undefined;
                   }
 
                   // Exclude ancestors (parent groups don't move for children)
                   let currentParent = pusher.parentNode;
-                  while(currentParent) {
+                  while (currentParent) {
                       if (currentParent === n.id) return false;
-                      const parent = currentNodes.find(pn => pn.id === currentParent);
+                      const parent = nodeMap.get(currentParent);
                       currentParent = parent ? parent.parentNode : undefined;
                   }
 
-                  const nAbs = getAbsPos(n, currentNodes);
+                  const nAbs = getAbsPos(n);
                   const nW = (n.style?.width as number) || n.width || 150;
                   const nH = (n.style?.height as number) || n.height || 50;
-                  
+
                   return checkRectOverlap(pusherRect, { x: nAbs.x, y: nAbs.y, width: nW, height: nH });
               });
 
               overlaps.forEach(n => {
-                  const nAbs = getAbsPos(n, currentNodes);
+                  const nAbs = getAbsPos(n);
                   const nW = (n.style?.width as number) || n.width || 150;
                   const nH = (n.style?.height as number) || n.height || 50;
                   const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
@@ -2054,6 +2158,15 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                           }
                           return node;
                       });
+                      // Keep nodeMap in sync. Only the pushed node and any
+                      // sticky that follows it have new object identities;
+                      // everything else is reference-equal so a single pass
+                      // catches them in O(N) (not O(N*moved)).
+                      for (const node of currentNodes) {
+                          if (nodeMap.get(node.id) !== node) {
+                              nodeMap.set(node.id, node);
+                          }
+                      }
                       if (!queue.includes(n.id)) {
                           queue.push(n.id);
                       }
@@ -2134,15 +2247,18 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
       let iterations = 0;
       let hasChanges = false;
 
+      // id -> node index for O(1) lookups inside the iteration loop. Kept
+      // in sync as nodes shift below.
+      const nodeMap = new Map<string, ScenarioNode>(currentNodes.map(n => [n.id, n]));
+
       // Helper to get absolute position
-      const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
-          // Always calculate from relative positions
+      const getAbsPos = (n: ScenarioNode) => {
           let x = n.position.x;
           let y = n.position.y;
           let current = n;
-          while(current.parentNode) {
-              const parent = allNodes.find(p => p.id === current.parentNode);
-              if(parent) {
+          while (current.parentNode) {
+              const parent = nodeMap.get(current.parentNode);
+              if (parent) {
                   x += parent.position.x;
                   y += parent.position.y;
                   current = parent;
@@ -2166,31 +2282,31 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
       while (queue.length > 0 && iterations < MAX_ITERATIONS) {
           iterations++;
           const pusherId = queue.shift()!;
-          const pusher = currentNodes.find(n => n.id === pusherId);
+          const pusher = nodeMap.get(pusherId);
           if (!pusher) continue;
 
-          const pusherAbs = getAbsPos(pusher, currentNodes);
+          const pusherAbs = getAbsPos(pusher);
           const pusherW = (pusher.style?.width as number) || pusher.width || 150;
           const pusherH = (pusher.style?.height as number) || pusher.height || 50;
-          
+
           const pusherRect = { x: pusherAbs.x, y: pusherAbs.y, width: pusherW, height: pusherH };
           const pusherCenter = { x: pusherRect.x + pusherRect.width / 2, y: pusherRect.y + pusherRect.height / 2 };
 
           // Find overlaps with SIBLING GROUPS only
           const overlaps = currentNodes.filter(n => {
               if (n.id === pusherId) return false;
-              if (n.type !== 'group') return false; 
+              if (n.type !== 'group') return false;
               if (n.parentNode !== pusher.parentNode) return false;
 
-              const nAbs = getAbsPos(n, currentNodes);
+              const nAbs = getAbsPos(n);
               const nW = (n.style?.width as number) || n.width || 150;
               const nH = (n.style?.height as number) || n.height || 50;
-              
+
               return checkRectOverlap(pusherRect, { x: nAbs.x, y: nAbs.y, width: nW, height: nH });
           });
 
           overlaps.forEach(n => {
-              const nAbs = getAbsPos(n, currentNodes);
+              const nAbs = getAbsPos(n);
               const nW = (n.style?.width as number) || n.width || 150;
               const nH = (n.style?.height as number) || n.height || 50;
               const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
@@ -2241,6 +2357,12 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                       }
                       return node;
                   });
+                  // Sync nodeMap for any nodes whose object identity changed.
+                  for (const node of currentNodes) {
+                      if (nodeMap.get(node.id) !== node) {
+                          nodeMap.set(node.id, node);
+                      }
+                  }
                   if (!queue.includes(n.id)) {
                       queue.push(n.id);
                   }
@@ -2326,7 +2448,6 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
   },
 
   resetToInitialState: () => {
-    console.log('[DEBUG] resetToInitialState called');
     const currentLanguage = get().language;
     const currentTheme = get().theme;
     const currentEdgeType = get().edgeType;

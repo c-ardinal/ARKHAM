@@ -10,14 +10,14 @@ import { useTranslation } from '../hooks/useTranslation';
 import { Flag, Star } from 'lucide-react';
 
 const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
-  const { gameState } = useScenarioStore();
+  const variables = useScenarioStore((s) => s.gameState.variables);
   const { t } = useTranslation();
 
-  const label = substituteVariables(data.label, gameState.variables);
-  const description = substituteVariables(data.description || '', gameState.variables);
+  const label = substituteVariables(data.label, variables);
+  const description = substituteVariables(data.description || '', variables);
 
   return (
-    <div className={`relative px-4 py-2 shadow-md hover:shadow-lg rounded-md border-2 min-w-[150px] transition-all ${
+    <div className={`relative px-4 py-2 shadow-sm hover:shadow-md rounded-md border-2 min-w-[150px] w-max transition-shadow duration-200 ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
     } border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20`}>
       {data.hasSticky && <StickyIndicator />}
