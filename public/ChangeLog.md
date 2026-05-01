@@ -2,6 +2,21 @@
 
 # 更新履歴
 
+## v2.2.0 (2026-05-01)
+
+### 変更・改善
+
+- ライトテーマでグループノードと背景の対比を強化し、視認性を改善
+
+### バグ修正
+
+- グループノードを畳んだ際、内部の子ノード間エッジが画面に残ってしまう不具合を修正
+- ジャンプノードでグループ内の子ノードへジャンプした際、カメラ位置がずれる不具合を修正
+
+### その他
+
+- パフォーマンスの向上
+
 ## v2.1.1 (2026-04-18)
 
 ### 機能追加
@@ -90,6 +105,21 @@
 <!-- SECTION: en -->
 
 # Update History
+
+## v2.2.0 (2026-05-01)
+
+### Changes & Improvements
+
+- Improved light-theme group-node visibility by strengthening contrast against the canvas background
+
+### Bug Fixes
+
+- Fixed an issue where edges between child nodes would remain visible on the canvas after collapsing a group node
+- Fixed a camera-position offset that occurred when jumping to a child node inside a group via a Jump node
+
+### Others
+
+- Performance improvements (drag during group-node expansion; drag and scroll while zoomed out with many nodes)
 
 ## v2.1.1 (2026-04-18)
 
