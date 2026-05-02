@@ -17,6 +17,9 @@ import type {
 import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 import { recomputeEdgeVisibility } from './edgeVisibility';
+import type { Tab } from '../types/tab';
+import { generateTabId, SCHEMA_VERSION } from '../types/tab';
+import { isLegacyFormat, isFutureFormat, migrateLegacyToTabbed } from './migration';
 
 // Per-group rAF id for drag-time throttled updateGroupSize calls. A flurry
 // of position changes within the same animation frame collapses into a
@@ -28,14 +31,22 @@ const _groupSizeRafIds = new Map<string, number>();
 // collapse into a single snapshot, reducing memory and structuredClone cost.
 const PUSH_HISTORY_DEBOUNCE_MS = 200;
 let _pushHistoryWindowOpen = false;
-let _pushHistoryTimer: number | null = null;
+let _pushHistoryTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Helpers — operate on active tab
+function getActiveTabFrom(state: ScenarioState): Tab | undefined {
+  return state.tabs.find((t) => t.id === state.activeTabId);
+}
+function withActiveTab(state: ScenarioState, updater: (tab: Tab) => Partial<Tab>): Tab[] {
+  return state.tabs.map((t) => (t.id === state.activeTabId ? { ...t, ...updater(t) } : t));
+}
 
 interface ScenarioState {
-  nodes: ScenarioNode[];
-  edges: ScenarioEdge[];
+  tabs: Tab[];
+  activeTabId: string;
   gameState: GameState;
   mode: 'edit' | 'play';
-  selectedNodeId: string | null;
+  selectedNodeId: string | string[] | null;
 
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
@@ -48,14 +59,23 @@ interface ScenarioState {
   deleteNodes: (nodeIds: string[]) => void;
   setMode: (mode: 'edit' | 'play') => void;
   setSelectedNode: (id: string | string[] | null) => void;
-  loadScenario: (data: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState, characters?: CharacterData[], resources?: ResourceData[] }) => void;
-  
+  loadScenario: (data: any) => void;
+
+  // Tab CRUD
+  addTab: (name?: string) => string;
+  renameTab: (id: string, newName: string) => void;
+  deleteTab: (id: string) => void;
+  reorderTabs: (fromIdx: number, toIdx: number) => void;
+  setActiveTab: (id: string) => void;
+  moveNodesToTab: (nodeIds: string[], targetTabId: string, edgeStrategy?: 'delete' | 'replace-jump') => void;
+  executeJump: (target: { tabId: string; nodeId: string } | null) => void;
+
   // Localization & Theme
   language: 'en' | 'ja';
   setLanguage: (lang: 'en' | 'ja') => void;
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
-  
+
   // Edge Style
   edgeType: string;
   setEdgeType: (type: string) => void;
@@ -98,11 +118,8 @@ interface ScenarioState {
   addSticky: (targetNodeId: string | undefined, position: { x: number, y: number }) => void;
   toggleStickies: (parentNodeId: string) => void;
   deleteStickies: (parentNodeId: string) => void;
-  hideSticky: (stickyId: string) => void;
-  
+
   // Bulk Sticky Operations
-  // Bulk Sticky Operations
-  // setStickyUpdating removed
   showAllStickies: () => void;
   hideAllStickies: () => void;
   deleteAllStickiesGlobal: () => void;
@@ -112,10 +129,11 @@ interface ScenarioState {
   showAllNodeStickies: () => void;
   hideAllNodeStickies: () => void;
   deleteAllNodeStickies: () => void;
+  hideSticky: (stickyId: string) => void;
 
   // History
-  past: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState }[];
-  future: { nodes: ScenarioNode[], edges: ScenarioEdge[], gameState: GameState }[];
+  past: { tabs: Tab[]; activeTabId: string; gameState: GameState }[];
+  future: { tabs: Tab[]; activeTabId: string; gameState: GameState }[];
   pushHistory: () => void;
   undo: () => void;
   redo: () => void;
@@ -129,28 +147,72 @@ interface ScenarioState {
 
 // LocalStorage key
 const STORAGE_KEY = 'trpg-scenario-storage';
+const LEGACY_BACKUP_PREFIX = 'arkham_legacy_backup_';
+const FUTURE_BACKUP_PREFIX = 'arkham_future_format_backup_';
+const MAX_BACKUPS = 3;
+
+function pruneBackups(prefix: string) {
+  try {
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith(prefix)).sort();
+    while (keys.length > MAX_BACKUPS) {
+      const oldest = keys.shift()!;
+      localStorage.removeItem(oldest);
+    }
+  } catch (e) { /* localStorage may be unavailable in tests */ }
+}
 
 // Load initial state from LocalStorage
 const loadInitialState = () => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Sanitize nodes to prevent crash due to invalid data
-      if (parsed && Array.isArray(parsed.nodes)) {
-          parsed.nodes = parsed.nodes.filter((n: any) => 
-               n && 
-               typeof n.id === 'string' && 
-               n.position && 
-               typeof n.position.x === 'number' && !isNaN(n.position.x) &&
-               typeof n.position.y === 'number' && !isNaN(n.position.y)
-          ).map((n: any) => ({
-              ...n,
-              selected: false // Reset selection to prevent infinite loop on reload
-          }));
-      }
-      return parsed;
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    if (!stored) return null;
+
+    const parsed = JSON.parse(stored);
+
+    if (isFutureFormat(parsed)) {
+      const key = `${FUTURE_BACKUP_PREFIX}${Date.now()}`;
+      try { localStorage.setItem(key, stored); } catch { /* ignore */ }
+      pruneBackups(FUTURE_BACKUP_PREFIX);
+      (window as any).__ARKHAM_FUTURE_VERSION_DETECTED__ = (parsed as any).version;
+      return null;
     }
+
+    if (isLegacyFormat(parsed)) {
+      const key = `${LEGACY_BACKUP_PREFIX}${Date.now()}`;
+      try { localStorage.setItem(key, stored); } catch { /* ignore */ }
+      pruneBackups(LEGACY_BACKUP_PREFIX);
+      const migrated = migrateLegacyToTabbed(parsed, 'タブ 1');
+      // sanitize nodes the same way the original sanitization did
+      migrated.tabs = migrated.tabs.map((tab) => ({
+        ...tab,
+        nodes: (tab.nodes as any[]).filter((n: any) =>
+          n &&
+          typeof n.id === 'string' &&
+          n.position &&
+          typeof n.position.x === 'number' && !isNaN(n.position.x) &&
+          typeof n.position.y === 'number' && !isNaN(n.position.y)
+        ).map((n: any) => ({ ...n, selected: false })),
+      }));
+      return migrated;
+    }
+
+    // Already v2 — sanitize each tab's nodes
+    if (Array.isArray(parsed.tabs)) {
+      parsed.tabs = parsed.tabs.map((tab: any) => ({
+        ...tab,
+        nodes: Array.isArray(tab.nodes)
+          ? tab.nodes.filter((n: any) =>
+              n &&
+              typeof n.id === 'string' &&
+              n.position &&
+              typeof n.position.x === 'number' && !isNaN(n.position.x) &&
+              typeof n.position.y === 'number' && !isNaN(n.position.y)
+            ).map((n: any) => ({ ...n, selected: false }))
+          : [],
+        edges: Array.isArray(tab.edges) ? tab.edges : [],
+      }));
+    }
+    return parsed;
   } catch (error) {
     console.error('Failed to load from LocalStorage:', error);
   }
@@ -159,22 +221,33 @@ const loadInitialState = () => {
 
 const initialStoredState = loadInitialState();
 
+const createInitialMemoNode = (): ScenarioNode => ({
+  id: 'memo-initial-warning',
+  type: 'memo',
+  position: { x: 100, y: 100 },
+  data: {
+    label: '注意事項 / Warnings',
+    description: '・本ツールには自動保存機能が実装されています。\n ページを再読み込みしても、最後の作業状態が自動的に復元されます。\n ただし、ブラウザのキャッシュをクリアすると保存データも削除されます。\n 重要なデータは「ファイル→保存」で手動保存することをお勧めします。\n・使用例を見たい場合は、「ファイル→サンプルデータ読込」を実行して下さい。\n・その他の注意事項や使い方は「ヘルプ→マニュアル」をご覧下さい。\n\n上記を読み終わったらこのノードは削除して問題有りません。',
+  },
+  width: 400,
+  height: 200,
+  draggable: true,
+} as any);
+
+const createInitialTab = (): Tab => ({
+  id: generateTabId(),
+  name: 'タブ 1',
+  nodes: [createInitialMemoNode()],
+  edges: [],
+});
+
+const initialFirstTab = createInitialTab();
+const initialTabs: Tab[] = (initialStoredState as any)?.tabs ?? [initialFirstTab];
+const initialActiveTabId: string = (initialStoredState as any)?.activeTabId ?? initialTabs[0].id;
+
 export const useScenarioStore = create<ScenarioState>((set, get) => ({
-  nodes: initialStoredState?.nodes || [
-    {
-      id: 'memo-initial-warning',
-      type: 'memo',
-      position: { x: 100, y: 100 },
-      data: {
-        label: '注意事項 / Warnings',
-        description: '・本ツールには自動保存機能が実装されています。\n ページを再読み込みしても、最後の作業状態が自動的に復元されます。\n ただし、ブラウザのキャッシュをクリアすると保存データも削除されます。\n 重要なデータは「ファイル→保存」で手動保存することをお勧めします。\n・使用例を見たい場合は、「ファイル→サンプルデータ読込」を実行して下さい。\n・その他の注意事項や使い方は「ヘルプ→マニュアル」をご覧下さい。\n\n上記を読み終わったらこのノードは削除して問題有りません。'
-      },
-      width: 400,
-      height: 200,
-      draggable: true
-    }
-  ],
-  edges: initialStoredState?.edges || [],
+  tabs: initialTabs,
+  activeTabId: initialActiveTabId,
   gameState: initialStoredState?.gameState || {
     currentNodes: [],
     revealedNodes: [],
@@ -194,25 +267,29 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       characters: state.characters.map((c) => (c.id === id ? { ...c, ...char } : c))
   })),
   deleteCharacter: (id) => set((state) => {
-      const nodesToDelete = state.nodes.filter(n => n.type === 'character' && n.data.referenceId === id).map(n => n.id);
-      let newNodes = state.nodes;
-      let newEdges = state.edges;
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const currentEdges = activeTab?.edges ?? [];
+      const nodesToDelete = currentNodes.filter(n => n.type === 'character' && n.data.referenceId === id).map(n => n.id);
+      let newNodes = currentNodes;
+      let newEdges = currentEdges;
       if (nodesToDelete.length > 0) {
-           newNodes = state.nodes.filter(n => !nodesToDelete.includes(n.id));
-           newEdges = state.edges.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target));
+           newNodes = currentNodes.filter(n => !nodesToDelete.includes(n.id));
+           newEdges = currentEdges.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target));
       }
       return {
           characters: state.characters.filter((c) => c.id !== id),
-          nodes: newNodes,
-          edges: newEdges
+          tabs: withActiveTab(state, () => ({ nodes: newNodes, edges: newEdges })),
       };
   }),
 
   addResource: (res) => set((state) => {
       const newResources = [...state.resources, res];
-      
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+
       // Auto-assign to unassigned element nodes
-      const updatedNodes = state.nodes.map(node => {
+      const updatedNodes = currentNodes.map(node => {
           if ((node.type === 'element' || node.type === 'information') && !node.data.referenceId) {
              return {
                  ...node,
@@ -226,16 +303,18 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           return node;
       });
 
-      return { 
+      return {
           resources: newResources,
-          nodes: updatedNodes
+          tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
       };
   }),
   updateResource: (id, res) => set((state) => {
       const updatedResources = state.resources.map((r) => (r.id === id ? { ...r, ...res } : r));
-      
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+
       // Update element nodes that reference this resource
-      const updatedNodes = state.nodes.map(node => {
+      const updatedNodes = currentNodes.map(node => {
           if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
              const updatedResource = updatedResources.find(r => r.id === id);
              if (updatedResource) {
@@ -253,14 +332,17 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
       return {
           resources: updatedResources,
-          nodes: updatedNodes
+          tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
       };
   }),
   deleteResource: (id) => set((state) => {
        const resources = state.resources.filter((r) => r.id !== id);
        const fallbackResource = resources.length > 0 ? resources[0] : null;
+       const activeTab = getActiveTabFrom(state);
+       const currentNodes = activeTab?.nodes ?? [];
+       const currentEdges = activeTab?.edges ?? [];
 
-       const newNodes = state.nodes.map(node => {
+       const newNodes = currentNodes.map(node => {
            if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
                return {
                    ...node,
@@ -268,35 +350,26 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                        ...node.data,
                        referenceId: fallbackResource ? fallbackResource.id : undefined,
                        infoValue: fallbackResource ? fallbackResource.name : 'None',
-                       // Resetting infoType to fallback type might be good too if we were storing it, 
-                       // but currently we derive it in recalculateGameState or use referenceId.
                    }
                };
            }
-           // Resource Nodes themselves checking referenceId? 
-           // Technically resource nodes also use referenceId.
            if (node.type === 'resource' && node.data.referenceId === id) {
-                // If the resource node is pointing to the deleted resource, what should happen?
-                // Probably should be deleted or show error. 
-                // Existing logic deleted them. Let's keep deleting Resource Nodes that point to it,
-                // BUT Element Nodes should be reassigned.
-                return null; 
+                return null;
            }
            return node;
        }).filter((n): n is ScenarioNode => n !== null);
-       
+
        const validIds = new Set(newNodes.map(n => n.id));
-       const newEdges = state.edges.filter(e => validIds.has(e.source) && validIds.has(e.target));
+       const newEdges = currentEdges.filter(e => validIds.has(e.source) && validIds.has(e.target));
 
       return {
           resources,
-          nodes: newNodes,
-          edges: newEdges
+          tabs: withActiveTab(state, () => ({ nodes: newNodes, edges: newEdges })),
       };
   }),
 
   selectedNodeId: null,
-  
+
   // Settings
   language: initialStoredState?.language || 'ja',
   setLanguage: (lang) => set({ language: lang }),
@@ -304,19 +377,21 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   setTheme: (theme) => set({ theme }),
   edgeType: initialStoredState?.edgeType || 'default',
   setEdgeType: (type) => {
-      const { edges } = get();
+      const state = get();
+      const activeTab = getActiveTabFrom(state);
+      const currentEdges = activeTab?.edges ?? [];
       // Exclude sticky note edges from the update
-      const updatedEdges = edges.map(edge => {
+      const updatedEdges = currentEdges.map(edge => {
           if (edge.targetHandle === 'sticky-target') return edge;
           return { ...edge, type };
       });
-      set({ edgeType: type, edges: updatedEdges });
+      set({ edgeType: type, tabs: withActiveTab(state, () => ({ edges: updatedEdges })) });
   },
-  
+
   // History Implementation
   past: [],
   future: [],
-  
+
   pushHistory: () => {
       // First call in the debounce window: take a snapshot now. Subsequent
       // calls within the window only refresh the timer so we don't take a
@@ -325,21 +400,20 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // which matches typical user expectation.
       if (_pushHistoryWindowOpen) {
           if (_pushHistoryTimer !== null) clearTimeout(_pushHistoryTimer);
-          _pushHistoryTimer = window.setTimeout(() => {
+          _pushHistoryTimer = setTimeout(() => {
               _pushHistoryWindowOpen = false;
               _pushHistoryTimer = null;
           }, PUSH_HISTORY_DEBOUNCE_MS);
           return;
       }
 
-      const { nodes, edges, gameState, past } = get();
-      // Deep copy to avoid reference issues. structuredClone is several
-      // times faster than JSON.parse(JSON.stringify(...)) and preserves
-      // additional types (Map, Set, Date, etc).
+      const { tabs, activeTabId, gameState, past } = get();
+      // Deep copy to avoid reference issues. Use JSON serialization as
+      // structuredClone may not handle React Flow's Node type cleanly.
       const snapshot = {
-          nodes: structuredClone(nodes),
-          edges: structuredClone(edges),
-          gameState: structuredClone(gameState),
+          tabs: JSON.parse(JSON.stringify(tabs)),
+          activeTabId,
+          gameState: JSON.parse(JSON.stringify(gameState)),
       };
 
       const newPast = [...past, snapshot].slice(-50); // Limit history
@@ -347,53 +421,56 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
       _pushHistoryWindowOpen = true;
       if (_pushHistoryTimer !== null) clearTimeout(_pushHistoryTimer);
-      _pushHistoryTimer = window.setTimeout(() => {
+      _pushHistoryTimer = setTimeout(() => {
           _pushHistoryWindowOpen = false;
           _pushHistoryTimer = null;
       }, PUSH_HISTORY_DEBOUNCE_MS);
   },
 
   undo: () => {
-      const { past, future, nodes, edges, gameState } = get();
+      const { past, future, tabs, activeTabId, gameState } = get();
       if (past.length === 0) return;
-      
+
       const previous = past[past.length - 1];
       const newPast = past.slice(0, -1);
-      
+
       set({
-          nodes: previous.nodes,
-          edges: previous.edges,
+          tabs: previous.tabs,
+          activeTabId: previous.activeTabId,
           gameState: previous.gameState,
           past: newPast,
-          future: [{ nodes, edges, gameState }, ...future]
+          future: [{ tabs, activeTabId, gameState }, ...future]
       });
   },
 
   redo: () => {
-      const { past, future, nodes, edges, gameState } = get();
+      const { past, future, tabs, activeTabId, gameState } = get();
       if (future.length === 0) return;
 
       const next = future[0];
       const newFuture = future.slice(1);
 
       set({
-          nodes: next.nodes,
-          edges: next.edges,
+          tabs: next.tabs,
+          activeTabId: next.activeTabId,
           gameState: next.gameState,
-          past: [...past, { nodes, edges, gameState }],
+          past: [...past, { tabs, activeTabId, gameState }],
           future: newFuture
       });
   },
 
   onNodesChange: (changes: NodeChange[]) => {
     const state = get();
-    
+    const activeTab = getActiveTabFrom(state);
+    const currentNodes = activeTab?.nodes ?? [];
+    const currentEdges = activeTab?.edges ?? [];
+
     // Filter changes if in Play Mode
     let validChanges = changes;
     if (state.mode === 'play') {
         validChanges = changes.filter(change => {
             if (change.type === 'position' || change.type === 'dimensions') {
-                 const node = state.nodes.find(n => n.id === change.id);
+                 const node = currentNodes.find(n => n.id === change.id);
                  if (node && node.type !== 'sticky') {
                      return false; // Prevent movement for non-sticky nodes in Play Mode
                  }
@@ -403,12 +480,12 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     }
 
     // Sticky Note Following Logic (using filtered changes)
-    const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
+    const nodeMap = new Map(currentNodes.map(n => [n.id, n]));
     const stickyUpdates = new Map<string, {x: number, y: number}>();
-    
+
     // Helper to find all descendant IDs
     const getDescendants = (parentId: string): string[] => {
-        const children = state.nodes.filter(n => n.parentNode === parentId);
+        const children = currentNodes.filter(n => n.parentNode === parentId);
         let descendants: string[] = children.map(c => c.id);
         children.forEach(c => {
             descendants = [...descendants, ...getDescendants(c.id)];
@@ -423,13 +500,13 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
             if (oldNode && oldNode.type !== 'sticky') {
                 const dx = change.position.x - oldNode.position.x;
                 const dy = change.position.y - oldNode.position.y;
-                
+
                 if (dx !== 0 || dy !== 0) {
                      // Determine all nodes affected by this move (self + descendants)
                      const affectedNodeIds = [change.id, ...getDescendants(change.id)];
-                     
+
                      // Find stickies attached to ANY of these nodes
-                     state.nodes.forEach(n => {
+                     currentNodes.forEach(n => {
                          if (n.type === 'sticky' && n.data.targetNodeId && affectedNodeIds.includes(n.data.targetNodeId)) {
                             // Only move if not selected (to avoid double movement if both selected)
                             if (!n.selected) {
@@ -447,9 +524,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                                 }
                                 if (isDescendant) return;
 
-                                stickyUpdates.set(n.id, { 
-                                    x: n.position.x + dx, 
-                                    y: n.position.y + dy 
+                                stickyUpdates.set(n.id, {
+                                    x: n.position.x + dx,
+                                    y: n.position.y + dy
                                 });
                             }
                          }
@@ -460,8 +537,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     });
 
     // 1. Apply all changes
-    let nodesAfterChanges = applyNodeChanges(validChanges, state.nodes);
-    
+    let nodesAfterChanges = applyNodeChanges(validChanges, currentNodes);
+
     // Apply sticky updates
     if (stickyUpdates.size > 0) {
         nodesAfterChanges = nodesAfterChanges.map(n => {
@@ -471,23 +548,16 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
             return n;
         });
     }
-    
+
     // 2. Safety Check & Cascade Deletion
-    // Step A: Identify valid non-orphan nodes
-    // We do this by checking parent existence. Iterate until stable or just once?
-    // ReactFlow structure is usually flat list with parentNode pointers.
-    // If we filter once, we might miss grandchildren if order is wrong? 
-    // Actually, we should check against the *resulting* set of IDs.
-    
-    // First, map available IDs
-    let currentNodes = nodesAfterChanges;
+    let currentNodesResult = nodesAfterChanges;
     let previousCount = -1;
-    
+
     // Iteratively remove orphans until no more are removed (handles deep nesting)
-    while (currentNodes.length !== previousCount) {
-        previousCount = currentNodes.length;
-        const nodeIds = new Set(currentNodes.map(n => n.id));
-        currentNodes = currentNodes.filter(n => {
+    while (currentNodesResult.length !== previousCount) {
+        previousCount = currentNodesResult.length;
+        const nodeIds = new Set(currentNodesResult.map(n => n.id));
+        currentNodesResult = currentNodesResult.filter(n => {
             if (n.parentNode && !nodeIds.has(n.parentNode)) {
                 return false; // Remove orphan
             }
@@ -496,8 +566,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     }
 
     // Step B: Remove Stickies connected to removed nodes
-    const validNodeIds = new Set(currentNodes.map(n => n.id));
-    currentNodes = currentNodes.filter(n => {
+    const validNodeIds = new Set(currentNodesResult.map(n => n.id));
+    currentNodesResult = currentNodesResult.filter(n => {
         if (n.type === 'sticky' && n.data.targetNodeId) {
             // If target node is not among the valid nodes, delete the sticky
             if (!validNodeIds.has(n.data.targetNodeId)) {
@@ -508,12 +578,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     });
 
     // 3. Update group sizes for moved or resized nodes.
-    // Collect affected group ids in a Set so a single drag (which fires many
-    // position changes per frame) triggers updateGroupSize at most once per
-    // group per animation frame via rAF throttling.
-    const finalNodeIds = new Set(currentNodes.map(n => n.id));
+    const finalNodeIds = new Set(currentNodesResult.map(n => n.id));
     const affectedGroupIds = new Set<string>();
-    const finalNodeIndex = new Map(currentNodes.map(n => [n.id, n]));
+    const finalNodeIndex = new Map(currentNodesResult.map(n => [n.id, n]));
     for (const change of validChanges) {
         const isDim = change.type === 'dimensions';
         const isPos = change.type === 'position' && change.position;
@@ -532,22 +599,18 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         _groupSizeRafIds.set(gid, rafId);
     }
 
-    // 4. Cleanup Edges connected to removed nodes. Only walk edges if the
-    // node set actually shrank (orphan removal); otherwise the existing
-    // edges array reference is reusable and we save an O(E) filter every
-    // tick.
-    let cleanEdges = state.edges;
-    if (currentNodes.length !== state.nodes.length) {
-        const finalNodeIdSet = new Set(currentNodes.map(n => n.id));
-        cleanEdges = state.edges.filter(e => finalNodeIdSet.has(e.source) && finalNodeIdSet.has(e.target));
+    // 4. Cleanup Edges connected to removed nodes.
+    let cleanEdges = currentEdges;
+    if (currentNodesResult.length !== currentNodes.length) {
+        const finalNodeIdSet = new Set(currentNodesResult.map(n => n.id));
+        cleanEdges = currentEdges.filter(e => finalNodeIdSet.has(e.source) && finalNodeIdSet.has(e.target));
     }
 
-    set({ nodes: currentNodes, edges: cleanEdges });
+    set({ tabs: withActiveTab(state, () => ({ nodes: currentNodesResult, edges: cleanEdges })) });
 
     // recalculateGameState walks every node twice. Skip it for pure mid-drag
     // streams (select + dragging:true position), which can never affect
-    // derived game state. Programmatic moves, dimension updates, drag
-    // settle (dragging:false), add/remove/reset all still trigger recalc.
+    // derived game state.
     const isMidDragOnly = validChanges.length > 0 && validChanges.every(c =>
         c.type === 'select' ||
         (c.type === 'position' && c.dragging === true)
@@ -557,29 +620,42 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     }
   },
   onEdgesChange: (changes: EdgeChange[]) => {
+    const state = get();
+    const activeTab = getActiveTabFrom(state);
+    const currentEdges = activeTab?.edges ?? [];
     set({
-      edges: applyEdgeChanges(changes, get().edges),
+      tabs: withActiveTab(state, () => ({ edges: applyEdgeChanges(changes, currentEdges) })),
     });
   },
   onConnect: (connection: Connection) => {
     get().pushHistory();
-    const { edgeType } = get();
+    const state = get();
+    const activeTab = getActiveTabFrom(state);
+    const currentEdges = activeTab?.edges ?? [];
+    const { edgeType } = state;
     set({
-      edges: addEdge({ ...connection, type: edgeType, markerEnd: { type: MarkerType.ArrowClosed } }, get().edges),
+      tabs: withActiveTab(state, () => ({
+        edges: addEdge({ ...connection, type: edgeType, markerEnd: { type: MarkerType.ArrowClosed } }, currentEdges),
+      })),
     });
   },
   onReconnect: (oldEdge: ScenarioEdge, newConnection: Connection) => {
     get().pushHistory();
+    const state = get();
+    const activeTab = getActiveTabFrom(state);
+    const currentEdges = activeTab?.edges ?? [];
     set({
-      edges: reconnectEdge(oldEdge, newConnection, get().edges),
+      tabs: withActiveTab(state, () => ({
+        edges: reconnectEdge(oldEdge, newConnection, currentEdges),
+      })),
     });
   },
   addNode: (node: ScenarioNode) => {
     get().pushHistory();
-    
+
     let nodeToAdd = node;
     const state = get();
-    
+
     // Auto-assign variable for new Variable nodes
     if (node.type === 'variable' && !node.data.targetVariable) {
         const variableNames = Object.keys(state.gameState.variables);
@@ -594,21 +670,30 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         }
     }
 
-    set({ nodes: [...state.nodes, nodeToAdd] });
+    const activeTab = getActiveTabFrom(state);
+    const currentNodes = activeTab?.nodes ?? [];
+    set({ tabs: withActiveTab(state, () => ({ nodes: [...currentNodes, nodeToAdd] })) });
     get().recalculateGameState();
   },
   updateNodeData: (id: string, data: any) => {
     get().pushHistory();
+    const state = get();
+    const activeTab = getActiveTabFrom(state);
+    const currentNodes = activeTab?.nodes ?? [];
     set({
-      nodes: get().nodes.map((node) =>
-        node.id === id ? { ...node, data: { ...node.data, ...data } } : node
-      ),
+      tabs: withActiveTab(state, () => ({
+        nodes: currentNodes.map((node) =>
+          node.id === id ? { ...node, data: { ...node.data, ...data } } : node
+        ),
+      })),
     });
     get().recalculateGameState();
   },
   duplicateNodes: (nodesToDuplicate: ScenarioNode[]) => {
       get().pushHistory();
       const state = get();
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
       const newIds: string[] = [];
       const newNodes: ScenarioNode[] = [];
 
@@ -628,10 +713,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       });
 
       // Deselect all existing nodes
-      const updatedExistingNodes = state.nodes.map(n => ({ ...n, selected: false }));
-      
-      set({ 
-          nodes: [...updatedExistingNodes, ...newNodes],
+      const updatedExistingNodes = currentNodes.map(n => ({ ...n, selected: false }));
+
+      set({
+          tabs: withActiveTab(state, () => ({ nodes: [...updatedExistingNodes, ...newNodes] })),
           selectedNodeId: newIds.length > 0 ? newIds[newIds.length - 1] : state.selectedNodeId
       });
       get().recalculateGameState();
@@ -640,20 +725,22 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   deleteNodes: (nodeIds: string[]) => {
       get().pushHistory();
       const state = get();
-      
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const currentEdges = activeTab?.edges ?? [];
+
       // Recursively find all descendants to ensure we don't leave orphans
       const idsToDelete = new Set(nodeIds);
       let changed = true;
       while (changed) {
           changed = false;
-          state.nodes.forEach(node => {
+          currentNodes.forEach(node => {
               // 1. Delete descendants
               if (node.parentNode && idsToDelete.has(node.parentNode) && !idsToDelete.has(node.id)) {
                   idsToDelete.add(node.id);
                   changed = true;
               }
               // 2. Delete JumpNodes that target deleted nodes
-              // TODO(Task 5.x): Update for {tabId,nodeId} object form (string narrow is transitional)
               if (node.type === 'jump' && typeof node.data.jumpTarget === 'string' && idsToDelete.has(node.data.jumpTarget) && !idsToDelete.has(node.id)) {
                   idsToDelete.add(node.id);
                   changed = true;
@@ -669,27 +756,47 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               }
           });
       }
-      
-      // Filter out nodes
-      const remainingNodes = state.nodes.filter(n => !idsToDelete.has(n.id));
-      
-      // Filter out edges connected to deleted nodes
-      const remainingEdges = state.edges.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target));
 
-      set({ nodes: remainingNodes, edges: remainingEdges });
+      // Filter out nodes
+      const remainingNodes = currentNodes.filter(n => !idsToDelete.has(n.id));
+
+      // Filter out edges connected to deleted nodes
+      const remainingEdges = currentEdges.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target));
+
+      set({ tabs: withActiveTab(state, () => ({ nodes: remainingNodes, edges: remainingEdges })) });
       get().recalculateGameState();
   },
   loadScenario: (data) => {
-       const { nodes, edges, gameState, characters, resources, edgeType } = data as any; // Type assertion to allow new props
-              // ノードから一時的なプロパティを削除（dragging, selectedのみ）
-        const cleanedNodes = (nodes || []).map((node: any) => {
-          const { dragging, selected, ...cleanNode } = node;
-          return cleanNode;
-        });
-        
-       set({ 
-           nodes: cleanedNodes, 
-           edges: edges || [], 
+       const { gameState, characters, resources, edgeType } = data as any;
+
+       // Detect format and migrate if needed
+       let tabs: Tab[];
+       let activeTabId: string;
+
+       if (data.tabs && Array.isArray(data.tabs)) {
+           // New tabbed format
+           tabs = data.tabs;
+           activeTabId = data.activeTabId ?? data.tabs[0]?.id;
+       } else {
+           // Legacy format: nodes/edges at top level
+           const { nodes, edges } = data as any;
+           const cleanedNodes = (nodes || []).map((node: any) => {
+             const { dragging, selected, ...cleanNode } = node;
+             return cleanNode;
+           });
+           const tabId = generateTabId();
+           tabs = [{
+               id: tabId,
+               name: 'タブ 1',
+               nodes: cleanedNodes,
+               edges: edges || [],
+           }];
+           activeTabId = tabId;
+       }
+
+       set({
+           tabs,
+           activeTabId,
            gameState: gameState || {
               currentNodes: [],
               revealedNodes: [],
@@ -703,10 +810,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
            characters: characters || [],
            resources: resources || [],
            edgeType: edgeType || 'default',
-           past: [], 
-           future: [] 
+           past: [],
+           future: []
        });
-       
+
        // After loading, apply mode-specific behavior
        const currentMode = get().mode;
        if (currentMode === 'play') {
@@ -716,34 +823,37 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
   setMode: (mode) => {
       const state = get();
-       const updatedNodes = state.nodes.map(n => ({
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => ({
            ...n,
-           // Enable draggable for ALL nodes in both modes to mimic Edit Mode interaction (prevents double-tap zoom),
-           // but we will restrict actual movement in onNodesChange for Play Mode.
-           draggable: true 
+           draggable: true
        }));
-      set({ mode, nodes: updatedNodes });
+      set({ mode, tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
-  
+
   addSticky: (targetNodeId, position) => {
       const state = get();
       state.pushHistory();
       const id = `sticky-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const currentEdges = activeTab?.edges ?? [];
+
       const newNode: ScenarioNode = {
           id,
           type: 'sticky',
           position,
-          data: { 
-              label: 'Sticky Note', 
+          data: {
+              label: 'Sticky Note',
               targetNodeId,
           },
-          draggable: true, // Always draggable
+          draggable: true,
           width: 180,
-          zIndex: 2001, // Ensure sticky is above the edge (2000)
+          zIndex: 2001,
       };
-      
-      let newEdges = state.edges;
+
+      let newEdges = currentEdges;
       if (targetNodeId) {
           // Create solid straight connection edge
           const newEdge: ScenarioEdge = {
@@ -753,69 +863,76 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               target: id,
               targetHandle: 'sticky-target',
               type: 'sticky',
-              zIndex: 2000, // Ensure line is above other nodes
-              style: { stroke: 'rgba(217, 119, 6, 0.5)', strokeWidth: 2 }, // Amber-600/50
-              markerEnd: { type: MarkerType.ArrowClosed, width: 0, height: 0, color: 'transparent' }, // Hide arrow
+              zIndex: 2000,
+              style: { stroke: 'rgba(217, 119, 6, 0.5)', strokeWidth: 2 },
+              markerEnd: { type: MarkerType.ArrowClosed, width: 0, height: 0, color: 'transparent' },
               animated: false,
           };
           newEdges = [...newEdges, newEdge];
       }
-      
-      set({ nodes: [...state.nodes, newNode], edges: newEdges });
+
+      set({ tabs: withActiveTab(state, () => ({ nodes: [...currentNodes, newNode], edges: newEdges })) });
       get().recalculateGameState();
   },
 
   toggleStickies: (parentNodeId) => {
       const state = get();
       state.pushHistory();
-      
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+
       // Check current state of first sticky to toggle
-      const stickies = state.nodes.filter(n => n.type === 'sticky' && n.data.targetNodeId === parentNodeId);
+      const stickies = currentNodes.filter(n => n.type === 'sticky' && n.data.targetNodeId === parentNodeId);
       if (stickies.length === 0) return;
-      
+
       // If any is visible, hide all. If all hidden, show all.
       const anyVisible = stickies.some(n => !n.hidden);
-      const newHiddenState = anyVisible; 
-      
-      const updatedNodes = state.nodes.map(n => {
+      const newHiddenState = anyVisible;
+
+      const updatedNodes = currentNodes.map(n => {
           if (n.type === 'sticky' && n.data.targetNodeId === parentNodeId) {
               return { ...n, hidden: newHiddenState };
           }
           return n;
       });
-      
-      set({ nodes: updatedNodes });
+
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
 
   deleteStickies: (parentNodeId) => {
       const state = get();
-      state.pushHistory(); // Assuming we want undo support
-      const stickies = state.nodes.filter(n => n.type === 'sticky' && n.data.targetNodeId === parentNodeId);
+      state.pushHistory();
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const stickies = currentNodes.filter(n => n.type === 'sticky' && n.data.targetNodeId === parentNodeId);
       if (stickies.length > 0) {
           get().deleteNodes(stickies.map(n => n.id));
       }
   },
 
-
-
-
   showAllStickies: () => {
       const state = get();
       state.pushHistory();
-      const updatedNodes = state.nodes.map(n => n.type === 'sticky' ? { ...n, hidden: false } : n);
-      set({ nodes: updatedNodes });
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => n.type === 'sticky' ? { ...n, hidden: false } : n);
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
 
   hideAllStickies: () => {
       const state = get();
       state.pushHistory();
-      const updatedNodes = state.nodes.map(n => n.type === 'sticky' ? { ...n, hidden: true } : n);
-      set({ nodes: updatedNodes });
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => n.type === 'sticky' ? { ...n, hidden: true } : n);
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
 
   deleteAllStickiesGlobal: () => {
       const state = get();
-      const stickies = state.nodes.filter(n => n.type === 'sticky');
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const stickies = currentNodes.filter(n => n.type === 'sticky');
       if (stickies.length > 0) {
           get().deleteNodes(stickies.map(n => n.id));
       }
@@ -824,20 +941,26 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   showAllFreeStickies: () => {
       const state = get();
       state.pushHistory();
-      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: false } : n);
-      set({ nodes: updatedNodes });
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: false } : n);
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
-  
+
   hideAllFreeStickies: () => {
       const state = get();
       state.pushHistory();
-      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: true } : n);
-      set({ nodes: updatedNodes });
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: true } : n);
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
-  
+
   deleteAllFreeStickies: () => {
       const state = get();
-      const stickies = state.nodes.filter(n => n.type === 'sticky' && !n.data.targetNodeId);
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const stickies = currentNodes.filter(n => n.type === 'sticky' && !n.data.targetNodeId);
       if (stickies.length > 0) {
           get().deleteNodes(stickies.map(n => n.id));
       }
@@ -846,20 +969,26 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   showAllNodeStickies: () => {
       const state = get();
       state.pushHistory();
-      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: false } : n);
-      set({ nodes: updatedNodes });
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: false } : n);
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
-  
+
   hideAllNodeStickies: () => {
       const state = get();
       state.pushHistory();
-      const updatedNodes = state.nodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: true } : n);
-      set({ nodes: updatedNodes });
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: true } : n);
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
-  
+
   deleteAllNodeStickies: () => {
       const state = get();
-      const stickies = state.nodes.filter(n => n.type === 'sticky' && n.data.targetNodeId);
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const stickies = currentNodes.filter(n => n.type === 'sticky' && n.data.targetNodeId);
       if (stickies.length > 0) {
           get().deleteNodes(stickies.map(n => n.id));
       }
@@ -868,8 +997,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   hideSticky: (stickyId) => {
       const state = get();
       state.pushHistory();
-      const updatedNodes = state.nodes.map(n => n.id === stickyId ? { ...n, hidden: true } : n);
-      set({ nodes: updatedNodes });
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => n.id === stickyId ? { ...n, hidden: true } : n);
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
 
   setSelectedNode: (idOrIds: string | string[] | null) => {
@@ -889,34 +1020,36 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           idsToSelect = new Set();
       }
 
-      const updatedNodes = state.nodes.map(n => ({
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => ({
           ...n,
           selected: idsToSelect.has(n.id)
       }));
-      
-      set({ 
+
+      set({
           selectedNodeId: primaryId,
-          nodes: updatedNodes
+          tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
       });
   },
-
-
-
 
   addVariable: (name, type, initialValue) => {
     get().pushHistory();
     const state = get();
-    
+
     // Security check: Prevent reserved words
     if (name === '__proto__' || name === 'constructor' || name === 'prototype') {
         console.error('Reserved variable name:', name);
         return;
     }
-    
+
     if (state.gameState.variables[name]) return; // Already exists
-    
+
+    const activeTab = getActiveTabFrom(state);
+    const currentNodes = activeTab?.nodes ?? [];
+
     // Auto-assign to unassigned variable nodes
-    const updatedNodes = state.nodes.map(node => {
+    const updatedNodes = currentNodes.map(node => {
         if (node.type === 'variable' && !node.data.targetVariable) {
             return {
                 ...node,
@@ -927,7 +1060,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     });
 
     set({
-      nodes: updatedNodes,
+      tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
       gameState: {
         ...state.gameState,
         variables: {
@@ -952,7 +1085,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
     if (!isValid) {
         console.error(`Invalid type for variable ${name}. Expected ${variable.type}, got ${typeof value}`);
-        return; 
+        return;
     }
 
     set({
@@ -969,12 +1102,14 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   batchRenameVariables: (renames: Record<string, string>) => {
       const state = get();
       const variables = { ...state.gameState.variables };
-      let updatedNodes = [...state.nodes];
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      let updatedNodes = [...currentNodes];
       let hasChanges = false;
 
       Object.entries(renames).forEach(([oldName, newName]) => {
           if (oldName === newName || !variables[oldName]) return;
-          
+
           // Security check
           if (newName === '__proto__' || newName === 'constructor' || newName === 'prototype') return;
 
@@ -997,11 +1132,11 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               newData.description = replaceRef(newData.description);
               newData.infoValue = replaceRef(newData.infoValue);
               newData.conditionValue = replaceRef(newData.conditionValue);
-              
+
               if (newData.conditionValue === oldName) {
                   newData.conditionValue = newName;
               }
-              
+
               // Update targetVariable and variableValue for VariableNodes
               if (newData.targetVariable === oldName) {
                   newData.targetVariable = newName;
@@ -1010,7 +1145,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
               // Update Switch cases
               if (newData.branches) {
-                  newData.branches = newData.branches.map(b => ({
+                  newData.branches = newData.branches.map((b: any) => ({
                       ...b,
                       label: replaceRef(b.label) || b.label
                   }));
@@ -1021,8 +1156,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       });
 
       if (hasChanges) {
-          set({ 
-              nodes: updatedNodes,
+          set({
+              tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
               gameState: { ...state.gameState, variables }
           });
       }
@@ -1045,11 +1180,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           if (variables[newName]) return; // Name collision
           delete variables[oldName];
           variables[newName] = { ...variable, name: newName, type: newType };
-          
+
           // Helper to replace [val=OLD] with [val=NEW]
           const replaceRef = (text?: string) => {
               if (!text) return text;
-              // Escape special characters in oldName for regex
               const escapedOldName = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
               const regex = new RegExp(`\\$\\{${escapedOldName}\\}`, 'g');
               return text.replace(regex, `\${${newName}}`);
@@ -1066,20 +1200,22 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               }
           });
 
+          const activeTab = getActiveTabFrom(state);
+          const currentNodes = activeTab?.nodes ?? [];
+
           // Refactor references in nodes
-          const updatedNodes = state.nodes.map(node => {
+          const updatedNodes = currentNodes.map(node => {
               const newData = { ...node.data };
-              
+
               newData.label = replaceRef(newData.label) || '';
               newData.description = replaceRef(newData.description);
               newData.infoValue = replaceRef(newData.infoValue);
               newData.conditionValue = replaceRef(newData.conditionValue);
-              
-              // Also check direct usage in conditionValue if it matches the variable name exactly (for switch/check)
+
               if (newData.conditionValue === oldName) {
                   newData.conditionValue = newName;
               }
-              
+
               // Update targetVariable and variableValue for VariableNodes
               if (newData.targetVariable === oldName) {
                   newData.targetVariable = newName;
@@ -1088,7 +1224,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
               // Update Switch cases
               if (newData.branches) {
-                  newData.branches = newData.branches.map(b => ({
+                  newData.branches = newData.branches.map((b: any) => ({
                       ...b,
                       label: replaceRef(b.label) || b.label
                   }));
@@ -1096,20 +1232,11 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
               return { ...node, data: newData };
           });
-          
-          set({ 
-              nodes: updatedNodes,
+
+          set({
+              tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
               gameState: { ...state.gameState, variables }
           });
-      } else {
-          // Just type change - DISALLOWED by user request
-          // "Variables cannot change type after creation"
-          // So we do nothing here or revert?
-          // The UI should prevent this, but we can enforce it here.
-          // variables[oldName] = { ...variable, type: newType };
-          // set({ 
-          //     gameState: { ...state.gameState, variables }
-          // });
       }
   },
 
@@ -1119,7 +1246,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     const newVariables = { ...state.gameState.variables };
     delete newVariables[name];
 
-    const updatedNodes = state.nodes.map(node => {
+    const activeTab = getActiveTabFrom(state);
+    const currentNodes = activeTab?.nodes ?? [];
+
+    const updatedNodes = currentNodes.map(node => {
         if (node.type === 'variable' && node.data.targetVariable === name) {
             return {
                 ...node,
@@ -1133,21 +1263,23 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     });
 
     set({
-      nodes: updatedNodes,
+      tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
       gameState: {
         ...state.gameState,
         variables: newVariables
       }
     });
   },
-  
+
   resetGame: () => {
     const state = get();
+    const activeTab = getActiveTabFrom(state);
+    const currentNodes = activeTab?.nodes ?? [];
     // Unreveal all nodes
-    const updatedNodes = state.nodes.map(n => ({ ...n, data: { ...n.data, revealed: false } }));
-    
+    const updatedNodes = currentNodes.map(n => ({ ...n, data: { ...n.data, revealed: false } }));
+
     set({
-        nodes: updatedNodes,
+        tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
         gameState: {
             currentNodes: [],
             revealedNodes: [],
@@ -1156,23 +1288,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
             knowledge: {},
             skills: {},
             stats: {},
-            // Preserve variables but reset values? 
-            // For now, we keep behavior of wiping, but user might want to keep definitions.
-            // If we want to keep definitions, we should copy them.
-            // But 'resetGame' usually implies full reset.
-            // However, variables are created in Edit mode. Resetting game shouldn't delete them from Edit mode?
-            // Actually, variables are part of GameState. If we wipe GameState, we wipe variables.
-            // This seems to be a flaw in the original design or my understanding.
-            // If variables are part of the "Scenario Definition", they should be separate from "Runtime State".
-            // But here they are mixed.
-            // I will try to preserve variable definitions but reset values if possible, or just wipe for now as per original.
-            // Wait, if I wipe them, the Sidebar VariableList will be empty!
-            // That's bad.
-            // I should PRESERVE variables but reset their values?
-            // Or just leave them alone?
-            // If I leave them alone, they keep their modified values.
-            // I'll preserve them for now to avoid deleting user work.
-            variables: state.gameState.variables, 
+            variables: state.gameState.variables,
         }
     });
     get().recalculateGameState();
@@ -1180,6 +1296,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
   recalculateGameState: () => {
       const state = get();
+      // Walk all tabs' nodes — gameState is global across tabs
+      const allNodes = state.tabs.flatMap((t) => t.nodes);
       const newInventory: Record<string, number> = {};
       const newEquipment: Record<string, number> = {};
       const newKnowledge: Record<string, number> = {};
@@ -1187,17 +1305,16 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       const newStats: Record<string, number> = {};
 
       // 1. Scan all Element nodes to populate keys (init 0)
-      state.nodes.forEach(node => {
+      allNodes.forEach(node => {
           if (node.type === 'element' || node.type === 'information') {
               let type: string = node.data.infoType || 'knowledge';
               let name = node.data.infoValue;
-              
+
               // Resolve from resource if available
               if (node.type === 'element' && node.data.referenceId) {
                  const res = state.resources.find(r => r.id === node.data.referenceId);
                  if (res) {
                      name = res.name;
-                     // Map ResourceType to GameState keys
                      switch(res.type) {
                          case 'Item': type = 'item'; break;
                          case 'Equipment': type = 'equipment'; break;
@@ -1226,7 +1343,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       });
 
       // 2. Scan revealed nodes to update quantities
-      state.nodes.forEach(node => {
+      allNodes.forEach(node => {
           if (node.data.revealed && (node.type === 'element' || node.type === 'information')) {
                let type: string = node.data.infoType || 'knowledge';
                let name = node.data.infoValue;
@@ -1248,14 +1365,14 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                      }
                  }
               }
-              
+
               if (name) {
                   let collection = newKnowledge;
                   if (type === 'item') collection = newInventory;
                   else if (type === 'equipment') collection = newEquipment;
                   else if (type === 'skill') collection = newSkills;
                   else if (type === 'stat') collection = newStats;
-                  
+
                   if (action === 'obtain') {
                       collection[name] = (collection[name] || 0) + quantity;
                   } else if (action === 'consume') {
@@ -1265,22 +1382,24 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           }
       });
 
-      // 3. Update sticky status on nodes
+      // 3. Update sticky status on nodes (only within active tab)
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
       const stickyTargets = new Set<string>();
-      state.nodes.forEach(n => {
+      currentNodes.forEach(n => {
           if (n.type === 'sticky' && n.data.targetNodeId) {
               stickyTargets.add(n.data.targetNodeId);
           }
       });
-      
-      const newNodes = state.nodes.map(n => {
+
+      const newNodes = currentNodes.map(n => {
           const hasSticky = stickyTargets.has(n.id);
           if (n.data.hasSticky !== hasSticky) {
-             return { ...n, data: { ...n.data, hasSticky } }; 
+             return { ...n, data: { ...n.data, hasSticky } };
           }
           return n;
       });
-      
+
       const updates: Partial<ScenarioState> = {
           gameState: {
               ...state.gameState,
@@ -1291,10 +1410,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               stats: newStats
           }
       };
-      
-      const hasNodeChanges = newNodes.some((n, i) => n !== state.nodes[i]);
+
+      const hasNodeChanges = newNodes.some((n, i) => n !== currentNodes[i]);
       if (hasNodeChanges) {
-          updates.nodes = newNodes;
+          updates.tabs = withActiveTab(state, () => ({ nodes: newNodes }));
       }
 
       set(updates);
@@ -1303,9 +1422,11 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   revealAll: () => {
       get().pushHistory();
       const state = get();
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
       let newVariables = { ...state.gameState.variables };
-      
-      const updatedNodes = state.nodes.map(node => {
+
+      const updatedNodes = currentNodes.map(node => {
           if (node.data.revealed) return node;
 
           let updatedData = { ...node.data, revealed: true };
@@ -1314,19 +1435,16 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           if (node.type === 'variable') {
               const targetVar = node.data.targetVariable;
               const valueExpr = node.data.variableValue;
-              
+
               if (targetVar && newVariables[targetVar]) {
                   const currentVar = newVariables[targetVar];
                   updatedData.previousValue = currentVar.value;
-                  
+
                   let newValue: any = valueExpr;
-                  
-                  // Use evaluateFormula for robust substitution and calculation
+
                   if (typeof valueExpr === 'string') {
-                      // We need to pass the *current* state of variables for evaluation.
-                      // Since we are iterating, we should use newVariables which accumulates changes.
                       const resolvedValue = evaluateFormula(valueExpr, newVariables);
-                      
+
                       if (currentVar.type === 'number') {
                           const num = Number(resolvedValue);
                           if (!isNaN(num)) newValue = num;
@@ -1336,19 +1454,18 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                           newValue = String(resolvedValue);
                       }
                   } else {
-                      // If it's already a number/boolean in the data (unlikely for input, but possible)
                       newValue = valueExpr;
                   }
 
                   newVariables[targetVar] = { ...currentVar, value: newValue };
               }
           }
-          
+
           return { ...node, data: updatedData };
       });
 
-      set({ 
-          nodes: updatedNodes,
+      set({
+          tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
           gameState: { ...state.gameState, variables: newVariables }
       });
       get().recalculateGameState();
@@ -1357,9 +1474,11 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   unrevealAll: () => {
       get().pushHistory();
       const state = get();
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
       let newVariables = { ...state.gameState.variables };
 
-      const updatedNodes = state.nodes.map(node => {
+      const updatedNodes = currentNodes.map(node => {
           if (!node.data.revealed) return node;
 
           let updatedData = { ...node.data, revealed: false };
@@ -1367,10 +1486,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           // Handle VariableNode logic
           if (node.type === 'variable') {
               const targetVar = node.data.targetVariable;
-              
+
               if (targetVar && newVariables[targetVar]) {
                   const currentVar = newVariables[targetVar];
-                  
+
                   // Restore previous value
                   if (updatedData.previousValue !== undefined) {
                       newVariables[targetVar] = { ...currentVar, value: updatedData.previousValue };
@@ -1383,8 +1502,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           return { ...node, data: updatedData };
       });
 
-      set({ 
-          nodes: updatedNodes,
+      set({
+          tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
           gameState: { ...state.gameState, variables: newVariables }
       });
       get().recalculateGameState();
@@ -1398,7 +1517,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     const state = get();
     state.pushHistory();
 
-    const targetNode = state.nodes.find((n) => n.id === nodeId);
+    const activeTab = getActiveTabFrom(state);
+    const currentNodes = activeTab?.nodes ?? [];
+    const targetNode = currentNodes.find((n) => n.id === nodeId);
     if (!targetNode) return;
 
     const isRevealed = !targetNode.data.revealed;
@@ -1416,10 +1537,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         return descendants;
     };
 
-    const descendants = getDescendants(nodeId, state.nodes);
+    const descendants = getDescendants(nodeId, currentNodes);
     const nodesToUpdate = [targetNode.id, ...descendants];
 
-    const updatedNodes = state.nodes.map(node => {
+    const updatedNodes = currentNodes.map(node => {
         if (!nodesToUpdate.includes(node.id)) return node;
 
         // Skip if state is already matching (to avoid double execution of side effects)
@@ -1431,20 +1552,19 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         if (node.type === 'variable') {
             const targetVar = node.data.targetVariable;
             const valueExpr = node.data.variableValue;
-            
+
             if (targetVar && newVariables[targetVar]) {
                 const currentVar = newVariables[targetVar];
-                
+
                 if (isRevealed) {
                     // Apply: Save previous value and assign new
                     updatedData.previousValue = currentVar.value;
-                    
+
                     let newValue: any = valueExpr;
-                    
+
                     if (typeof valueExpr === 'string') {
-                        // Use current state variables (accumulated changes)
                         const resolvedValue = evaluateFormula(valueExpr, newVariables);
-                        
+
                         if (currentVar.type === 'number') {
                             const num = Number(resolvedValue);
                             if (!isNaN(num)) newValue = num;
@@ -1456,7 +1576,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                     } else {
                         newValue = valueExpr;
                     }
-                    
+
                     newVariables[targetVar] = { ...currentVar, value: newValue };
                 } else {
                     // Revert: Restore previous value
@@ -1467,21 +1587,23 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                 }
             }
         }
-        
+
         return { ...node, data: updatedData };
     });
 
-    set({ 
-        nodes: updatedNodes, 
-        gameState: { ...newGameState, variables: newVariables } 
+    set({
+        tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
+        gameState: { ...newGameState, variables: newVariables }
     });
-    
+
     get().recalculateGameState();
   },
 
   updateNodeStyle: (nodeId: string, style: any) => {
       const state = get();
-      const node = state.nodes.find(n => n.id === nodeId);
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const node = currentNodes.find(n => n.id === nodeId);
       if (!node) return;
 
       // Check if style is actually different
@@ -1490,44 +1612,49 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
       if (hasChanged) {
           set({
-              nodes: state.nodes.map(n => 
-                  n.id === nodeId ? { ...n, style: { ...n.style, ...style } } : n
-              )
+              tabs: withActiveTab(state, () => ({
+                  nodes: currentNodes.map(n =>
+                      n.id === nodeId ? { ...n, style: { ...n.style, ...style } } : n
+                  ),
+              })),
           });
       }
   },
 
   toggleGroup: (nodeId: string) => {
       const state = get();
-      const node = state.nodes.find((n) => n.id === nodeId);
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const currentEdges = activeTab?.edges ?? [];
+      const node = currentNodes.find((n) => n.id === nodeId);
       if (!node || node.type !== 'group') return;
 
       const isExpanded = !!node.data.expanded;
       const willCollapse = isExpanded; // If currently expanded, we are collapsing
-      
-      let updatedEdges = [...state.edges];
+
+      let updatedEdges = [...currentEdges];
 
       if (willCollapse) {
           // Collapsing: Find edges connected to children and create "virtual" edges to the group
-          const childrenIds = state.nodes.filter(n => n.parentNode === nodeId).map(n => n.id);
-          
+          const childrenIds = currentNodes.filter(n => n.parentNode === nodeId).map(n => n.id);
+
           // Find edges where one end is in the group and the other is outside
-          const relevantEdges = state.edges.filter(e => 
+          const relevantEdges = currentEdges.filter(e =>
               (childrenIds.includes(e.source) && !childrenIds.includes(e.target)) ||
               (childrenIds.includes(e.target) && !childrenIds.includes(e.source))
           );
 
           relevantEdges.forEach(edge => {
               const isSourceInGroup = childrenIds.includes(edge.source);
-              
+
               const newEdge: ScenarioEdge = {
                   id: `virtual-${edge.id}`,
                   source: isSourceInGroup ? nodeId : edge.source,
                   target: isSourceInGroup ? edge.target : nodeId,
-                  sourceHandle: isSourceInGroup ? undefined : edge.sourceHandle, // Group handle?
+                  sourceHandle: isSourceInGroup ? undefined : edge.sourceHandle,
                   targetHandle: isSourceInGroup ? edge.targetHandle : undefined,
                   data: { originalEdgeId: edge.id, isVirtual: true },
-                  type: 'default', // or simple bezier
+                  type: 'default',
                   animated: true,
                   style: { strokeDasharray: '5,5' }
               };
@@ -1538,20 +1665,19 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           updatedEdges = updatedEdges.filter(e => !e.data?.isVirtual);
       }
 
-      let updatedNodes = [...state.nodes];
+      let updatedNodes = [...currentNodes];
       const nodeMap = new Map(updatedNodes.map(n => [n.id, { ...n }]));
 
       if (willCollapse) {
           // Collapsing
-          // Recursive function to hide all descendants
           const hideDescendants = (parentId: string) => {
               updatedNodes.forEach(n => {
                   if (n.parentNode === parentId) {
-                      const node = nodeMap.get(n.id);
-                      if (node) {
-                          node.hidden = true;
-                          if (node.type === 'group') {
-                              hideDescendants(node.id);
+                      const nodeItem = nodeMap.get(n.id);
+                      if (nodeItem) {
+                          nodeItem.hidden = true;
+                          if (nodeItem.type === 'group') {
+                              hideDescendants(nodeItem.id);
                           }
                       }
                   }
@@ -1561,94 +1687,83 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           const targetNode = nodeMap.get(nodeId);
           if (targetNode) {
               const { backgroundColor, ...restStyle } = targetNode.style || {};
-              // Calculate collapsed size
               let w = 150, h = 50;
               if (targetNode.data.contentWidth) w = targetNode.data.contentWidth + 20;
               if (targetNode.data.contentHeight) h = targetNode.data.contentHeight + 20;
-              
+
               targetNode.data = { ...targetNode.data, expanded: false };
-              targetNode.style = { 
-                  ...restStyle, 
+              targetNode.style = {
+                  ...restStyle,
                   width: w,
                   height: h,
                   zIndex: -1
               };
-              
+
               hideDescendants(nodeId);
           }
           updatedNodes = Array.from(nodeMap.values());
       } else {
           // Expanding
-          // 2. Set the target node to expanded first
           const targetNode = nodeMap.get(nodeId);
           if (targetNode) {
               targetNode.data = { ...targetNode.data, expanded: true };
           }
 
-          // 3. Recursive function to calculate size and restore visibility
           const updateSize = (nId: string): { w: number, h: number } => {
               const n = nodeMap.get(nId);
               if (!n) return { w: 0, h: 0 };
-              
+
               if (n.type !== 'group') {
-                  return { 
+                  return {
                       w: (n.style?.width as number) ?? n.width ?? 150,
                       h: (n.style?.height as number) ?? n.height ?? 50
                   };
               }
-              
-              // It is a group
+
               if (!n.data.expanded) {
-                  // Collapsed size logic
                   let w = 150, h = 50;
                   if (n.data.contentWidth) w = n.data.contentWidth + 20;
                   if (n.data.contentHeight) h = n.data.contentHeight + 20;
-                  
+
                   n.style = { ...n.style, width: w, height: h };
                   return { w, h };
               }
-              
-              // Expanded group
+
               const children = Array.from(nodeMap.values()).filter(child => child.parentNode === nId);
-              
+
               if (children.length > 0) {
                   let maxX = 0, maxY = 0;
                   children.forEach(child => {
-                      child.hidden = false; // Restore visibility for children of expanded group
-                      const size = updateSize(child.id); // Recurse
+                      child.hidden = false;
+                      const size = updateSize(child.id);
                       maxX = Math.max(maxX, child.position.x + size.w);
                       maxY = Math.max(maxY, child.position.y + size.h);
                   });
-                  
+
                   const padding = 40;
-                  // Match updateGroupSize logic: Math.max(150 + padding, childrenWidth)
                   const newW = Math.max(190, maxX + padding);
                   const newH = Math.max(90, maxY + padding);
-                  
+
                   n.style = { ...n.style, width: newW, height: newH, zIndex: -1 };
                   return { w: newW, h: newH };
               } else {
-                  // Empty expanded group
                   const newW = 300, newH = 300;
                   n.style = { ...n.style, width: newW, height: newH, zIndex: -1 };
                   return { w: newW, h: newH };
               }
           };
-          
-          // 4. Trigger update from the target node
+
           updateSize(nodeId);
-          
+
           updatedNodes = Array.from(nodeMap.values());
       }
 
       // Overlap prevention when expanding
       if (!willCollapse) {
-          // Get the new size of the expanded group from the updated nodes
           const expandedGroup = updatedNodes.find(n => n.id === nodeId);
           const newWidth = Number(expandedGroup?.style?.width) || 300;
           const newHeight = Number(expandedGroup?.style?.height) || 300;
 
-          // Helper to get absolute position
           const getAbsPos = (n: ScenarioNode, allNodes: ScenarioNode[]) => {
               let x = n.position.x;
               let y = n.position.y;
@@ -1666,18 +1781,13 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               return { x, y };
           };
 
-          // Group absolute position
-          // Note: We use the current node's position. 
-          // If the group itself has a parent, we need its absolute position.
-          const groupNode = state.nodes.find(n => n.id === nodeId);
+          const groupNode = currentNodes.find(n => n.id === nodeId);
           if (groupNode) {
-              const groupAbs = getAbsPos(groupNode, state.nodes);
-              
-              // Find nodes that are NOT descendants of this group and overlap with the expanded area
-              const overlappingNodes = state.nodes.filter(n => {
+              const groupAbs = getAbsPos(groupNode, currentNodes);
+
+              const overlappingNodes = currentNodes.filter(n => {
                   if (n.id === nodeId) return false;
-                  
-                  // Check if n is a descendant of nodeId
+
                   let p = n.parentNode;
                   let isDescendant = false;
                   while(p) {
@@ -1685,12 +1795,11 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                           isDescendant = true;
                           break;
                       }
-                      const parent = state.nodes.find(pn => pn.id === p);
+                      const parent = currentNodes.find(pn => pn.id === p);
                       p = parent ? parent.parentNode : undefined;
                   }
                   if (isDescendant) return false;
 
-                  // Check if n is an ancestor of nodeId (Prevent moving parent group)
                   let currentParent = groupNode.parentNode;
                   let isAncestor = false;
                   while(currentParent) {
@@ -1698,15 +1807,15 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                           isAncestor = true;
                           break;
                       }
-                      const parent = state.nodes.find(pn => pn.id === currentParent);
+                      const parent = currentNodes.find(pn => pn.id === currentParent);
                       currentParent = parent ? parent.parentNode : undefined;
                   }
                   if (isAncestor) return false;
-                  
-                  const nAbs = getAbsPos(n, state.nodes);
+
+                  const nAbs = getAbsPos(n, currentNodes);
                   const nW = n.width || 150;
                   const nH = n.height || 50;
-                  
+
                   return (
                       groupAbs.x < nAbs.x + nW &&
                       groupAbs.x + newWidth > nAbs.x &&
@@ -1714,23 +1823,19 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                       groupAbs.y + newHeight > nAbs.y
                   );
               });
-              
-              // Filter out nodes whose parents are also moving to avoid double shifting
+
               const rootsToMove = overlappingNodes.filter(n => {
                   return !n.parentNode || !overlappingNodes.some(on => on.id === n.parentNode);
               });
-              
+
               if (rootsToMove.length > 0) {
-                  // Decide push direction per node from the relative center
-                  // position so a node sitting beside the group is pushed
-                  // sideways instead of always straight down.
                   const groupCenter = {
                       x: groupAbs.x + newWidth / 2,
                       y: groupAbs.y + newHeight / 2,
                   };
                   const shiftMap = new Map<string, { dx: number; dy: number }>();
                   rootsToMove.forEach(n => {
-                      const nAbs = getAbsPos(n, state.nodes);
+                      const nAbs = getAbsPos(n, currentNodes);
                       const nW = n.width || 150;
                       const nH = n.height || 50;
                       const nCenter = { x: nAbs.x + nW / 2, y: nAbs.y + nH / 2 };
@@ -1774,16 +1879,15 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       // Recompute edge visibility so edges between hidden children are also hidden
       const finalEdges = recomputeEdgeVisibility(updatedNodes, updatedEdges);
 
-      set({ nodes: updatedNodes, edges: finalEdges });
-      // No need to call updateGroupSize immediately as we set the size manually
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes, edges: finalEdges })) });
   },
-
-  // ... (groupNodes, ungroupNodes, setNodeParent)
 
   groupNodes: (nodeIds: string[]) => {
       const state = get();
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
       // Exclude sticky nodes from grouping
-      const nodesToGroup = state.nodes.filter(n => nodeIds.includes(n.id) && n.type !== 'sticky');
+      const nodesToGroup = currentNodes.filter(n => nodeIds.includes(n.id) && n.type !== 'sticky');
       if (nodesToGroup.length === 0) return;
 
       // Calculate bounding box
@@ -1791,7 +1895,6 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       nodesToGroup.forEach(n => {
           minX = Math.min(minX, n.position.x);
           minY = Math.min(minY, n.position.y);
-          // Estimate width/height if not set (default 150x50 roughly)
           const w = n.width || 200;
           const h = n.height || 100;
           maxX = Math.max(maxX, n.position.x + w);
@@ -1813,10 +1916,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           style: { width: groupW, height: groupH, zIndex: -1 },
       };
 
-      // Update nodes to be children of group
-      // ReactFlow handles relative positioning automatically if we update position?
-      // No, we must update position to be relative to parent.
-      const updatedNodes = state.nodes.map(n => {
+      const updatedNodes = currentNodes.map(n => {
           if (nodeIds.includes(n.id)) {
               return {
                   ...n,
@@ -1831,19 +1931,20 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           return n;
       });
 
-      set({ nodes: [...updatedNodes, groupNode] });
+      set({ tabs: withActiveTab(state, () => ({ nodes: [...updatedNodes, groupNode] })) });
   },
 
   ungroupNodes: (groupId: string) => {
       const state = get();
-      const groupNode = state.nodes.find(n => n.id === groupId);
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const groupNode = currentNodes.find(n => n.id === groupId);
       if (!groupNode) return;
 
       const groupPos = groupNode.position;
       const newParentId = groupNode.parentNode;
-      
-      // Update children to remove parent and adjust position
-      const updatedNodes = state.nodes.map(n => {
+
+      const updatedNodes = currentNodes.map(n => {
           if (n.parentNode === groupId) {
               return {
                   ...n,
@@ -1858,12 +1959,14 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           return n;
       }).filter(n => n.id !== groupId); // Remove the group node
 
-      set({ nodes: updatedNodes });
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
 
   setNodeParent: (nodeId: string, parentId: string | undefined, position: { x: number, y: number }) => {
       const state = get();
-      const updatedNodes = state.nodes.map(n => {
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const updatedNodes = currentNodes.map(n => {
           if (n.id === nodeId) {
               return {
                   ...n,
@@ -1874,15 +1977,16 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           }
           return n;
       });
-      set({ nodes: updatedNodes });
+      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
   },
 
   updateGroupSize: (groupId: string, contentSize?: { width: number, height: number }) => {
       const state = get();
-      const groupNode = state.nodes.find(n => n.id === groupId);
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const groupNode = currentNodes.find(n => n.id === groupId);
       if (!groupNode || groupNode.type !== 'group') return;
 
-      // Update content size in data if provided
       let currentContentSize = contentSize;
       if (contentSize) {
           if (groupNode.data.contentWidth !== contentSize.width || groupNode.data.contentHeight !== contentSize.height) {
@@ -1898,37 +2002,34 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       let newWidth = currentContentSize?.width || 150;
       let newHeight = currentContentSize?.height || 50;
       const padding = 40;
-      
+
       let shiftX = 0;
       let shiftY = 0;
 
       if (groupNode.data.expanded) {
-const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 'sticky');
+          const children = currentNodes.filter(n => n.parentNode === groupId && n.type !== 'sticky');
           if (children.length > 0) {
               let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-              
+
               children.forEach(n => {
                   const nX = n.position.x;
                   const nY = n.position.y;
                   const nW = (n.style?.width as number) ?? n.width ?? 150;
                   const nH = (n.style?.height as number) ?? n.height ?? 50;
-                  
+
                   minX = Math.min(minX, nX);
                   minY = Math.min(minY, nY);
                   maxX = Math.max(maxX, nX + nW);
                   maxY = Math.max(maxY, nY + nH);
               });
 
-              // Check for negative expansion (children moving left/up out of group)
-              // We add padding to ensure they are not right on the edge
               if (minX < 20) {
                   shiftX = 20 - minX;
               }
-              if (minY < 50) { // More padding on top for header
+              if (minY < 50) {
                   shiftY = 50 - minY;
               }
-              
-              // Apply shift to max calculation
+
               maxX += shiftX;
               maxY += shiftY;
 
@@ -1938,29 +2039,24 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               newWidth = Math.max(newWidth + padding, childrenWidth);
               newHeight = Math.max(newHeight + padding, childrenHeight);
           } else {
-              // No children, just content + padding
               newWidth = Math.max(newWidth + padding, 300);
               newHeight = Math.max(newHeight + padding, 300);
           }
       } else {
-          // Collapsed: Content size + padding
-           newWidth += 20;
-           newHeight += 20;
+          newWidth += 20;
+          newHeight += 20;
       }
 
-      // Ensure minimums
       newWidth = Math.max(newWidth, 150);
       newHeight = Math.max(newHeight, 50);
 
-      // Check if update is needed
       const styleChanged = groupNode.style?.width !== newWidth || groupNode.style?.height !== newHeight;
       const dataChanged = contentSize && (groupNode.data.contentWidth !== contentSize.width || groupNode.data.contentHeight !== contentSize.height);
       const positionChanged = shiftX > 0 || shiftY > 0;
 
       if (styleChanged || dataChanged || positionChanged) {
-          let updatedNodes = [...state.nodes];
-          
-          // Apply shifts if needed
+          let updatedNodes = [...currentNodes];
+
           if (positionChanged) {
               updatedNodes = updatedNodes.map(n => {
                   if (n.id === groupId) {
@@ -1984,25 +2080,16 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                   return n;
               });
           }
-          
+
           // Iterative Collision Resolution
-          let currentNodes = [...updatedNodes];
+          let currentNodesResult = [...updatedNodes];
           const queue: string[] = [groupId];
           const MAX_ITERATIONS = 500;
           let iterations = 0;
 
-          // Build an id -> node index once and keep it in sync as we shift
-          // nodes. Inside the loop, this turns the previous O(N) lookups
-          // (currentNodes.find / allNodes.find for parent walking) into
-          // O(1) Map.get calls. With MAX_ITERATIONS=500 this cuts the
-          // dominant collision-resolution cost from O(N^2 * iterations)
-          // to roughly O(N * iterations).
-          const nodeMap = new Map<string, ScenarioNode>(currentNodes.map(n => [n.id, n]));
+          const nodeMap = new Map<string, ScenarioNode>(currentNodesResult.map(n => [n.id, n]));
 
-          // Helper to get absolute position
           const getAbsPos = (n: ScenarioNode) => {
-              // Always calculate from relative positions because positionAbsolute might be stale
-              // during this simulation update loop.
               let x = n.position.x;
               let y = n.position.y;
               let current = n;
@@ -2019,7 +2106,6 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               return { x, y };
           };
 
-          // Helper to check rect overlap
           const checkRectOverlap = (r1: any, r2: any) => {
               return (
                   r1.x < r2.x + r2.width &&
@@ -2032,10 +2118,6 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
           while (queue.length > 0 && iterations < MAX_ITERATIONS) {
               iterations++;
               const pusherId = queue.shift()!;
-              // Allow re-visiting if pushed again? No, to prevent loops, maybe limit per node?
-              // But a node might need to move multiple times if pushed by different sources.
-              // Let's just rely on MAX_ITERATIONS for safety.
-
               const pusher = nodeMap.get(pusherId);
               if (!pusher) continue;
 
@@ -2043,7 +2125,6 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               let pusherW = (pusher.style?.width as number) || pusher.width || 150;
               let pusherH = (pusher.style?.height as number) || pusher.height || 50;
 
-              // Special case for the GroupNode being resized: use new dimensions
               if (pusherId === groupId) {
                   pusherW = newWidth;
                   pusherH = newHeight;
@@ -2052,12 +2133,10 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               const pusherRect = { x: pusherAbs.x, y: pusherAbs.y, width: pusherW, height: pusherH };
               const pusherCenter = { x: pusherRect.x + pusherRect.width / 2, y: pusherRect.y + pusherRect.height / 2 };
 
-              // Find overlaps
-              const overlaps = currentNodes.filter(n => {
+              const overlaps = currentNodesResult.filter(n => {
                   if (n.id === pusherId) return false;
                   if (n.type === 'sticky') return false;
 
-                  // Exclude descendants (they move with parent)
                   let p = n.parentNode;
                   while (p) {
                       if (p === pusherId) return false;
@@ -2065,7 +2144,6 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                       p = parent ? parent.parentNode : undefined;
                   }
 
-                  // Exclude ancestors (parent groups don't move for children)
                   let currentParent = pusher.parentNode;
                   while (currentParent) {
                       if (currentParent === n.id) return false;
@@ -2089,54 +2167,37 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                   let dx = 0;
                   let dy = 0;
 
-                  // Determine shift direction based on center relative position
-                  // Prefer shifting Down or Right
                   const diffX = nCenter.x - pusherCenter.x;
                   const diffY = nCenter.y - pusherCenter.y;
 
-                  // Calculate minimum shift needed
                   const overlapX = (pusherRect.width / 2 + nW / 2) - Math.abs(diffX);
                   const overlapY = (pusherRect.height / 2 + nH / 2) - Math.abs(diffY);
 
                   if (overlapX > 0 && overlapY > 0) {
-                       // Shift in the direction of least overlap, favoring Down/Right
                        if (overlapY < overlapX) {
-                           // Shift Y
-                           if (diffY > 0) { // Below
+                           if (diffY > 0) {
                                dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
                            } else {
-                               // Above - normally we don't shift up for expansion, but if overlap exists...
-                               // Ignore for now to prevent weird jumps, or shift down anyway?
-                               // Let's only shift if it was "originally" below or if we are forced.
-                               // For expansion, we usually only push out.
                                if (pusherId === groupId) {
-                                   // If it's the expanding group, strictly push away
                                    dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
                                }
                            }
                        } else {
-                           // Shift X
-                           if (diffX > 0) { // Right
+                           if (diffX > 0) {
                                dx = (pusherRect.x + pusherRect.width + 20) - nAbs.x;
                            } else {
-                               // Left
                                if (pusherId === groupId) {
                                    dx = (pusherRect.x + pusherRect.width + 20) - nAbs.x;
                                }
                            }
                        }
                   }
-                  
-                  // Force check: if originally below/right logic from previous step is preferred?
-                  // The previous logic used "original position". Here we use dynamic.
-                  // Let's stick to "Push Down or Right" if ambiguous.
+
                   if (dx === 0 && dy === 0) {
-                      // Fallback if centers are aligned or something
                       dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
                   }
 
                   if (dx !== 0 || dy !== 0) {
-                      // Determine affected nodes (pushee + descendants) to move their stickies
                       const getDescendants = (parentId: string, allNodes: ScenarioNode[]): string[] => {
                           const children = allNodes.filter(n => n.parentNode === parentId);
                           let ids = children.map(c => c.id);
@@ -2145,16 +2206,15 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                           });
                           return ids;
                       };
-                      const affectedIds = new Set([n.id, ...getDescendants(n.id, currentNodes)]);
+                      const affectedIds = new Set([n.id, ...getDescendants(n.id, currentNodesResult)]);
 
-                      currentNodes = currentNodes.map(node => {
+                      currentNodesResult = currentNodesResult.map(node => {
                           if (node.id === n.id) {
                               return {
                                   ...node,
                                   position: { x: node.position.x + dx, y: node.position.y + dy }
                               };
                           }
-                          // Move stickies attached to the pushed node OR its descendants
                           if (node.type === 'sticky' && node.data.targetNodeId && affectedIds.has(node.data.targetNodeId)) {
                                return {
                                   ...node,
@@ -2163,11 +2223,7 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                           }
                           return node;
                       });
-                      // Keep nodeMap in sync. Only the pushed node and any
-                      // sticky that follows it have new object identities;
-                      // everything else is reference-equal so a single pass
-                      // catches them in O(N) (not O(N*moved)).
-                      for (const node of currentNodes) {
+                      for (const node of currentNodesResult) {
                           if (nodeMap.get(node.id) !== node) {
                               nodeMap.set(node.id, node);
                           }
@@ -2178,8 +2234,8 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                   }
               });
           }
-          
-          updatedNodes = currentNodes;
+
+          updatedNodes = currentNodesResult;
 
           updatedNodes = updatedNodes.map(n => {
               if (n.id === groupId) {
@@ -2192,7 +2248,7 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               }
               return n;
           });
-          set({ nodes: updatedNodes });
+          set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
 
           // Recursively update parent group size
           if (groupNode.parentNode) {
@@ -2200,63 +2256,62 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
           }
       }
   },
-  
+
   bringNodeToFront: (nodeId: string) => {
       const state = get();
-      
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+
       // 1. Identify all nodes to move (target + descendants)
       const nodesToMove = new Set<string>();
       const queue = [nodeId];
-      
+
       while(queue.length > 0) {
           const id = queue.shift()!;
           if (!nodesToMove.has(id)) {
               nodesToMove.add(id);
-              // Find children
-              const children = state.nodes.filter(n => n.parentNode === id);
+              const children = currentNodes.filter(n => n.parentNode === id);
               children.forEach(c => queue.push(c.id));
           }
       }
-      
+
       // 2. Split nodes into "stay" and "move"
-      // We preserve the relative order of the moving nodes to maintain existing parent-child layering
       const remainingNodes: ScenarioNode[] = [];
       const movingNodes: ScenarioNode[] = [];
-      
-      state.nodes.forEach(n => {
+
+      currentNodes.forEach(n => {
           if (nodesToMove.has(n.id)) {
               movingNodes.push(n);
           } else {
               remainingNodes.push(n);
           }
       });
-      
+
       // Optimization: Check if already at front
       const len = movingNodes.length;
-      const lastNodes = state.nodes.slice(-len);
+      const lastNodes = currentNodes.slice(-len);
       const isAlreadyAtFront = lastNodes.length === len && lastNodes.every((n, i) => n.id === movingNodes[i].id);
-      
+
       if (isAlreadyAtFront) return;
 
-      set({ nodes: [...remainingNodes, ...movingNodes] });
+      set({ tabs: withActiveTab(state, () => ({ nodes: [...remainingNodes, ...movingNodes] })) });
   },
 
   resolveGroupOverlaps: (nodeId: string) => {
       const state = get();
-      const node = state.nodes.find(n => n.id === nodeId);
+      const activeTab = getActiveTabFrom(state);
+      const currentNodes = activeTab?.nodes ?? [];
+      const node = currentNodes.find(n => n.id === nodeId);
       if (!node || node.type !== 'group') return;
 
-      let currentNodes = [...state.nodes];
+      let currentNodesResult = [...currentNodes];
       const queue: string[] = [nodeId];
       const MAX_ITERATIONS = 500;
       let iterations = 0;
       let hasChanges = false;
 
-      // id -> node index for O(1) lookups inside the iteration loop. Kept
-      // in sync as nodes shift below.
-      const nodeMap = new Map<string, ScenarioNode>(currentNodes.map(n => [n.id, n]));
+      const nodeMap = new Map<string, ScenarioNode>(currentNodesResult.map(n => [n.id, n]));
 
-      // Helper to get absolute position
       const getAbsPos = (n: ScenarioNode) => {
           let x = n.position.x;
           let y = n.position.y;
@@ -2274,7 +2329,6 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
           return { x, y };
       };
 
-      // Helper to check rect overlap
       const checkRectOverlap = (r1: any, r2: any) => {
           return (
               r1.x < r2.x + r2.width &&
@@ -2297,8 +2351,7 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
           const pusherRect = { x: pusherAbs.x, y: pusherAbs.y, width: pusherW, height: pusherH };
           const pusherCenter = { x: pusherRect.x + pusherRect.width / 2, y: pusherRect.y + pusherRect.height / 2 };
 
-          // Find overlaps with SIBLING GROUPS only
-          const overlaps = currentNodes.filter(n => {
+          const overlaps = currentNodesResult.filter(n => {
               if (n.id === pusherId) return false;
               if (n.type !== 'group') return false;
               if (n.parentNode !== pusher.parentNode) return false;
@@ -2319,7 +2372,6 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
               let dx = 0;
               let dy = 0;
 
-              // Determine shift direction
               const diffX = nCenter.x - pusherCenter.x;
               const diffY = nCenter.y - pusherCenter.y;
 
@@ -2328,32 +2380,26 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
 
               if (overlapX > 0 && overlapY > 0) {
                    if (overlapY < overlapX) {
-                       // Shift Y
-                       if (diffY > 0) { // Below
+                       if (diffY > 0) {
                            dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
                        } else {
-                           // Above - force push down if pusher is the original mover?
-                           // Or push up? Let's push away.
                            dy = -((nAbs.y + nH) - (pusherRect.y - 20));
                        }
                    } else {
-                       // Shift X
-                       if (diffX > 0) { // Right
+                       if (diffX > 0) {
                            dx = (pusherRect.x + pusherRect.width + 20) - nAbs.x;
                        } else {
-                           // Left
                            dx = -((nAbs.x + nW) - (pusherRect.x - 20));
                        }
                    }
               }
-              
-              // Fallback
+
               if (dx === 0 && dy === 0) {
                   dy = (pusherRect.y + pusherRect.height + 20) - nAbs.y;
               }
 
               if (dx !== 0 || dy !== 0) {
-                  currentNodes = currentNodes.map(node => {
+                  currentNodesResult = currentNodesResult.map(node => {
                       if (node.id === n.id) {
                           return {
                               ...node,
@@ -2362,8 +2408,7 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
                       }
                       return node;
                   });
-                  // Sync nodeMap for any nodes whose object identity changed.
-                  for (const node of currentNodes) {
+                  for (const node of currentNodesResult) {
                       if (nodeMap.get(node.id) !== node) {
                           nodeMap.set(node.id, node);
                       }
@@ -2377,26 +2422,27 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
       }
 
       if (hasChanges) {
-          set({ nodes: currentNodes });
-          // If we moved things inside a group, update parent size
+          set({ tabs: withActiveTab(state, () => ({ nodes: currentNodesResult })) });
           if (node.parentNode) {
               get().updateGroupSize(node.parentNode);
           }
       }
   },
+
   reset: () => {
+    const firstTab = createInitialTab();
     set({
-      nodes: [],
-      edges: [],
-      gameState: { 
-        currentNodes: [], 
-        revealedNodes: [], 
-        inventory: {}, 
-        equipment: {}, 
-        knowledge: {}, 
-        skills: {}, 
-        stats: {}, 
-        variables: {} 
+      tabs: [{ id: firstTab.id, name: firstTab.name, nodes: [], edges: [] }],
+      activeTabId: firstTab.id,
+      gameState: {
+        currentNodes: [],
+        revealedNodes: [],
+        inventory: {},
+        equipment: {},
+        knowledge: {},
+        skills: {},
+        stats: {},
+        variables: {}
       },
       characters: [],
       resources: [],
@@ -2407,12 +2453,110 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
     });
   },
 
+  // Tab CRUD actions
+  addTab: (name) => {
+    const id = generateTabId();
+    const trimmed = name?.trim().slice(0, 50);
+    set((state) => ({
+      tabs: [...state.tabs, {
+        id,
+        name: trimmed && trimmed.length > 0 ? trimmed : `タブ ${state.tabs.length + 1}`,
+        nodes: [],
+        edges: [],
+      }],
+    }));
+    get().pushHistory();
+    return id;
+  },
+
+  renameTab: (id, newName) => {
+    const trimmed = newName.trim().slice(0, 50);
+    if (!trimmed) return;
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === id ? { ...t, name: trimmed } : t)),
+    }));
+    get().pushHistory();
+  },
+
+  deleteTab: (id) => {
+    const state = get();
+    if (state.tabs.length <= 1) return;
+    const idx = state.tabs.findIndex((t) => t.id === id);
+    if (idx < 0) return;
+
+    const newTabs = state.tabs
+      .filter((t) => t.id !== id)
+      .map((t) => ({
+        ...t,
+        nodes: t.nodes.map((n) => {
+          if (n.type !== 'jump') return n;
+          const jt = (n as any).data?.jumpTarget;
+          if (jt && typeof jt === 'object' && jt.tabId === id) {
+            return { ...n, data: { ...(n as any).data, jumpTarget: null } };
+          }
+          return n;
+        }),
+      }));
+
+    let nextActiveId = state.activeTabId;
+    if (state.activeTabId === id) {
+      const nextIdx = idx < state.tabs.length - 1 ? idx + 1 : idx - 1;
+      nextActiveId = state.tabs[nextIdx].id;
+    }
+
+    set({ tabs: newTabs, activeTabId: nextActiveId, selectedNodeId: null });
+    get().pushHistory();
+  },
+
+  reorderTabs: (fromIdx, toIdx) => {
+    set((state) => {
+      const tabs = [...state.tabs];
+      const [moved] = tabs.splice(fromIdx, 1);
+      tabs.splice(toIdx, 0, moved);
+      return { tabs };
+    });
+    get().pushHistory();
+  },
+
+  setActiveTab: (id) => {
+    const state = get();
+    if (!state.tabs.some((t) => t.id === id)) return;
+    set({ activeTabId: id, selectedNodeId: null });
+  },
+
+  moveNodesToTab: (nodeIds, targetTabId, _edgeStrategy = 'delete') => {
+    const state = get();
+    if (state.activeTabId === targetTabId) return;
+    const sourceTab = state.tabs.find((t) => t.id === state.activeTabId);
+    if (!sourceTab) return;
+    const movedSet = new Set(nodeIds);
+    const movingNodes = sourceTab.nodes.filter((n) => movedSet.has(n.id));
+    const remainingNodes = sourceTab.nodes.filter((n) => !movedSet.has(n.id));
+    const newTabs = state.tabs.map((t) => {
+      if (t.id === state.activeTabId) return { ...t, nodes: remainingNodes };
+      if (t.id === targetTabId) return { ...t, nodes: [...t.nodes, ...movingNodes] };
+      return t;
+    });
+    set({ tabs: newTabs, activeTabId: targetTabId, selectedNodeId: null });
+    get().pushHistory();
+  },
+
+  executeJump: (target) => {
+    if (!target) return;
+    const state = get();
+    if (target.tabId !== state.activeTabId && state.tabs.some((t) => t.id === target.tabId)) {
+      set({ activeTabId: target.tabId });
+    }
+    set({ selectedNodeId: target.nodeId });
+  },
+
   // LocalStorage Persistence Methods
   saveToLocalStorage: () => {
     const state = get();
     const dataToSave = {
-      nodes: state.nodes,
-      edges: state.edges,
+      version: SCHEMA_VERSION,
+      tabs: state.tabs,
+      activeTabId: state.activeTabId,
       gameState: state.gameState,
       mode: state.mode,
       characters: state.characters,
@@ -2431,8 +2575,8 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
   loadFromLocalStorage: () => {
     if (initialStoredState) {
       set({
-        nodes: initialStoredState.nodes || get().nodes,
-        edges: initialStoredState.edges || get().edges,
+        tabs: initialStoredState.tabs || get().tabs,
+        activeTabId: initialStoredState.activeTabId || get().activeTabId,
         gameState: initialStoredState.gameState || get().gameState,
         mode: initialStoredState.mode || get().mode,
         characters: initialStoredState.characters || get().characters,
@@ -2456,23 +2600,11 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
     const currentLanguage = get().language;
     const currentTheme = get().theme;
     const currentEdgeType = get().edgeType;
+    const newTab = createInitialTab();
 
     set({
-      nodes: [
-        {
-          id: 'memo-initial-warning',
-          type: 'memo',
-          position: { x: 100, y: 100 },
-          data: {
-            label: '注意事項 / Warnings',
-            description: '・本ツールをご利用の前に、必ず「ヘルプ→利用規約」および「ヘルプ→プライバシーポリシー」をご一読ください。\n 本ツールを利用された時点で、これらの内容に同意いただいたものとみなします。\n・本ツールには自動保存機能が実装されています。\n ページを再読み込みしても、最後の作業状態が自動的に復元されます。\n ただし、ブラウザのキャッシュをクリアすると保存データも削除されます。\n 重要なデータは「ファイル→保存」で手動保存することをお勧めします。\n・使用例を見たい場合は、「ファイル→サンプルデータ読込」を実行して下さい。\n・その他の注意事項や使い方は「ヘルプ→マニュアル」をご覧下さい。\n\n上記を読み終わったらこのノードは削除して問題有りません。'
-          },
-          width: 400,
-          height: 260,
-          draggable: true
-        }
-      ],
-      edges: [],
+      tabs: [newTab],
+      activeTabId: newTab.id,
       gameState: {
         currentNodes: [],
         revealedNodes: [],
@@ -2497,8 +2629,10 @@ const children = state.nodes.filter(n => n.parentNode === groupId && n.type !== 
 
     // LocalStorageも更新
     get().saveToLocalStorage();
-    
+
     // ビューポートもリセット
-    localStorage.setItem('canvas-viewport', JSON.stringify({ x: 0, y: 0, zoom: 1 }));
+    try {
+      localStorage.setItem('canvas-viewport', JSON.stringify({ x: 0, y: 0, zoom: 1 }));
+    } catch (e) { /* localStorage may be unavailable in tests */ }
   },
 }));
