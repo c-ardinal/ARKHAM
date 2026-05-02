@@ -1,4 +1,3 @@
-// src/types/tab.ts
 import type { ScenarioNode, ScenarioEdge } from '../types';
 
 export const SCHEMA_VERSION = 2 as const;
@@ -18,5 +17,8 @@ export interface Tab {
 }
 
 export function generateTabId(): string {
-  return `tab_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `tab_${crypto.randomUUID()}`;
+  }
+  return `tab_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
