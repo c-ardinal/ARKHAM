@@ -97,7 +97,8 @@ const defaultAssertionRules: AssertionRule[] = [
       
       for (const jumpNode of jumpNodes) {
         const target = jumpNode.data?.jumpTarget;
-        if (target && !nodeIds.has(target)) {
+        const targetId = typeof target === 'string' ? target : target?.nodeId;
+        if (targetId && !nodeIds.has(targetId)) {
           return false;
         }
       }

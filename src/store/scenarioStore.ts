@@ -653,7 +653,12 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                   changed = true;
               }
               // 2. Delete JumpNodes that target deleted nodes
-              if (node.type === 'jump' && node.data.jumpTarget && idsToDelete.has(node.data.jumpTarget) && !idsToDelete.has(node.id)) {
+              // TODO(Task 5.x): Update for {tabId,nodeId} object form (string narrow is transitional)
+              if (node.type === 'jump' && typeof node.data.jumpTarget === 'string' && idsToDelete.has(node.data.jumpTarget) && !idsToDelete.has(node.id)) {
+                  idsToDelete.add(node.id);
+                  changed = true;
+              }
+              if (node.type === 'jump' && node.data.jumpTarget && typeof node.data.jumpTarget === 'object' && idsToDelete.has(node.data.jumpTarget.nodeId) && !idsToDelete.has(node.id)) {
                   idsToDelete.add(node.id);
                   changed = true;
               }

@@ -630,7 +630,10 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
                   onOpenPropertyPanel?.();
               } else if (node.type === 'jump' && node.data.jumpTarget) {
                   // Jump Node: Jump on Double Click
-                  handleJump(node.data.jumpTarget);
+                  const targetId = typeof node.data.jumpTarget === 'string'
+                      ? node.data.jumpTarget
+                      : node.data.jumpTarget.nodeId;
+                  if (targetId) handleJump(targetId);
               }
               // Other nodes: Do nothing
           }
@@ -646,9 +649,12 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
     if (isDoubleClick && node.type === 'jump' && node.data.jumpTarget) {
         // Jump Node Logic
-        // In Edit Mode: Only jump if NOT mobile. 
+        // In Edit Mode: Only jump if NOT mobile.
         if (!isMobile) {
-            handleJump(node.data.jumpTarget);
+            const targetId = typeof node.data.jumpTarget === 'string'
+                ? node.data.jumpTarget
+                : node.data.jumpTarget.nodeId;
+            if (targetId) handleJump(targetId);
         }
     }
 

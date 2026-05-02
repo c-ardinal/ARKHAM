@@ -530,8 +530,8 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                            </div>
                       ) : (
                           <select
-                              value={selectedNode.data.jumpTarget || ''}
-                              onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value })}
+                              value={(typeof selectedNode.data.jumpTarget === 'string' ? selectedNode.data.jumpTarget : selectedNode.data.jumpTarget?.nodeId) || ''}
+                              onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value as any })}
                               className={inputClass}
                           >
                               {nodes
