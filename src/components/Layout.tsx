@@ -24,6 +24,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { createPortal } from 'react-dom'; // Import createPortal
 import { useMenuStructure } from '../hooks/useMenuStructure';
 import type { MenuItem as MenuItemType } from '../types/menu';
+import type { ScenarioNode } from '../types';
 
 interface MenuItemProps {
     onClick?: (e: React.MouseEvent) => void;
@@ -274,7 +275,10 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger 
 };
 
 export const Layout = () => {
-  const { mode, setMode, nodes, edges, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, edgeType, selectedNodeId, setSelectedNode, characters, resources } = useScenarioStore();
+  const { mode, setMode, tabs, activeTabId, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, edgeType, selectedNodeId, setSelectedNode, characters, resources } = useScenarioStore();
+  const activeTab = tabs.find(t => t.id === activeTabId);
+  const nodes = activeTab?.nodes ?? [];
+  const edges = activeTab?.edges ?? [];
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -487,7 +491,7 @@ export const Layout = () => {
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, nodes, edges, gameState, handleZoomIn, handleZoomOut]);
+  }, [undo, redo, tabs, activeTabId, gameState, handleZoomIn, handleZoomOut]);
 
   // モバイル/タブレットでのノード位置ずれを防ぐため、シナリオを2回読み込む
   const loadScenarioWithStabilization = useCallback(async (data: any) => {
@@ -864,7 +868,7 @@ const menuActions = {
         />
         
         {/* Helper for property resizing (Desktop) */}
-        {!isMobile && selectedNodeId && (mode === 'edit' || nodes.find(n => n.id === selectedNodeId)?.type === 'sticky') && (
+        {!isMobile && selectedNodeId && (mode === 'edit' || nodes.find((n: ScenarioNode) => n.id === selectedNodeId)?.type === 'sticky') && (
             <div
                 role="separator"
                 aria-orientation="vertical"
@@ -877,7 +881,7 @@ const menuActions = {
             </div>
         )}
 
-        {(isMobile ? mobilePropertyPanelOpen : (selectedNodeId && (mode === 'edit' || nodes.find(n => n.id === selectedNodeId)?.type === 'sticky'))) && (
+        {(isMobile ? mobilePropertyPanelOpen : (selectedNodeId && (mode === 'edit' || nodes.find((n: ScenarioNode) => n.id === selectedNodeId)?.type === 'sticky'))) && (
            <PropertyPanel 
                 width={propertyPanelWidth} 
                 isMobile={isMobile}

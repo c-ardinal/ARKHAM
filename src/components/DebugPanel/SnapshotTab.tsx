@@ -68,9 +68,10 @@ export const SnapshotTab: React.FC = () => {
   });
 
   const handleCreateSnapshot = () => {
+    const activeTab = scenarioState.tabs.find(t => t.id === scenarioState.activeTabId);
     createSnapshot({
-      nodes: scenarioState.nodes,
-      edges: scenarioState.edges,
+      nodes: activeTab?.nodes ?? [],
+      edges: activeTab?.edges ?? [],
       gameState: scenarioState.gameState,
       characters: scenarioState.characters,
       resources: scenarioState.resources,

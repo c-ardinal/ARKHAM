@@ -1,5 +1,6 @@
 import { useScenarioStore } from '../store/scenarioStore';
 import React, { useEffect, type ChangeEvent } from 'react';
+import type { ScenarioNode } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { substituteVariables } from '../utils/textUtils';
@@ -23,17 +24,19 @@ interface PropertyPanelProps {
 }
 
 export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPanelProps>(({ width, isMobile = false, onClose }, ref) => {
-  const { 
-      nodes, selectedNodeId, updateNodeData, gameState,
+  const {
+      tabs, activeTabId, selectedNodeId, updateNodeData, gameState,
       characters, resources, updateCharacter, updateResource
   } = useScenarioStore();
+  const activeTab = tabs.find(t => t.id === activeTabId);
+  const nodes = activeTab?.nodes ?? [];
   const { t } = useTranslation();
   
   // レンダリング計測(デバッグモード時のみ)
   useRenderMetricsIfDebug('PropertyPanel');
   
   // Resolve selected item
-  let selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  let selectedNode = nodes.find((n: ScenarioNode) => n.id === selectedNodeId);
   const selectedCharacter = !selectedNode 
       ? characters.find(c => c.id === selectedNodeId)
       : (selectedNode.type === 'character' ? characters.find(c => c.id === selectedNode.data.referenceId) : null);
@@ -468,7 +471,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       <div className="mt-4 border-t pt-4 border-border">
                           <label className={`block text-sm font-medium mb-2 ${labelClass}`}>Cases (Branches)</label>
                           <div className="space-y-2">
-                              {(selectedNode.data.branches || []).map((branch, index) => (
+                              {(selectedNode.data.branches || []).map((branch: { id: string; label: string }, index: number) => (
                                   <div key={branch.id} className="flex gap-2">
                                       <div className="flex-1">
                                         <VariableSuggestInput
@@ -484,7 +487,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                       </div>
                                       <button 
                                           onClick={() => {
-                                              const newBranches = (selectedNode.data.branches || []).filter((_, i) => i !== index);
+                                              const newBranches = (selectedNode.data.branches || []).filter((_: { id: string; label: string }, i: number) => i !== index);
                                               updateNodeData(selectedNode.id, { branches: newBranches });
                                           }}
                                           className="px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
@@ -524,7 +527,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
               {selectedNode.type === 'jump' && (
                   <div>
                       <label className={labelClass}>{t('properties.jumpTarget')}</label>
-                      {nodes.filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource').length === 0 ? (
+                      {nodes.filter((n: ScenarioNode) => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource').length === 0 ? (
                            <div className={ERROR_CLASS}>
                                {t('properties.noNodesAvailable') || "No jump targets available"}
                            </div>
@@ -535,8 +538,8 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                               className={inputClass}
                           >
                               {nodes
-                                  .filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource')
-                                  .map(n => (
+                                  .filter((n: ScenarioNode) => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource')
+                                  .map((n: ScenarioNode) => (
                                       <option key={n.id} value={n.id}>
                                           {substituteVariables(n.data.label, gameState.variables)} ({n.type})
                                       </option>

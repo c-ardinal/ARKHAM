@@ -1,14 +1,14 @@
 import { memo, useEffect } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { Rabbit } from 'lucide-react';
-import type { ScenarioNodeData } from '../types';
+import type { ScenarioNodeData, ScenarioNode } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
 const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const nodes = useScenarioStore((s) => s.nodes);
+  const nodes = useScenarioStore((s) => s.tabs.find(t => t.id === s.activeTabId)?.nodes ?? []);
   const variables = useScenarioStore((s) => s.gameState.variables);
   const updateNodeData = useScenarioStore((s) => s.updateNodeData);
   const description = data.description;
@@ -57,7 +57,7 @@ const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
                       const targetNodeId = typeof data.jumpTarget === 'string'
                           ? data.jumpTarget
                           : data.jumpTarget.nodeId;
-                      return substituteVariables(nodes.find(n => n.id === targetNodeId)?.data.label || 'Unknown Node', variables);
+                      return substituteVariables(nodes.find((n: ScenarioNode) => n.id === targetNodeId)?.data.label || 'Unknown Node', variables);
                   })()
               ) : (
                   <span className="opacity-50 italic">None</span>

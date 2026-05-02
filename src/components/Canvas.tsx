@@ -22,7 +22,7 @@ import JumpNode from '../nodes/JumpNode';
 import StickyNode from '../nodes/StickyNode';
 import CharacterNode from '../nodes/CharacterNode';
 import ResourceNode from '../nodes/ResourceNode';
-import type { NodeType, ScenarioNode } from '../types';
+import type { NodeType, ScenarioNode, ScenarioEdge } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
 import { getJumpTargetCenter } from '../utils/nodeAbsolutePosition';
@@ -59,12 +59,12 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     fontsLoaded?: boolean;
 }>(({ onCanvasClick, isMobile, onOpenPropertyPanel, fontsLoaded }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { 
-    nodes, 
-    edges, 
-    onNodesChange, 
-    onEdgesChange, 
-    onConnect, 
+  const {
+    tabs,
+    activeTabId,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
     onReconnect,
     addNode,
     duplicateNodes,
@@ -84,6 +84,9 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     deleteStickies,
     hideSticky,
   } = useScenarioStore();
+  const activeTab = tabs.find(t => t.id === activeTabId);
+  const nodes = activeTab?.nodes ?? [];
+  const edges = activeTab?.edges ?? [];
   const { 
       setEdges, 
       getNodes,
@@ -259,7 +262,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     const nodesChanged = Math.abs(nodes.length - previousNodesLength.current) > 5;
     
     // ノードのサイズがすべて確定しているかチェック
-    const allNodesHaveDimensions = nodes.every(n => n.width && n.height);
+    const allNodesHaveDimensions = nodes.every((n: ScenarioNode) => n.width && n.height);
 
     // 寸法が確定していない場合は処理を保留（previousNodesLengthも更新しない）
     // これにより、寸法確定後の再レンダリングで正しく処理される
@@ -1024,11 +1027,11 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         deleteNodes(nodesToDelete.map(n => n.id));
     } else {
         // Check for selected edges
-        const selectedEdges = edges.filter(e => e.selected);
-        const edgesToDelete = selectedEdges.length > 0 ? selectedEdges : (menu?.type === 'edge' ? edges.filter(e => e.id === menu.id) : []);
-        
+        const selectedEdges = edges.filter((e: ScenarioEdge) => e.selected);
+        const edgesToDelete = selectedEdges.length > 0 ? selectedEdges : (menu?.type === 'edge' ? edges.filter((e: ScenarioEdge) => e.id === menu.id) : []);
+
         if (edgesToDelete.length > 0) {
-            setEdges((currentEdges) => currentEdges.filter((e) => !edgesToDelete.some(del => del.id === e.id)));
+            setEdges((currentEdges) => currentEdges.filter((e) => !edgesToDelete.some((del: ScenarioEdge) => del.id === e.id)));
         }
     }
     setMenu(null);
