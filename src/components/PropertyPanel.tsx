@@ -3,10 +3,10 @@ import React, { useEffect, type ChangeEvent } from 'react';
 import type { ScenarioNode } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
-import { substituteVariables } from '../utils/textUtils';
 import { INPUT_CLASS, LABEL_CLASS, ERROR_MSG_CLASS as ERROR_CLASS } from '../styles/common';
 import { X } from 'lucide-react';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
+import { JumpTargetCombobox } from './JumpTargetCombobox';
 
 const MobileBackdrop = ({ children, isMobile }: { children: React.ReactNode, isMobile: boolean }) => {
     if (!isMobile) return <>{children}</>;
@@ -527,35 +527,15 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
               {selectedNode.type === 'jump' && (
                   <div>
                       <label className={labelClass}>{t('properties.jumpTarget')}</label>
-                      {nodes.filter((n: ScenarioNode) => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource').length === 0 ? (
-                           <div className={ERROR_CLASS}>
-                               {t('properties.noNodesAvailable') || "No jump targets available"}
-                           </div>
-                      ) : (
-                          <select
-                              value={(typeof selectedNode.data.jumpTarget === 'string' ? selectedNode.data.jumpTarget : selectedNode.data.jumpTarget?.nodeId) || ''}
-                              onChange={(e) => {
-                                  const nodeId = e.target.value;
-                                  if (!nodeId) {
-                                      updateNodeData(selectedNode.id, { jumpTarget: null });
-                                  } else {
-                                      // Store jumpTarget as a {tabId, nodeId} object so cross-tab
-                                      // jumps can be resolved correctly after the tabs migration.
-                                      updateNodeData(selectedNode.id, { jumpTarget: { tabId: activeTabId, nodeId } });
-                                  }
-                              }}
-                              className={inputClass}
-                          >
-                              {nodes
-                                  .filter((n: ScenarioNode) => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource')
-                                  .map((n: ScenarioNode) => (
-                                      <option key={n.id} value={n.id}>
-                                          {substituteVariables(n.data.label, gameState.variables)} ({n.type})
-                                      </option>
-                                  ))
-                              }
-                          </select>
-                      )}
+                      <JumpTargetCombobox
+                          value={
+                              typeof selectedNode.data.jumpTarget === 'string'
+                                  ? null
+                                  : (selectedNode.data.jumpTarget ?? null)
+                          }
+                          onChange={(target) => updateNodeData(selectedNode.id, { jumpTarget: target })}
+                          excludeNodeId={selectedNode.id}
+                      />
                   </div>
               )}
             </div>
