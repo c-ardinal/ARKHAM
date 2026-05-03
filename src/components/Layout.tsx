@@ -17,6 +17,7 @@ import { validateScenarioData } from '../utils/scenarioValidator';
 import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight } from 'lucide-react';
 
 import { useTranslation } from '../hooks/useTranslation';
+import { TabBar } from './TabBar';
 import { generateScenarioText } from '../utils/exportUtils';
 import sampleStory from '../../sample/sample_Story.json';
 import sampleNestedGroup from '../../sample/sample_NestedGroupNodes.json';
@@ -288,6 +289,7 @@ export const Layout = () => {
   
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; danger?: boolean; confirmLabel?: string; cancelLabel?: string } | null>(null);
+  const [tabDeleteTarget, setTabDeleteTarget] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<{ errors: string[]; warnings: string[]; corrections?: string[]; jsonContent?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const isDebugModeEnabled = (() => {
@@ -402,6 +404,14 @@ export const Layout = () => {
     }, 200);
     return () => clearInterval(interval);
   }, []);
+
+  // Prevent deleting the last remaining tab: show toast and clear target instead of opening modal
+  useEffect(() => {
+    if (tabDeleteTarget && tabs.length <= 1) {
+      toast.error(t('tab.cannotDeleteLast' as any));
+      setTabDeleteTarget(null);
+    }
+  }, [tabDeleteTarget, tabs.length, t]);
 
   const handleSave = () => {
     try {
@@ -835,6 +845,7 @@ const menuActions = {
             </button>
         </div>
       </header>
+      <TabBar onRequestDeleteConfirm={(id) => setTabDeleteTarget(id)} />
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Main Content Area */}
@@ -911,6 +922,36 @@ const menuActions = {
             onClose={() => setConfirmModal(null)}
         />
       )}
+      {/* Tab delete confirmation dialog — only shown when more than 1 tab exists */}
+      {tabDeleteTarget !== null && tabs.length > 1 && (() => {
+        const tab = tabs.find(tt => tt.id === tabDeleteTarget);
+        if (!tab) return null;
+        const jumpRefs = tabs.flatMap(tt =>
+          tt.nodes.filter(n => n.type === 'jump' && (n.data?.jumpTarget as any)?.tabId === tabDeleteTarget)
+        ).length;
+        const messageParts = [
+          t('tab.deleteConfirmBodyNodes' as any).replace('{n}', String(tab.nodes.length)),
+        ];
+        if (jumpRefs > 0) {
+          messageParts.push(`⚠ ${t('tab.deleteConfirmBodyJumps' as any).replace('{n}', String(jumpRefs))}`);
+        }
+        const message = messageParts.join('\n');
+        return (
+          <ConfirmationModal
+            isOpen={true}
+            title={t('tab.deleteConfirmTitle' as any)}
+            message={message}
+            danger={true}
+            confirmLabel={t('tab.delete' as any)}
+            cancelLabel={t('common.cancel' as any)}
+            onConfirm={() => {
+              useScenarioStore.getState().deleteTab(tabDeleteTarget);
+              setTabDeleteTarget(null);
+            }}
+            onClose={() => setTabDeleteTarget(null)}
+          />
+        );
+      })()}
       <UpdateHistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
       <ManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
