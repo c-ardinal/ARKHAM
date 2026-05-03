@@ -123,3 +123,27 @@ describe('setActiveTab', () => {
     expect(useScenarioStore.getState().activeTabId).toBe(before);
   });
 });
+
+describe('executeJump', () => {
+  beforeEach(reset);
+
+  it('同タブ内: activeTabId を変更せず selectedNodeId のみ更新', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    useScenarioStore.getState().executeJump({ tabId: t1, nodeId: 'n_x' });
+    expect(useScenarioStore.getState().activeTabId).toBe(t1);
+    expect(useScenarioStore.getState().selectedNodeId).toBe('n_x');
+  });
+
+  it('別タブ: activeTabId を切替+selectedNodeId 更新', () => {
+    const t2 = useScenarioStore.getState().addTab('B');
+    useScenarioStore.getState().executeJump({ tabId: t2, nodeId: 'n_y' });
+    expect(useScenarioStore.getState().activeTabId).toBe(t2);
+    expect(useScenarioStore.getState().selectedNodeId).toBe('n_y');
+  });
+
+  it('null target は no-op', () => {
+    const before = useScenarioStore.getState().selectedNodeId;
+    useScenarioStore.getState().executeJump(null);
+    expect(useScenarioStore.getState().selectedNodeId).toBe(before);
+  });
+});
