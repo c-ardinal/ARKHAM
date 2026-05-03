@@ -415,19 +415,27 @@ export const Layout = () => {
 
   const handleSave = () => {
     try {
+      // Save in v2 tabbed format so all tabs are preserved, not just the active one.
+      // validateScenarioData expects legacy (nodes/edges) format; skip it here since
+      // we are producing a well-formed object directly from store state.
+      const activeViewport = canvasRef.current?.getViewport();
+      const tabsWithViewport = activeViewport
+        ? tabs.map((t) =>
+            t.id === activeTabId ? { ...t, viewport: activeViewport } : t
+          )
+        : tabs;
+
       const data = {
-        nodes,
-        edges,
+        version: 2,
+        tabs: tabsWithViewport,
+        activeTabId,
         gameState,
         characters,
         resources,
         edgeType,
-        viewport: canvasRef.current?.getViewport()
       };
 
-      // Validate and correct the data before saving
-      const validation = validateScenarioData(data);
-      const dataToSave = validation.correctedData || data;
+      const dataToSave = data;
 
       const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);

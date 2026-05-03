@@ -267,105 +267,99 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       characters: state.characters.map((c) => (c.id === id ? { ...c, ...char } : c))
   })),
   deleteCharacter: (id) => set((state) => {
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const currentEdges = activeTab?.edges ?? [];
-      const nodesToDelete = currentNodes.filter(n => n.type === 'character' && n.data.referenceId === id).map(n => n.id);
-      let newNodes = currentNodes;
-      let newEdges = currentEdges;
-      if (nodesToDelete.length > 0) {
-           newNodes = currentNodes.filter(n => !nodesToDelete.includes(n.id));
-           newEdges = currentEdges.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target));
-      }
+      // Walk all tabs so character nodes are removed regardless of which tab is active
+      const newTabs = state.tabs.map((t) => {
+          const nodesToDelete = t.nodes
+              .filter((n) => n.type === 'character' && n.data.referenceId === id)
+              .map((n) => n.id);
+          if (nodesToDelete.length === 0) return t;
+          return {
+              ...t,
+              nodes: t.nodes.filter((n) => !nodesToDelete.includes(n.id)),
+              edges: t.edges.filter(
+                  (e) => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target)
+              ),
+          };
+      });
       return {
           characters: state.characters.filter((c) => c.id !== id),
-          tabs: withActiveTab(state, () => ({ nodes: newNodes, edges: newEdges })),
+          tabs: newTabs,
       };
   }),
 
   addResource: (res) => set((state) => {
       const newResources = [...state.resources, res];
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
 
-      // Auto-assign to unassigned element nodes
-      const updatedNodes = currentNodes.map(node => {
-          if ((node.type === 'element' || node.type === 'information') && !node.data.referenceId) {
-             return {
-                 ...node,
-                 data: {
-                     ...node.data,
-                     referenceId: res.id,
-                     infoValue: res.name
-                 }
-             };
-          }
-          return node;
+      // Auto-assign to unassigned element nodes across all tabs
+      const newTabs = state.tabs.map((t) => {
+          const updatedNodes = t.nodes.map((node) => {
+              if ((node.type === 'element' || node.type === 'information') && !node.data.referenceId) {
+                  return {
+                      ...node,
+                      data: { ...node.data, referenceId: res.id, infoValue: res.name },
+                  };
+              }
+              return node;
+          });
+          return { ...t, nodes: updatedNodes };
       });
 
-      return {
-          resources: newResources,
-          tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
-      };
+      return { resources: newResources, tabs: newTabs };
   }),
   updateResource: (id, res) => set((state) => {
       const updatedResources = state.resources.map((r) => (r.id === id ? { ...r, ...res } : r));
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
+      const updatedResource = updatedResources.find((r) => r.id === id);
 
-      // Update element nodes that reference this resource
-      const updatedNodes = currentNodes.map(node => {
-          if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
-             const updatedResource = updatedResources.find(r => r.id === id);
-             if (updatedResource) {
-                 return {
-                     ...node,
-                     data: {
-                         ...node.data,
-                         infoValue: updatedResource.name
-                     }
-                 };
-             }
-          }
-          return node;
+      // Update element nodes that reference this resource across all tabs
+      const newTabs = state.tabs.map((t) => {
+          const updatedNodes = t.nodes.map((node) => {
+              if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
+                  if (updatedResource) {
+                      return {
+                          ...node,
+                          data: { ...node.data, infoValue: updatedResource.name },
+                      };
+                  }
+              }
+              return node;
+          });
+          return { ...t, nodes: updatedNodes };
       });
 
-      return {
-          resources: updatedResources,
-          tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
-      };
+      return { resources: updatedResources, tabs: newTabs };
   }),
   deleteResource: (id) => set((state) => {
        const resources = state.resources.filter((r) => r.id !== id);
        const fallbackResource = resources.length > 0 ? resources[0] : null;
-       const activeTab = getActiveTabFrom(state);
-       const currentNodes = activeTab?.nodes ?? [];
-       const currentEdges = activeTab?.edges ?? [];
 
-       const newNodes = currentNodes.map(node => {
-           if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
-               return {
-                   ...node,
-                   data: {
-                       ...node.data,
-                       referenceId: fallbackResource ? fallbackResource.id : undefined,
-                       infoValue: fallbackResource ? fallbackResource.name : 'None',
-                   }
-               };
-           }
-           if (node.type === 'resource' && node.data.referenceId === id) {
-                return null;
-           }
-           return node;
-       }).filter((n): n is ScenarioNode => n !== null);
+       // Walk all tabs so element/resource nodes are updated regardless of which tab is active
+       const newTabs = state.tabs.map((t) => {
+           const updatedNodes = t.nodes.map((node) => {
+               if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
+                   return {
+                       ...node,
+                       data: {
+                           ...node.data,
+                           referenceId: fallbackResource ? fallbackResource.id : undefined,
+                           infoValue: fallbackResource ? fallbackResource.name : 'None',
+                       },
+                   };
+               }
+               if (node.type === 'resource' && node.data.referenceId === id) {
+                   return null;
+               }
+               return node;
+           }).filter((n): n is ScenarioNode => n !== null);
 
-       const validIds = new Set(newNodes.map(n => n.id));
-       const newEdges = currentEdges.filter(e => validIds.has(e.source) && validIds.has(e.target));
+           const validIds = new Set(updatedNodes.map((n) => n.id));
+           const updatedEdges = t.edges.filter(
+               (e) => validIds.has(e.source) && validIds.has(e.target)
+           );
 
-      return {
-          resources,
-          tabs: withActiveTab(state, () => ({ nodes: newNodes, edges: newEdges })),
-      };
+           return { ...t, nodes: updatedNodes, edges: updatedEdges };
+       });
+
+       return { resources, tabs: newTabs };
   }),
 
   selectedNodeId: null,
@@ -1273,13 +1267,14 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
   resetGame: () => {
     const state = get();
-    const activeTab = getActiveTabFrom(state);
-    const currentNodes = activeTab?.nodes ?? [];
-    // Unreveal all nodes
-    const updatedNodes = currentNodes.map(n => ({ ...n, data: { ...n.data, revealed: false } }));
+    // Unreveal all nodes across all tabs
+    const newTabs = state.tabs.map((t) => ({
+        ...t,
+        nodes: t.nodes.map((n) => ({ ...n, data: { ...n.data, revealed: false } })),
+    }));
 
     set({
-        tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
+        tabs: newTabs,
         gameState: {
             currentNodes: [],
             revealedNodes: [],
@@ -1382,22 +1377,29 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           }
       });
 
-      // 3. Update sticky status on nodes (only within active tab)
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const stickyTargets = new Set<string>();
-      currentNodes.forEach(n => {
-          if (n.type === 'sticky' && n.data.targetNodeId) {
-              stickyTargets.add(n.data.targetNodeId);
-          }
-      });
+      // 3. Update sticky status on nodes across all tabs
+      // Each tab is self-contained: sticky targets only reference nodes in the same tab.
+      let tabsChanged = false;
+      const updatedTabs = state.tabs.map((t) => {
+          const stickyTargets = new Set<string>();
+          t.nodes.forEach((n) => {
+              if (n.type === 'sticky' && n.data.targetNodeId) {
+                  stickyTargets.add(n.data.targetNodeId);
+              }
+          });
 
-      const newNodes = currentNodes.map(n => {
-          const hasSticky = stickyTargets.has(n.id);
-          if (n.data.hasSticky !== hasSticky) {
-             return { ...n, data: { ...n.data, hasSticky } };
-          }
-          return n;
+          const newNodes = t.nodes.map((n) => {
+              const hasSticky = stickyTargets.has(n.id);
+              if (n.data.hasSticky !== hasSticky) {
+                  return { ...n, data: { ...n.data, hasSticky } };
+              }
+              return n;
+          });
+
+          const hasChanges = newNodes.some((n, i) => n !== t.nodes[i]);
+          if (!hasChanges) return t;
+          tabsChanged = true;
+          return { ...t, nodes: newNodes };
       });
 
       const updates: Partial<ScenarioState> = {
@@ -1411,9 +1413,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           }
       };
 
-      const hasNodeChanges = newNodes.some((n, i) => n !== currentNodes[i]);
-      if (hasNodeChanges) {
-          updates.tabs = withActiveTab(state, () => ({ nodes: newNodes }));
+      if (tabsChanged) {
+          updates.tabs = updatedTabs;
       }
 
       set(updates);
@@ -1422,50 +1423,52 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   revealAll: () => {
       get().pushHistory();
       const state = get();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
       let newVariables = { ...state.gameState.variables };
 
-      const updatedNodes = currentNodes.map(node => {
-          if (node.data.revealed) return node;
+      // Reveal nodes across all tabs; variable side-effects accumulate globally
+      const newTabs = state.tabs.map((t) => {
+          const updatedNodes = t.nodes.map((node) => {
+              if (node.data.revealed) return node;
 
-          let updatedData = { ...node.data, revealed: true };
+              let updatedData = { ...node.data, revealed: true };
 
-          // Handle VariableNode logic
-          if (node.type === 'variable') {
-              const targetVar = node.data.targetVariable;
-              const valueExpr = node.data.variableValue;
+              // Handle VariableNode logic
+              if (node.type === 'variable') {
+                  const targetVar = node.data.targetVariable;
+                  const valueExpr = node.data.variableValue;
 
-              if (targetVar && newVariables[targetVar]) {
-                  const currentVar = newVariables[targetVar];
-                  updatedData.previousValue = currentVar.value;
+                  if (targetVar && newVariables[targetVar]) {
+                      const currentVar = newVariables[targetVar];
+                      updatedData.previousValue = currentVar.value;
 
-                  let newValue: any = valueExpr;
+                      let newValue: any = valueExpr;
 
-                  if (typeof valueExpr === 'string') {
-                      const resolvedValue = evaluateFormula(valueExpr, newVariables);
+                      if (typeof valueExpr === 'string') {
+                          const resolvedValue = evaluateFormula(valueExpr, newVariables);
 
-                      if (currentVar.type === 'number') {
-                          const num = Number(resolvedValue);
-                          if (!isNaN(num)) newValue = num;
-                      } else if (currentVar.type === 'boolean') {
-                          newValue = String(resolvedValue) === 'true';
+                          if (currentVar.type === 'number') {
+                              const num = Number(resolvedValue);
+                              if (!isNaN(num)) newValue = num;
+                          } else if (currentVar.type === 'boolean') {
+                              newValue = String(resolvedValue) === 'true';
+                          } else {
+                              newValue = String(resolvedValue);
+                          }
                       } else {
-                          newValue = String(resolvedValue);
+                          newValue = valueExpr;
                       }
-                  } else {
-                      newValue = valueExpr;
+
+                      newVariables[targetVar] = { ...currentVar, value: newValue };
                   }
-
-                  newVariables[targetVar] = { ...currentVar, value: newValue };
               }
-          }
 
-          return { ...node, data: updatedData };
+              return { ...node, data: updatedData };
+          });
+          return { ...t, nodes: updatedNodes };
       });
 
       set({
-          tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
+          tabs: newTabs,
           gameState: { ...state.gameState, variables: newVariables }
       });
       get().recalculateGameState();
@@ -1474,36 +1477,38 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   unrevealAll: () => {
       get().pushHistory();
       const state = get();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
       let newVariables = { ...state.gameState.variables };
 
-      const updatedNodes = currentNodes.map(node => {
-          if (!node.data.revealed) return node;
+      // Unreveal nodes across all tabs; variable restorations accumulate globally
+      const newTabs = state.tabs.map((t) => {
+          const updatedNodes = t.nodes.map((node) => {
+              if (!node.data.revealed) return node;
 
-          let updatedData = { ...node.data, revealed: false };
+              let updatedData = { ...node.data, revealed: false };
 
-          // Handle VariableNode logic
-          if (node.type === 'variable') {
-              const targetVar = node.data.targetVariable;
+              // Handle VariableNode logic
+              if (node.type === 'variable') {
+                  const targetVar = node.data.targetVariable;
 
-              if (targetVar && newVariables[targetVar]) {
-                  const currentVar = newVariables[targetVar];
+                  if (targetVar && newVariables[targetVar]) {
+                      const currentVar = newVariables[targetVar];
 
-                  // Restore previous value
-                  if (updatedData.previousValue !== undefined) {
-                      newVariables[targetVar] = { ...currentVar, value: updatedData.previousValue };
+                      // Restore previous value
+                      if (updatedData.previousValue !== undefined) {
+                          newVariables[targetVar] = { ...currentVar, value: updatedData.previousValue };
+                      }
                   }
+                  // Always clear previousValue to prevent stale state
+                  updatedData.previousValue = undefined;
               }
-              // Always clear previousValue to prevent stale state
-              updatedData.previousValue = undefined;
-          }
 
-          return { ...node, data: updatedData };
+              return { ...node, data: updatedData };
+          });
+          return { ...t, nodes: updatedNodes };
       });
 
       set({
-          tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
+          tabs: newTabs,
           gameState: { ...state.gameState, variables: newVariables }
       });
       get().recalculateGameState();
