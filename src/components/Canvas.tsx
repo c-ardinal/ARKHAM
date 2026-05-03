@@ -62,6 +62,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   const {
     tabs,
     activeTabId,
+    executeJump,
     onNodesChange,
     onEdgesChange,
     onConnect,
@@ -214,6 +215,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   // ビューポート復元管理（stateで変更を検知）
   const [pendingViewport, setPendingViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const [hasAppliedViewport, setHasAppliedViewport] = useState(false);
+  // Cross-tab jump: after executeJump switches activeTabId, focus the target node in the new tab
+  const [pendingCrossTabFocus, setPendingCrossTabFocus] = useState<string | null>(null);
   // Coarse zoom tier for LOD rendering. Updated on viewport changes only
   // when the tier is actually crossed, so steady-state pan/drag never trigger
   // re-renders here.
@@ -339,6 +342,27 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
     previousNodesLength.current = nodes.length;
   }, [nodes, pendingViewport, fitView, setViewport]);
+
+  // When a cross-tab jump just happened, the active tab has switched.
+  // We now find the target node in the new active tab and center on it.
+  useEffect(() => {
+    if (!pendingCrossTabFocus) return;
+    const targetId = pendingCrossTabFocus;
+    // Wait one frame for ReactFlow to mount the new tab's nodes
+    const raf = window.requestAnimationFrame(() => {
+      setTimeout(() => {
+        const targetNode = getNodes().find((n) => n.id === targetId);
+        if (targetNode) {
+          const { cx, cy } = getJumpTargetCenter(targetNode as ScenarioNode);
+          const currentZoom = getZoom();
+          setCenter(cx, cy, { zoom: currentZoom, duration: 600 });
+          setSelectedNode(targetId);
+        }
+        setPendingCrossTabFocus(null);
+      }, 100);
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [pendingCrossTabFocus, getNodes, getZoom, setCenter, setSelectedNode]);
 
   // Dedicated effect for removing the loader
   useEffect(() => {
@@ -633,10 +657,17 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
                   onOpenPropertyPanel?.();
               } else if (node.type === 'jump' && node.data.jumpTarget) {
                   // Jump Node: Jump on Double Click
-                  const targetId = typeof node.data.jumpTarget === 'string'
-                      ? node.data.jumpTarget
-                      : node.data.jumpTarget.nodeId;
-                  if (targetId) handleJump(targetId);
+                  const target = node.data.jumpTarget;
+                  if (typeof target === 'string') {
+                      // Legacy string form — same-tab assumption
+                      handleJump(target);
+                  } else if (target.tabId === activeTabId) {
+                      handleJump(target.nodeId);
+                  } else {
+                      // Cross-tab: switch tab, then focus on landing
+                      executeJump(target);
+                      setPendingCrossTabFocus(target.nodeId);
+                  }
               }
               // Other nodes: Do nothing
           }
@@ -654,17 +685,22 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         // Jump Node Logic
         // In Edit Mode: Only jump if NOT mobile.
         if (!isMobile) {
-            const targetId = typeof node.data.jumpTarget === 'string'
-                ? node.data.jumpTarget
-                : node.data.jumpTarget.nodeId;
-            if (targetId) handleJump(targetId);
+            const target = node.data.jumpTarget;
+            if (typeof target === 'string') {
+                handleJump(target);
+            } else if (target.tabId === activeTabId) {
+                handleJump(target.nodeId);
+            } else {
+                executeJump(target);
+                setPendingCrossTabFocus(target.nodeId);
+            }
         }
     }
 
     if (node.type === 'group') {
         bringNodeToFront(node.id);
     }
-  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode, mode, isMobile, onOpenPropertyPanel]);
+  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode, mode, isMobile, onOpenPropertyPanel, activeTabId, executeJump]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
