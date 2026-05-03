@@ -534,7 +534,16 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       ) : (
                           <select
                               value={(typeof selectedNode.data.jumpTarget === 'string' ? selectedNode.data.jumpTarget : selectedNode.data.jumpTarget?.nodeId) || ''}
-                              onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value as any })}
+                              onChange={(e) => {
+                                  const nodeId = e.target.value;
+                                  if (!nodeId) {
+                                      updateNodeData(selectedNode.id, { jumpTarget: null });
+                                  } else {
+                                      // Store jumpTarget as a {tabId, nodeId} object so cross-tab
+                                      // jumps can be resolved correctly after the tabs migration.
+                                      updateNodeData(selectedNode.id, { jumpTarget: { tabId: activeTabId, nodeId } });
+                                  }
+                              }}
                               className={inputClass}
                           >
                               {nodes
