@@ -14,6 +14,7 @@ import { Toaster, toast } from './common/Toaster';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useDebugStore } from '../store/debugStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
+import { countJumpReferencesToTab } from '../utils/jumpReferences';
 import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight } from 'lucide-react';
 
 import { useTranslation } from '../hooks/useTranslation';
@@ -947,9 +948,7 @@ const menuActions = {
       {tabDeleteTarget !== null && tabs.length > 1 && (() => {
         const tab = tabs.find(tt => tt.id === tabDeleteTarget);
         if (!tab) return null;
-        const jumpRefs = tabs.flatMap(tt =>
-          tt.nodes.filter(n => n.type === 'jump' && (n.data?.jumpTarget as any)?.tabId === tabDeleteTarget)
-        ).length;
+        const jumpRefs = countJumpReferencesToTab(tabs, tabDeleteTarget);
         const messageParts = [
           t('tab.deleteConfirmBodyNodes').replace('{n}', String(tab.nodes.length)),
         ];

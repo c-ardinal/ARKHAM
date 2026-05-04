@@ -12,6 +12,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useScenarioStore } from '../store/scenarioStore';
+import { useActiveNodes, useActiveEdges } from '../store/tabSelectors';
 import EventNode from '../nodes/EventNode';
 import ElementNode from '../nodes/ElementNode';
 import BranchNode from '../nodes/BranchNode';
@@ -61,36 +62,34 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     fontsLoaded?: boolean;
 }>(({ onCanvasClick, isMobile, onOpenPropertyPanel, fontsLoaded }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const {
-    tabs,
-    activeTabId,
-    executeJump,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-    onReconnect,
-    addNode,
-    duplicateNodes,
-    deleteNodes,
-    setSelectedNode,
-    mode,
-    toggleNodeState,
-    groupNodes,
-    ungroupNodes,
-    pushHistory,
-    edgeType,
-    gameState,
-    selectedNodeId,
-    bringNodeToFront,
-    addSticky,
-    toggleStickies,
-    deleteStickies,
-    hideSticky,
-    moveNodesToTab,
-  } = useScenarioStore();
-  const activeTab = tabs.find(t => t.id === activeTabId);
-  const nodes = activeTab?.nodes ?? [];
-  const edges = activeTab?.edges ?? [];
+  // Purpose-built selectors: each subscribes only to the slice it needs,
+  // avoiding full-store re-renders on unrelated mutations (H-P1, H-P2).
+  const nodes = useActiveNodes();
+  const edges = useActiveEdges();
+  const activeTabId = useScenarioStore((s) => s.activeTabId);
+  const executeJump = useScenarioStore((s) => s.executeJump);
+  const onNodesChange = useScenarioStore((s) => s.onNodesChange);
+  const onEdgesChange = useScenarioStore((s) => s.onEdgesChange);
+  const onConnect = useScenarioStore((s) => s.onConnect);
+  const onReconnect = useScenarioStore((s) => s.onReconnect);
+  const addNode = useScenarioStore((s) => s.addNode);
+  const duplicateNodes = useScenarioStore((s) => s.duplicateNodes);
+  const deleteNodes = useScenarioStore((s) => s.deleteNodes);
+  const setSelectedNode = useScenarioStore((s) => s.setSelectedNode);
+  const mode = useScenarioStore((s) => s.mode);
+  const toggleNodeState = useScenarioStore((s) => s.toggleNodeState);
+  const groupNodes = useScenarioStore((s) => s.groupNodes);
+  const ungroupNodes = useScenarioStore((s) => s.ungroupNodes);
+  const pushHistory = useScenarioStore((s) => s.pushHistory);
+  const edgeType = useScenarioStore((s) => s.edgeType);
+  const gameState = useScenarioStore((s) => s.gameState);
+  const selectedNodeId = useScenarioStore((s) => s.selectedNodeId);
+  const bringNodeToFront = useScenarioStore((s) => s.bringNodeToFront);
+  const addSticky = useScenarioStore((s) => s.addSticky);
+  const toggleStickies = useScenarioStore((s) => s.toggleStickies);
+  const deleteStickies = useScenarioStore((s) => s.deleteStickies);
+  const hideSticky = useScenarioStore((s) => s.hideSticky);
+  const moveNodesToTab = useScenarioStore((s) => s.moveNodesToTab);
   const { 
       setEdges, 
       getNodes,
