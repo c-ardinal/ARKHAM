@@ -28,6 +28,8 @@ import { substituteVariables } from '../utils/textUtils';
 import { getJumpTargetCenter } from '../utils/nodeAbsolutePosition';
 import { NodeInfoModal } from './NodeInfoModal';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
+import { EdgeBreakDialog } from './EdgeBreakDialog';
+import { detectBrokenEdges } from '../utils/jumpReferences';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 import { ZoomLevelContext, resolveZoomLevel, type ZoomLevel } from '../contexts/ZoomLevelContext';
 
@@ -84,6 +86,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     toggleStickies,
     deleteStickies,
     hideSticky,
+    moveNodesToTab,
   } = useScenarioStore();
   const activeTab = tabs.find(t => t.id === activeTabId);
   const nodes = activeTab?.nodes ?? [];
@@ -209,6 +212,12 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [zoom, setZoomState] = useState(1);
   const [infoModalData, setInfoModalData] = useState<string | null>(null);
+  // Pending move awaiting EdgeBreakDialog confirmation
+  const [pendingMove, setPendingMove] = useState<{
+    targetTabId: string;
+    nodeIds: string[];
+    brokenCount: number;
+  } | null>(null);
   // Removed local isUpdatingSticky
   const lastDuplicatedIds = useRef<string[]>([]);
   
@@ -1055,6 +1064,39 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       setMenu(null);
   }, [hideSticky]);
 
+  /**
+   * [SPEC-TAB-MV-004] Move selected (or right-clicked) nodes to another tab.
+   * If any edges would be broken by the move, the EdgeBreakDialog is shown so
+   * the user can choose a resolution strategy.
+   */
+  const handleMoveToTab = useCallback((targetTabId: string) => {
+      // Prefer explicitly selected nodes; fall back to the single right-clicked node.
+      const selected = getNodes().filter((n) => n.selected);
+      const nodeIds =
+          selected.length > 0
+              ? selected.map((n) => n.id)
+              : menu?.type === 'node'
+              ? [menu.id]
+              : [];
+
+      if (nodeIds.length === 0) {
+          setMenu(null);
+          return;
+      }
+
+      // Detect edges that would be severed by moving these nodes to another tab.
+      const movedSet = new Set(nodeIds);
+      const broken = detectBrokenEdges(edges, movedSet);
+
+      if (broken.length > 0) {
+          // Surface the EdgeBreakDialog before committing the move.
+          setPendingMove({ targetTabId, nodeIds, brokenCount: broken.length });
+      } else {
+          moveNodesToTab(nodeIds, targetTabId, 'delete');
+      }
+      setMenu(null);
+  }, [getNodes, menu, edges, moveNodesToTab]);
+
   const handleDelete = useCallback(() => {
     const selectedNodes = getNodes().filter(n => n.selected);
     const nodesToDelete = selectedNodes.length > 0 ? selectedNodes : (menu?.type === 'node' ? getNodes().filter(n => n.id === menu.id) : []);
@@ -1592,8 +1634,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       </ReactFlow>
       
       {menu && (
-        <ContextMenu 
-          menu={menu} 
+        <ContextMenu
+          menu={menu}
           onClose={() => setMenu(null)}
           onDelete={handleDelete}
           onDuplicate={handleDuplicate}
@@ -1607,6 +1649,20 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
           onToggleStickies={handleToggleStickies}
           onDeleteStickies={handleDeleteStickies}
           onHideSticky={handleHideSticky}
+          onMoveToTab={handleMoveToTab}
+          selectedCount={Math.max(1, getNodes().filter((n) => n.selected).length)}
+        />
+      )}
+
+      {pendingMove && (
+        <EdgeBreakDialog
+          isOpen={true}
+          edgeCount={pendingMove.brokenCount}
+          onConfirm={(strategy) => {
+            moveNodesToTab(pendingMove.nodeIds, pendingMove.targetTabId, strategy);
+            setPendingMove(null);
+          }}
+          onCancel={() => setPendingMove(null)}
         />
       )}
     </div>
