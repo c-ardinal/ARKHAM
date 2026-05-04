@@ -374,6 +374,17 @@ export const Layout = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
 
+  // Show a warning toast when a scenario saved with a future (unknown) format version
+  // was detected during loadInitialState. The flag is set on window by the store before
+  // React mounts, so reading it once on mount is sufficient.
+  useEffect(() => {
+    const v = (window as any).__ARKHAM_FUTURE_VERSION_DETECTED__;
+    if (v) {
+      toast.error(t('migration.futureVersion').replace('{n}', String(v)));
+      delete (window as any).__ARKHAM_FUTURE_VERSION_DETECTED__;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleMode = useCallback(() => {
       setMode(mode === 'edit' ? 'play' : 'edit');
