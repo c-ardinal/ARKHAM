@@ -32,6 +32,8 @@ export const en: TranslationKeys = {
     cancel: 'Cancel',
     resizePanel: 'Resize panel',
     swipeToDelete: 'Swipe left to delete',
+    loadingScenario: 'Loading scenario…',
+    loading: 'Loading…',
   },
   toast: {
     scenarioSaved: 'Scenario saved',

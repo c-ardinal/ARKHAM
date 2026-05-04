@@ -30,6 +30,10 @@ export type TranslationKeys = {
     cancel: string;
     resizePanel: string;
     swipeToDelete: string;
+    /** Displayed in the LoadingOverlay while a scenario file is being parsed */
+    loadingScenario: string;
+    /** Generic loading message used as the LoadingOverlay default */
+    loading: string;
   };
   toast: {
     scenarioSaved: string;

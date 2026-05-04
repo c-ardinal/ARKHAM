@@ -32,6 +32,8 @@ export const ja: TranslationKeys = {
     cancel: 'キャンセル',
     resizePanel: 'パネル幅を変更',
     swipeToDelete: '左にスワイプで削除',
+    loadingScenario: 'シナリオを読み込んでいます…',
+    loading: '読み込み中…',
   },
   toast: {
     scenarioSaved: 'シナリオを保存しました',

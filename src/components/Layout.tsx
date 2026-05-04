@@ -989,7 +989,7 @@ const menuActions = {
         onClose={() => setValidationError(null)}
       />
       {isDebugModeEnabled && <DebugPanel />}
-      <LoadingOverlay isLoading={isLoading} message="シナリオを読み込んでいます..." />
+      <LoadingOverlay isLoading={isLoading} message={t('common.loadingScenario')} />
       <Toaster />
 
       </div>
