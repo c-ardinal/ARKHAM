@@ -2,6 +2,33 @@
 
 # 更新履歴
 
+## v2.3.0 (2026-05-04)
+
+### 機能追加
+
+- **タブ機能**: シナリオを章/シーン/幕などの単位で独立したタブに分割可能に
+  - キャンバス上部のタブバーから追加・リネーム(ダブルクリック)・削除・ドラッグでの並べ替え
+  - ノードを右クリック→「別のタブへ移動」で多選択ノードを別タブへ移動可能
+  - 移動時にエッジがタブをまたぐ場合は「削除」または「ジャンプノードに置換」を選択可能
+  - グループノード移動時は子ノードを自動同伴
+- **検索可能なジャンプ先選択**: ジャンプノードのターゲット選択を、章名・ノード名・タイプで絞り込み可能なコンボボックスに変更
+- **クロスタブジャンプ**: ジャンプノードが別タブのノードを参照可能に。実行時(進行モードでダブルクリック)は自動でタブ切替+カメラ移動
+
+### 変更・改善
+
+- 既存シナリオは初回起動時に自動で「タブ 1」に内包(後方互換)
+- タブ毎にズーム/パン位置(viewport)を保持し、切替時に復元
+- 削除確認ダイアログにジャンプ参照件数の警告を表示。最後の1タブは削除拒否
+
+### バグ修正
+
+- ノード境界外への paint がクリップされる CSS containment 設定により「開示済」バッジや付箋インジケータが見切れる不具合を修正(v2.2.0 から潜在)
+
+### その他
+
+- 保存データを v2 フォーマット(`{ version, tabs, activeTabId, ... }`)に拡張。レガシー読込時は自動マイグレーション + バックアップ退避
+- 未来バージョンの保存データを検出した場合は警告トーストを表示し、安全に空状態で起動
+
 ## v2.2.0 (2026-05-01)
 
 ### 変更・改善
@@ -105,6 +132,33 @@
 <!-- SECTION: en -->
 
 # Update History
+
+## v2.3.0 (2026-05-04)
+
+### New Features
+
+- **Tabs**: Scenarios can now be split into independent tabs for chapters / scenes / acts
+  - Add, rename (double-click), delete, and reorder (drag) tabs from the bar above the canvas
+  - Right-click → "Move to tab" to relocate selected nodes (single or multi-select) to another tab
+  - When edges cross tabs during a move, choose between deleting them or replacing them with jump nodes
+  - Group nodes automatically take their children with them when moved
+- **Searchable jump target picker**: Jump-node target selection is now a combobox filterable by tab name, node label, and type
+- **Cross-tab jumps**: Jump nodes may now point to nodes in other tabs. Double-clicking a jump in play mode auto-switches the active tab and centers the camera on the destination
+
+### Changes & Improvements
+
+- Existing scenarios are automatically wrapped into a single "Tab 1" on first launch (backward-compatible)
+- Each tab preserves its own zoom/pan viewport, restored on tab switch
+- The delete-tab confirmation dialog warns when jump nodes reference the tab; the last remaining tab cannot be deleted
+
+### Bug Fixes
+
+- Fixed an issue where the "revealed" badge and sticky-note indicators were clipped at the node outline due to CSS containment (latent since v2.2.0)
+
+### Others
+
+- Save format extended to v2 (`{ version, tabs, activeTabId, ... }`). Legacy data is migrated automatically with a backup snapshot
+- Detecting a save file from a newer app version now shows a warning toast and starts safely with an empty state
 
 ## v2.2.0 (2026-05-01)
 
