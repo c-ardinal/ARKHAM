@@ -68,8 +68,10 @@ export function TabBarItem({
         e.preventDefault();
         onContextMenu(e);
       }}
-      className={`group inline-flex items-center gap-1 px-3 py-1.5 min-h-[36px] border-r border-border cursor-pointer select-none ${
-        isActive ? 'bg-card text-foreground border-b-2 border-b-primary' : 'bg-muted text-muted-foreground hover:bg-accent'
+      className={`group inline-flex items-center gap-1 px-3 h-full border-r border-border border-b-2 cursor-pointer select-none ${
+        isActive
+          ? 'bg-card text-foreground border-b-primary'
+          : 'bg-muted text-muted-foreground hover:bg-accent border-b-transparent'
       }`}
     >
       {isEditing ? (
