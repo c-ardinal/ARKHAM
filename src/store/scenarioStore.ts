@@ -929,85 +929,171 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   showAllStickies: () => {
       const state = get();
       state.pushHistory();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const updatedNodes = currentNodes.map(n => n.type === 'sticky' ? { ...n, hidden: false } : n);
-      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
+      // Apply across all tabs so "全付箋" scope matches the menu label
+      set({
+          tabs: state.tabs.map((t) => ({
+              ...t,
+              nodes: t.nodes.map((n) => (n.type === 'sticky' ? { ...n, hidden: false } : n)),
+          })),
+      });
   },
 
   hideAllStickies: () => {
       const state = get();
       state.pushHistory();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const updatedNodes = currentNodes.map(n => n.type === 'sticky' ? { ...n, hidden: true } : n);
-      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
+      // Apply across all tabs so "全付箋" scope matches the menu label
+      set({
+          tabs: state.tabs.map((t) => ({
+              ...t,
+              nodes: t.nodes.map((n) => (n.type === 'sticky' ? { ...n, hidden: true } : n)),
+          })),
+      });
   },
 
   deleteAllStickiesGlobal: () => {
       const state = get();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const stickies = currentNodes.filter(n => n.type === 'sticky');
-      if (stickies.length > 0) {
-          get().deleteNodes(stickies.map(n => n.id));
-      }
+      // Delete stickies across all tabs and update parent hasSticky flags
+      const newTabs = state.tabs.map((t) => {
+          const stickies = t.nodes.filter((n) => n.type === 'sticky');
+          if (stickies.length === 0) return t;
+          const stickyParentIds = new Set(
+              stickies.map((s) => (s as any).data?.targetNodeId).filter(Boolean)
+          );
+          return {
+              ...t,
+              nodes: t.nodes
+                  .filter((n) => n.type !== 'sticky')
+                  .map((n) =>
+                      stickyParentIds.has(n.id)
+                          ? { ...n, data: { ...n.data, hasSticky: false } }
+                          : n
+                  ),
+              edges: t.edges.filter((e) => {
+                  const isStickyEdge = stickies.some(
+                      (s) => s.id === e.source || s.id === e.target
+                  );
+                  return !isStickyEdge;
+              }),
+          };
+      });
+      state.pushHistory();
+      set({ tabs: newTabs });
+      get().recalculateGameState();
   },
 
   showAllFreeStickies: () => {
       const state = get();
       state.pushHistory();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const updatedNodes = currentNodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: false } : n);
-      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
+      // Apply across all tabs so "全付箋" scope matches the menu label
+      set({
+          tabs: state.tabs.map((t) => ({
+              ...t,
+              nodes: t.nodes.map((n) =>
+                  n.type === 'sticky' && !n.data.targetNodeId ? { ...n, hidden: false } : n
+              ),
+          })),
+      });
   },
 
   hideAllFreeStickies: () => {
       const state = get();
       state.pushHistory();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const updatedNodes = currentNodes.map(n => (n.type === 'sticky' && !n.data.targetNodeId) ? { ...n, hidden: true } : n);
-      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
+      // Apply across all tabs so "全付箋" scope matches the menu label
+      set({
+          tabs: state.tabs.map((t) => ({
+              ...t,
+              nodes: t.nodes.map((n) =>
+                  n.type === 'sticky' && !n.data.targetNodeId ? { ...n, hidden: true } : n
+              ),
+          })),
+      });
   },
 
   deleteAllFreeStickies: () => {
       const state = get();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const stickies = currentNodes.filter(n => n.type === 'sticky' && !n.data.targetNodeId);
-      if (stickies.length > 0) {
-          get().deleteNodes(stickies.map(n => n.id));
-      }
+      // Delete free stickies (no targetNodeId) across all tabs
+      const newTabs = state.tabs.map((t) => {
+          const stickies = t.nodes.filter(
+              (n) => n.type === 'sticky' && !n.data.targetNodeId
+          );
+          if (stickies.length === 0) return t;
+          return {
+              ...t,
+              nodes: t.nodes.filter(
+                  (n) => !(n.type === 'sticky' && !n.data.targetNodeId)
+              ),
+              edges: t.edges.filter((e) => {
+                  const isStickyEdge = stickies.some(
+                      (s) => s.id === e.source || s.id === e.target
+                  );
+                  return !isStickyEdge;
+              }),
+          };
+      });
+      state.pushHistory();
+      set({ tabs: newTabs });
+      get().recalculateGameState();
   },
 
   showAllNodeStickies: () => {
       const state = get();
       state.pushHistory();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const updatedNodes = currentNodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: false } : n);
-      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
+      // Apply across all tabs so "全付箋" scope matches the menu label
+      set({
+          tabs: state.tabs.map((t) => ({
+              ...t,
+              nodes: t.nodes.map((n) =>
+                  n.type === 'sticky' && n.data.targetNodeId ? { ...n, hidden: false } : n
+              ),
+          })),
+      });
   },
 
   hideAllNodeStickies: () => {
       const state = get();
       state.pushHistory();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const updatedNodes = currentNodes.map(n => (n.type === 'sticky' && n.data.targetNodeId) ? { ...n, hidden: true } : n);
-      set({ tabs: withActiveTab(state, () => ({ nodes: updatedNodes })) });
+      // Apply across all tabs so "全付箋" scope matches the menu label
+      set({
+          tabs: state.tabs.map((t) => ({
+              ...t,
+              nodes: t.nodes.map((n) =>
+                  n.type === 'sticky' && n.data.targetNodeId ? { ...n, hidden: true } : n
+              ),
+          })),
+      });
   },
 
   deleteAllNodeStickies: () => {
       const state = get();
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      const stickies = currentNodes.filter(n => n.type === 'sticky' && n.data.targetNodeId);
-      if (stickies.length > 0) {
-          get().deleteNodes(stickies.map(n => n.id));
-      }
+      // Delete node-attached stickies across all tabs and update parent hasSticky flags
+      const newTabs = state.tabs.map((t) => {
+          const stickies = t.nodes.filter(
+              (n) => n.type === 'sticky' && n.data.targetNodeId
+          );
+          if (stickies.length === 0) return t;
+          const stickyParentIds = new Set(
+              stickies.map((s) => (s as any).data?.targetNodeId).filter(Boolean)
+          );
+          return {
+              ...t,
+              nodes: t.nodes
+                  .filter((n) => !(n.type === 'sticky' && n.data.targetNodeId))
+                  .map((n) =>
+                      stickyParentIds.has(n.id)
+                          ? { ...n, data: { ...n.data, hasSticky: false } }
+                          : n
+                  ),
+              edges: t.edges.filter((e) => {
+                  const isStickyEdge = stickies.some(
+                      (s) => s.id === e.source || s.id === e.target
+                  );
+                  return !isStickyEdge;
+              }),
+          };
+      });
+      state.pushHistory();
+      set({ tabs: newTabs });
+      get().recalculateGameState();
   },
 
   hideSticky: (stickyId) => {
