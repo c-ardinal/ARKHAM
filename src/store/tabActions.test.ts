@@ -147,3 +147,87 @@ describe('executeJump', () => {
     expect(useScenarioStore.getState().selectedNodeId).toBe(before);
   });
 });
+
+describe('moveNodesToTab', () => {
+  beforeEach(reset);
+
+  it('指定ノードを別タブへ移動 + ターゲットタブへ自動切替', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    const t2 = useScenarioStore.getState().addTab('B');
+    const node = { id: 'n_test', type: 'event', position: { x: 0, y: 0 }, data: { label: 'X' } } as any;
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addNode(node);
+    useScenarioStore.getState().moveNodesToTab(['n_test'], t2);
+
+    const state = useScenarioStore.getState();
+    expect(state.tabs.find((t) => t.id === t1)!.nodes.some((n) => n.id === 'n_test')).toBe(false);
+    expect(state.tabs.find((t) => t.id === t2)!.nodes.some((n) => n.id === 'n_test')).toBe(true);
+    expect(state.activeTabId).toBe(t2);
+  });
+
+  it('GroupNode 移動時に子ノードも同伴', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    const t2 = useScenarioStore.getState().addTab('B');
+    const group = { id: 'g1', type: 'group', position: {x:0,y:0}, data: { label: 'G' } } as any;
+    const child = { id: 'c1', type: 'event', position: {x:0,y:0}, data: { label: 'C' }, parentNode: 'g1' } as any;
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addNode(group);
+    useScenarioStore.getState().addNode(child);
+    useScenarioStore.getState().moveNodesToTab(['g1'], t2);
+
+    const tab2 = useScenarioStore.getState().tabs.find((t) => t.id === t2)!;
+    expect(tab2.nodes.some((n) => n.id === 'g1')).toBe(true);
+    expect(tab2.nodes.some((n) => n.id === 'c1')).toBe(true);
+  });
+
+  it('ジャンプ参照が追従(移動先 tabId に書き換わる)', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    const t2 = useScenarioStore.getState().addTab('B');
+    const target = { id: 'tgt', type: 'event', position: {x:0,y:0}, data: { label: 'T' } } as any;
+    const jump = { id: 'jmp', type: 'jump', position: {x:0,y:0}, data: { label: 'J', jumpTarget: { tabId: t1, nodeId: 'tgt' } } } as any;
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addNode(target);
+    useScenarioStore.getState().addNode(jump);
+    useScenarioStore.getState().moveNodesToTab(['tgt'], t2);
+    const movedJump = useScenarioStore.getState().tabs.flatMap((t) => t.nodes).find((n) => n.id === 'jmp') as any;
+    expect(movedJump.data.jumpTarget).toEqual({ tabId: t2, nodeId: 'tgt' });
+  });
+
+  it('分断エッジ削除戦略 (default): broken edges は消える', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    const t2 = useScenarioStore.getState().addTab('B');
+    const a = { id: 'a', type: 'event', position: {x:0,y:0}, data: { label: 'A' } } as any;
+    const b = { id: 'b', type: 'event', position: {x:0,y:0}, data: { label: 'B' } } as any;
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addNode(a);
+    useScenarioStore.getState().addNode(b);
+    // Add edge a→b
+    useScenarioStore.getState().onConnect({ source: 'a', target: 'b', sourceHandle: null, targetHandle: null } as any);
+    expect(useScenarioStore.getState().tabs.find(t => t.id === t1)!.edges.length).toBe(1);
+
+    useScenarioStore.getState().moveNodesToTab(['b'], t2);
+    // edge should be deleted
+    const state = useScenarioStore.getState();
+    expect(state.tabs.find(t => t.id === t1)!.edges.length).toBe(0);
+    expect(state.tabs.find(t => t.id === t2)!.edges.length).toBe(0);
+  });
+
+  it('分断エッジ ジャンプ置換戦略: 元タブに jump ノード+エッジが生成される', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    const t2 = useScenarioStore.getState().addTab('B');
+    const a = { id: 'a', type: 'event', position: {x:0,y:0}, data: { label: 'A' } } as any;
+    const b = { id: 'b', type: 'event', position: {x:0,y:0}, data: { label: 'B' } } as any;
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addNode(a);
+    useScenarioStore.getState().addNode(b);
+    useScenarioStore.getState().onConnect({ source: 'a', target: 'b', sourceHandle: null, targetHandle: null } as any);
+    useScenarioStore.getState().moveNodesToTab(['b'], t2, 'replace-jump');
+    const tab1 = useScenarioStore.getState().tabs.find(t => t.id === t1)!;
+    // Source タブに jump ノードが追加されている
+    const jumpInSource = tab1.nodes.find(n => n.type === 'jump');
+    expect(jumpInSource).toBeDefined();
+    expect((jumpInSource as any).data.jumpTarget).toEqual({ tabId: t2, nodeId: 'b' });
+    // Source タブに a → jump のエッジが残る
+    expect(tab1.edges.some(e => e.source === 'a' && e.target === jumpInSource!.id)).toBe(true);
+  });
+});

@@ -2529,20 +2529,134 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     set({ activeTabId: id, selectedNodeId: null });
   },
 
-  moveNodesToTab: (nodeIds, targetTabId, _edgeStrategy = 'delete') => {
+  moveNodesToTab: (nodeIds, targetTabId, edgeStrategy = 'delete') => {
     const state = get();
     if (state.activeTabId === targetTabId) return;
     const sourceTab = state.tabs.find((t) => t.id === state.activeTabId);
-    if (!sourceTab) return;
+    const targetTab = state.tabs.find((t) => t.id === targetTabId);
+    if (!sourceTab || !targetTab) return;
+
+    // 1. Group の子ノードを再帰的に同伴
     const movedSet = new Set(nodeIds);
-    const movingNodes = sourceTab.nodes.filter((n) => movedSet.has(n.id));
+    for (const id of nodeIds) {
+      const node = sourceTab.nodes.find((n) => n.id === id);
+      if (node?.type === 'group') {
+        sourceTab.nodes.forEach((n) => {
+          if ((n as any).parentNode === id) movedSet.add(n.id);
+        });
+      }
+    }
+
+    // 2. Sticky 解除: 親が同伴セットに居なければ親紐付けを解除して同伴
+    const movingNodes: ScenarioNode[] = [];
+    for (const n of sourceTab.nodes) {
+      if (!movedSet.has(n.id)) continue;
+      if (n.type === 'sticky' && (n as any).parentNode && !movedSet.has((n as any).parentNode)) {
+        // detach by stripping parentNode
+        const { parentNode, ...rest } = n as any;
+        void parentNode;
+        movingNodes.push(rest as ScenarioNode);
+      } else {
+        movingNodes.push(n);
+      }
+    }
     const remainingNodes = sourceTab.nodes.filter((n) => !movedSet.has(n.id));
+
+    // 3. エッジを 4 区分に分類
+    // - innerSourceEdges: 両端が remaining (元タブに残る)
+    // - innerMovingEdges: 両端が movedSet (移動先タブへ)
+    // - broken: source/target の片側だけ movedSet
+    const innerSourceEdges: ScenarioEdge[] = [];
+    const innerMovingEdges: ScenarioEdge[] = [];
+    const broken: ScenarioEdge[] = [];
+    for (const e of sourceTab.edges) {
+      const srcMoved = movedSet.has(e.source);
+      const tgtMoved = movedSet.has(e.target);
+      if (srcMoved && tgtMoved) innerMovingEdges.push(e);
+      else if (!srcMoved && !tgtMoved) innerSourceEdges.push(e);
+      else broken.push(e);
+    }
+
+    // 4. 分断エッジ処理
+    const extraSourceNodes: any[] = [];
+    const extraTargetNodes: any[] = [];
+    const extraSourceEdges: any[] = [];
+    const extraTargetEdges: any[] = [];
+
+    if (edgeStrategy === 'replace-jump') {
+      for (const e of broken) {
+        const srcMoved = movedSet.has(e.source);
+        const newJumpId = `jmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        if (!srcMoved) {
+          // source は元タブに残る、target は移動先
+          const sourceNode = sourceTab.nodes.find((n) => n.id === e.source);
+          extraSourceNodes.push({
+            id: newJumpId,
+            type: 'jump',
+            position: {
+              x: (sourceNode?.position.x ?? 0) + 200,
+              y: sourceNode?.position.y ?? 0,
+            },
+            data: {
+              label: `Jump → ${e.target}`,
+              jumpTarget: { tabId: targetTabId, nodeId: e.target },
+            },
+          });
+          extraSourceEdges.push({ ...e, id: `${e.id}_to_jump_${newJumpId}`, target: newJumpId });
+        } else {
+          // source が移動先タブ、target は元タブに残る
+          const sourceNode = movingNodes.find((n) => n.id === e.source);
+          extraTargetNodes.push({
+            id: newJumpId,
+            type: 'jump',
+            position: {
+              x: (sourceNode?.position.x ?? 0) + 200,
+              y: sourceNode?.position.y ?? 0,
+            },
+            data: {
+              label: `Jump → ${e.target}`,
+              jumpTarget: { tabId: state.activeTabId, nodeId: e.target },
+            },
+          });
+          extraTargetEdges.push({ ...e, id: `${e.id}_to_jump_${newJumpId}`, target: newJumpId });
+        }
+      }
+    }
+    // 'delete' 戦略では broken は単純に捨てる(extraXxx は空のまま)
+
+    // 5. タブを再構築
     const newTabs = state.tabs.map((t) => {
-      if (t.id === state.activeTabId) return { ...t, nodes: remainingNodes };
-      if (t.id === targetTabId) return { ...t, nodes: [...t.nodes, ...movingNodes] };
+      if (t.id === state.activeTabId) {
+        return {
+          ...t,
+          nodes: [...remainingNodes, ...extraSourceNodes],
+          edges: [...innerSourceEdges, ...extraSourceEdges],
+        };
+      }
+      if (t.id === targetTabId) {
+        return {
+          ...t,
+          nodes: [...t.nodes, ...movingNodes, ...extraTargetNodes],
+          edges: [...t.edges, ...innerMovingEdges, ...extraTargetEdges],
+        };
+      }
       return t;
     });
-    set({ tabs: newTabs, activeTabId: targetTabId, selectedNodeId: null });
+
+    // 6. 移動対象ノードを指す全タブのジャンプ参照を追従
+    const finalTabs = newTabs.map((tab) => ({
+      ...tab,
+      nodes: tab.nodes.map((n) => {
+        if (n.type !== 'jump') return n;
+        const jt = (n as any).data?.jumpTarget;
+        if (jt && typeof jt === 'object' && movedSet.has(jt.nodeId)) {
+          return { ...n, data: { ...(n as any).data, jumpTarget: { ...jt, tabId: targetTabId } } };
+        }
+        return n;
+      }),
+    }));
+
+    set({ tabs: finalTabs, activeTabId: targetTabId, selectedNodeId: null });
     get().pushHistory();
   },
 
