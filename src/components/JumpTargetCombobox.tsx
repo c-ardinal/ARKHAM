@@ -74,10 +74,19 @@ export function JumpTargetCombobox({ value, onChange, excludeNodeId }: JumpTarge
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  /** Stable id for the listbox so aria-controls can reference it. */
+  const listboxId = 'jump-target-listbox';
+
   return (
     <div ref={containerRef} className="relative">
+      {/* WAI-ARIA combobox trigger (H-A2) */}
       <button
         type="button"
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls={listboxId}
+        aria-activedescendant={open && filtered[activeIdx] ? `jump-option-${activeIdx}` : undefined}
         onClick={() => setOpen((o) => !o)}
         className="w-full text-left border border-input rounded px-2 py-1 bg-background flex items-center justify-between gap-2 min-h-[36px]"
       >
@@ -86,26 +95,31 @@ export function JumpTargetCombobox({ value, onChange, excludeNodeId }: JumpTarge
         </span>
         <div className="flex items-center gap-1 shrink-0">
           {value && (
-            <span
-              role="button"
+            <button
+              type="button"
               aria-label={t('common.close')}
               onClick={(e) => {
                 e.stopPropagation();
                 onChange(null);
               }}
-              className="hover:bg-destructive/20 rounded p-0.5 cursor-pointer"
+              className="hover:bg-destructive/20 rounded p-0.5"
             >
               <X size={12} />
-            </span>
+            </button>
           )}
           <ChevronDown size={14} />
         </div>
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 mt-1 bg-popover border border-border rounded shadow-lg z-50 max-h-80 overflow-hidden flex flex-col">
+        <div
+          role="listbox"
+          id={listboxId}
+          className="absolute left-0 right-0 mt-1 bg-popover border border-border rounded shadow-lg z-50 max-h-80 overflow-hidden flex flex-col"
+        >
           <input
             autoFocus
+            aria-label={t('jumpTarget.search')}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -140,6 +154,9 @@ export function JumpTargetCombobox({ value, onChange, excludeNodeId }: JumpTarge
               filtered.map((c, i) => (
                 <div
                   key={c.key}
+                  role="option"
+                  id={`jump-option-${i}`}
+                  aria-selected={i === activeIdx}
                   className={`px-2 py-1 text-sm cursor-pointer truncate ${i === activeIdx ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'}`}
                   onMouseEnter={() => setActiveIdx(i)}
                   onClick={() => {

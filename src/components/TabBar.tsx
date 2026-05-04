@@ -66,6 +66,23 @@ export function TabBar({ onRequestDeleteConfirm }: TabBarProps) {
       setTouchStartX(null);
   };
 
+  /**
+   * WAI-ARIA roving tabindex: move focus to the tab at `idx` and
+   * simultaneously activate it so keyboard navigation stays intuitive.
+   * Uses querySelectorAll('[role="tab"]') scoped to the container so it only
+   * targets real tab buttons, not the add-tab button.
+   */
+  const focusTab = (idx: number) => {
+    const tabEls = containerRef.current?.querySelectorAll<HTMLElement>('[role="tab"]');
+    if (!tabEls) return;
+    const target = tabEls[idx];
+    if (target) {
+      target.focus();
+      const tab = tabs[idx];
+      if (tab) setActiveTab(tab.id);
+    }
+  };
+
   const handleAdd = () => {
     const id = addTab();
     setActiveTab(id);
@@ -114,6 +131,8 @@ export function TabBar({ onRequestDeleteConfirm }: TabBarProps) {
             setDraggedIdx(null);
           }}
           onTouchStart={handleTouchStart(idx)}
+          onArrowLeft={() => focusTab(Math.max(0, idx - 1))}
+          onArrowRight={() => focusTab(Math.min(tabs.length - 1, idx + 1))}
         />
       ))}
       <button

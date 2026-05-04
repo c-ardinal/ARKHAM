@@ -19,6 +19,10 @@ interface TabBarItemProps {
   onTouchMove?: (e: React.TouchEvent) => void;
   onTouchEnd?: (e: React.TouchEvent) => void;
   startInRenameMode?: boolean;
+  /** WAI-ARIA roving-tabindex: move focus to previous tab */
+  onArrowLeft?: () => void;
+  /** WAI-ARIA roving-tabindex: move focus to next tab */
+  onArrowRight?: () => void;
 }
 
 export function TabBarItem({
@@ -35,6 +39,8 @@ export function TabBarItem({
   onTouchMove,
   onTouchEnd,
   startInRenameMode = false,
+  onArrowLeft,
+  onArrowRight,
 }: TabBarItemProps) {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(startInRenameMode);
@@ -62,9 +68,11 @@ export function TabBarItem({
   };
 
   return (
-    <div
+    <button
+      type="button"
       role="tab"
       aria-selected={isActive}
+      tabIndex={isActive ? 0 : -1}
       draggable={!isEditing}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -77,6 +85,18 @@ export function TabBarItem({
       onContextMenu={(e) => {
         e.preventDefault();
         onContextMenu(e);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          onArrowLeft?.();
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          onArrowRight?.();
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onActivate();
+        }
       }}
       className={`group inline-flex items-center gap-1 px-3 h-full border-r border-border border-b-2 cursor-pointer select-none ${
         isActive
@@ -105,7 +125,7 @@ export function TabBarItem({
       )}
       <button
         type="button"
-        aria-label={t('tab.delete')}
+        aria-label={`${t('tab.delete')}: ${tab.name}`}
         className="opacity-50 hover:opacity-100 hover:bg-destructive/20 rounded p-0.5 ml-1"
         onClick={(e) => {
           e.stopPropagation();
@@ -114,6 +134,6 @@ export function TabBarItem({
       >
         <X size={12} />
       </button>
-    </div>
+    </button>
   );
 }
