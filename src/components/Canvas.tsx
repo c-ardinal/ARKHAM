@@ -354,23 +354,34 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
   // When a cross-tab jump just happened, the active tab has switched.
   // We now find the target node in the new active tab and center on it.
+  // Retry up to maxAttempts times (100ms each) to handle slow devices and
+  // large canvases where ReactFlow may not have mounted all nodes yet.
   useEffect(() => {
     if (!pendingCrossTabFocus) return;
     const targetId = pendingCrossTabFocus;
-    // Wait one frame for ReactFlow to mount the new tab's nodes
-    const raf = window.requestAnimationFrame(() => {
-      setTimeout(() => {
-        const targetNode = getNodes().find((n) => n.id === targetId);
-        if (targetNode) {
-          const { cx, cy } = getJumpTargetCenter(targetNode as ScenarioNode);
-          const currentZoom = getZoom();
-          setCenter(cx, cy, { zoom: currentZoom, duration: 600 });
-          setSelectedNode(targetId);
-        }
+    let attempts = 0;
+    const maxAttempts = 10; // 100ms x 10 = 1s upper bound
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const tryFocus = () => {
+      const targetNode = getNodes().find((n) => n.id === targetId);
+      if (targetNode) {
+        const { cx, cy } = getJumpTargetCenter(targetNode as ScenarioNode);
+        const currentZoom = getZoom();
+        setCenter(cx, cy, { zoom: currentZoom, duration: 600 });
+        setSelectedNode(targetId);
         setPendingCrossTabFocus(null);
-      }, 100);
-    });
-    return () => window.cancelAnimationFrame(raf);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        timeoutId = setTimeout(tryFocus, 100);
+      } else {
+        // Give up silently after 1s — target node may not exist
+        setPendingCrossTabFocus(null);
+      }
+    };
+
+    timeoutId = setTimeout(tryFocus, 50); // initial delay for tab switch render
+    return () => clearTimeout(timeoutId);
   }, [pendingCrossTabFocus, getNodes, getZoom, setCenter, setSelectedNode]);
 
   // Dedicated effect for removing the loader

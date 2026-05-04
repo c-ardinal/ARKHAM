@@ -223,6 +223,7 @@ interface ConfirmationModalProps {
 }
 
 const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger = false, confirmLabel, cancelLabel }: ConfirmationModalProps) => {
+    const { t } = useTranslation();
     const confirmRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
@@ -257,7 +258,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger 
                         onClick={onClose}
                         className="min-h-[44px] px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                        {cancelLabel ?? 'Cancel'}
+                        {cancelLabel ?? t('common.cancel')}
                     </button>
                     <button
                         ref={confirmRef}
@@ -267,7 +268,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger 
                         }}
                         className={`min-h-[44px] px-4 py-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${confirmButtonClass}`}
                     >
-                        {confirmLabel ?? 'Confirm'}
+                        {confirmLabel ?? t('common.confirm')}
                     </button>
                 </div>
             </div>

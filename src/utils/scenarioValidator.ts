@@ -16,7 +16,49 @@ export interface ValidationResult {
 }
 
 /**
- * Validates and corrects scenario JSON data
+ * Validates v2 (tabbed) format scenario data.
+ * v2 format uses a `tabs` array instead of top-level `nodes`/`edges`.
+ * No structural corrections are applied — the data is returned as-is when valid.
+ */
+function validateV2Format(data: any): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const corrections: string[] = [];
+
+  if (!Array.isArray(data.tabs)) {
+    errors.push('tabs が配列ではありません');
+  } else if (data.tabs.length === 0) {
+    errors.push('tabs が空です');
+  } else {
+    for (const tab of data.tabs) {
+      if (!tab.id || typeof tab.id !== 'string') {
+        errors.push(`tab.id が欠落しているか不正です: ${JSON.stringify(tab.id)}`);
+      }
+      if (!Array.isArray(tab.nodes)) {
+        errors.push(`タブ "${tab.id}" の nodes が配列ではありません`);
+      }
+      if (!Array.isArray(tab.edges)) {
+        errors.push(`タブ "${tab.id}" の edges が配列ではありません`);
+      }
+    }
+  }
+
+  if (typeof data.activeTabId !== 'string') {
+    warnings.push('activeTabId が欠落しています — 最初のタブを使用します');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    corrections,
+    correctedData: errors.length === 0 ? data : undefined,
+  };
+}
+
+/**
+ * Validates and corrects scenario JSON data.
+ * Supports both v1 (legacy, top-level nodes/edges) and v2 (tabbed, tabs array) formats.
  * @param data - The parsed JSON data
  * @returns ValidationResult with validation status, errors, warnings, and corrected data
  */
@@ -34,6 +76,11 @@ export function validateScenarioData(data: any): ValidationResult {
       warnings: [],
       corrections: []
     };
+  }
+
+  // 1a. Detect v2 format (tabs array present) and branch to dedicated validator
+  if (Array.isArray((data as any).tabs)) {
+    return validateV2Format(data);
   }
 
   // 2. Validate nodes array

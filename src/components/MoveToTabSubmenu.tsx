@@ -73,7 +73,7 @@ export function MoveToTabSubmenu({ selectedCount, onMove, direction = 'right' }:
       {isOpen && (
         <div
           role="menu"
-          className={`absolute top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[160px] flex flex-col ${
+          className={`absolute top-0 bg-popover border border-border shadow-lg rounded-md py-1 min-w-[160px] flex flex-col z-50 ${
             direction === 'right' ? 'left-full' : 'right-full'
           }`}
         >

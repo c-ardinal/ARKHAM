@@ -88,7 +88,7 @@ export function JumpTargetCombobox({ value, onChange, excludeNodeId }: JumpTarge
           {value && (
             <span
               role="button"
-              aria-label="clear"
+              aria-label={t('common.close')}
               onClick={(e) => {
                 e.stopPropagation();
                 onChange(null);
