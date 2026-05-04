@@ -14,6 +14,10 @@ interface TabBarItemProps {
   onDragStart: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
+  /** Touch drag-reorder handlers injected by TabBar for mobile support */
+  onTouchStart?: (e: React.TouchEvent) => void;
+  onTouchMove?: (e: React.TouchEvent) => void;
+  onTouchEnd?: (e: React.TouchEvent) => void;
   startInRenameMode?: boolean;
 }
 
@@ -27,6 +31,9 @@ export function TabBarItem({
   onDragStart,
   onDragOver,
   onDrop,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
   startInRenameMode = false,
 }: TabBarItemProps) {
   const { t } = useTranslation();
@@ -62,6 +69,9 @@ export function TabBarItem({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
       onClick={onActivate}
       onDoubleClick={() => setIsEditing(true)}
       onContextMenu={(e) => {
