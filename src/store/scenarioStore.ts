@@ -151,6 +151,27 @@ const LEGACY_BACKUP_PREFIX = 'arkham_legacy_backup_';
 const FUTURE_BACKUP_PREFIX = 'arkham_future_format_backup_';
 const MAX_BACKUPS = 3;
 
+/**
+ * Returns a localized default tab name for the given 1-based index.
+ * Used at store-initialization time when i18n may not yet be loaded,
+ * so we read the language preference directly from localStorage.
+ */
+function defaultTabName(index: number, language: 'en' | 'ja' = 'ja'): string {
+  return language === 'en' ? `Tab ${index}` : `タブ ${index}`;
+}
+
+/** Read the persisted language preference without triggering store initialization. */
+function getStoredLanguage(): 'en' | 'ja' {
+  try {
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed?.language === 'en' || parsed?.language === 'ja') return parsed.language;
+    }
+  } catch { /* ignore */ }
+  return 'ja';
+}
+
 function pruneBackups(prefix: string) {
   try {
     const keys = Object.keys(localStorage).filter((k) => k.startsWith(prefix)).sort();
@@ -181,7 +202,7 @@ const loadInitialState = () => {
       const key = `${LEGACY_BACKUP_PREFIX}${Date.now()}`;
       try { localStorage.setItem(key, stored); } catch { /* ignore */ }
       pruneBackups(LEGACY_BACKUP_PREFIX);
-      const migrated = migrateLegacyToTabbed(parsed, 'タブ 1');
+      const migrated = migrateLegacyToTabbed(parsed, defaultTabName(1, parsed.language ?? getStoredLanguage()));
       // sanitize nodes the same way the original sanitization did
       migrated.tabs = migrated.tabs.map((tab) => ({
         ...tab,
@@ -236,7 +257,7 @@ const createInitialMemoNode = (): ScenarioNode => ({
 
 const createInitialTab = (): Tab => ({
   id: generateTabId(),
-  name: 'タブ 1',
+  name: defaultTabName(1, getStoredLanguage()),
   nodes: [createInitialMemoNode()],
   edges: [],
 });
@@ -762,6 +783,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
   loadScenario: (data) => {
        const { gameState, characters, resources, edgeType } = data as any;
+       const currentLanguage = get().language;
 
        // Detect format and migrate if needed
        let tabs: Tab[];
@@ -781,7 +803,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
            const tabId = generateTabId();
            tabs = [{
                id: tabId,
-               name: 'タブ 1',
+               name: defaultTabName(1, currentLanguage),
                nodes: cleanedNodes,
                edges: edges || [],
            }];
@@ -1096,62 +1118,64 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   batchRenameVariables: (renames: Record<string, string>) => {
       const state = get();
       const variables = { ...state.gameState.variables };
-      const activeTab = getActiveTabFrom(state);
-      const currentNodes = activeTab?.nodes ?? [];
-      let updatedNodes = [...currentNodes];
       let hasChanges = false;
 
+      // Build a list of valid renames first (collision/security checks)
+      const validRenames: Array<[string, string]> = [];
       Object.entries(renames).forEach(([oldName, newName]) => {
           if (oldName === newName || !variables[oldName]) return;
-
           // Security check
           if (newName === '__proto__' || newName === 'constructor' || newName === 'prototype') return;
-
           if (variables[newName]) return; // Collision check
 
           const variable = variables[oldName];
           delete variables[oldName];
           variables[newName] = { ...variable, name: newName };
           hasChanges = true;
-
-          // Refactor references
-          updatedNodes = updatedNodes.map(node => {
-              const newData = { ...node.data };
-              const replaceRef = (text?: string) => {
-                  if (!text) return text;
-                  return text.replaceAll(`\${${oldName}}`, `\${${newName}}`);
-              };
-
-              newData.label = replaceRef(newData.label) || '';
-              newData.description = replaceRef(newData.description);
-              newData.infoValue = replaceRef(newData.infoValue);
-              newData.conditionValue = replaceRef(newData.conditionValue);
-
-              if (newData.conditionValue === oldName) {
-                  newData.conditionValue = newName;
-              }
-
-              // Update targetVariable and variableValue for VariableNodes
-              if (newData.targetVariable === oldName) {
-                  newData.targetVariable = newName;
-              }
-              newData.variableValue = replaceRef(newData.variableValue);
-
-              // Update Switch cases
-              if (newData.branches) {
-                  newData.branches = newData.branches.map((b: any) => ({
-                      ...b,
-                      label: replaceRef(b.label) || b.label
-                  }));
-              }
-
-              return { ...node, data: newData };
-          });
+          validRenames.push([oldName, newName]);
       });
 
       if (hasChanges) {
+          // Refactor references across ALL tabs (not just active tab)
+          const updatedTabs = state.tabs.map((tab) => ({
+              ...tab,
+              nodes: tab.nodes.map((node) => {
+                  let newData = { ...node.data };
+                  for (const [oldName, newName] of validRenames) {
+                      const replaceRef = (text?: string) => {
+                          if (!text) return text;
+                          return text.replaceAll(`\${${oldName}}`, `\${${newName}}`);
+                      };
+
+                      newData.label = replaceRef(newData.label) || '';
+                      newData.description = replaceRef(newData.description);
+                      newData.infoValue = replaceRef(newData.infoValue);
+                      newData.conditionValue = replaceRef(newData.conditionValue);
+
+                      if (newData.conditionValue === oldName) {
+                          newData.conditionValue = newName;
+                      }
+
+                      // Update targetVariable and variableValue for VariableNodes
+                      if (newData.targetVariable === oldName) {
+                          newData.targetVariable = newName;
+                      }
+                      newData.variableValue = replaceRef(newData.variableValue);
+
+                      // Update Switch cases
+                      if (newData.branches) {
+                          newData.branches = newData.branches.map((b: any) => ({
+                              ...b,
+                              label: replaceRef(b.label) || b.label
+                          }));
+                      }
+                  }
+                  return { ...node, data: newData };
+              }),
+          }));
+
           set({
-              tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
+              tabs: updatedTabs,
               gameState: { ...state.gameState, variables }
           });
       }
@@ -1240,24 +1264,25 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     const newVariables = { ...state.gameState.variables };
     delete newVariables[name];
 
-    const activeTab = getActiveTabFrom(state);
-    const currentNodes = activeTab?.nodes ?? [];
-
-    const updatedNodes = currentNodes.map(node => {
-        if (node.type === 'variable' && node.data.targetVariable === name) {
-            return {
-                ...node,
-                data: {
-                    ...node.data,
-                    targetVariable: undefined
-                }
-            };
-        }
-        return node;
-    });
+    // Clear targetVariable references across ALL tabs (not just active tab)
+    const updatedTabs = state.tabs.map((tab) => ({
+        ...tab,
+        nodes: tab.nodes.map((node) => {
+            if (node.type === 'variable' && node.data.targetVariable === name) {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        targetVariable: undefined
+                    }
+                };
+            }
+            return node;
+        }),
+    }));
 
     set({
-      tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
+      tabs: updatedTabs,
       gameState: {
         ...state.gameState,
         variables: newVariables
@@ -2465,7 +2490,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     set((state) => ({
       tabs: [...state.tabs, {
         id,
-        name: trimmed && trimmed.length > 0 ? trimmed : `タブ ${state.tabs.length + 1}`,
+        name: trimmed && trimmed.length > 0 ? trimmed : defaultTabName(state.tabs.length + 1, state.language),
         nodes: [],
         edges: [],
       }],
