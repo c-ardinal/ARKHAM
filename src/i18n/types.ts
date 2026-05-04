@@ -268,8 +268,37 @@ export type TranslationKeys = {
     deleteStickies: string;
     deleteSticky: string;
     hideSticky: string;
-    showStickies: string; 
+    showStickies: string;
     hideStickies: string;
+  };
+  tab: {
+    defaultName: string;
+    add: string;
+    rename: string;
+    delete: string;
+    deleteConfirmTitle: string;
+    deleteConfirmBodyNodes: string;
+    deleteConfirmBodyJumps: string;
+    cannotDeleteLast: string;
+    moveNodesTo: string;
+    moveNodesToWithCount: string;
+    noOtherTabs: string;
+  };
+  jumpTarget: {
+    search: string;
+    noResults: string;
+    broken: string;
+    tooMany: string;
+  };
+  moveNodesToTab: {
+    edgeBreakTitle: string;
+    edgeBreakBody: string;
+    choiceDelete: string;
+    choiceReplaceJump: string;
+    jumpNodeDefaultLabel: string;
+  };
+  migration: {
+    futureVersion: string;
   };
 
 };

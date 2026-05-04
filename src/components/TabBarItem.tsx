@@ -93,7 +93,7 @@ export function TabBarItem({
       )}
       <button
         type="button"
-        aria-label={t('tab.delete' as any)}
+        aria-label={t('tab.delete')}
         className="opacity-50 hover:opacity-100 hover:bg-destructive/20 rounded p-0.5 ml-1"
         onClick={(e) => {
           e.stopPropagation();

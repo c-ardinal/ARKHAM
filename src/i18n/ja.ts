@@ -279,5 +279,34 @@ export const ja: TranslationKeys = {
     showStickies: '付箋を表示',
     hideStickies: '付箋を非表示',
   },
+  tab: {
+    defaultName: 'タブ {n}',
+    add: 'タブを追加',
+    rename: '名前を変更',
+    delete: '削除',
+    deleteConfirmTitle: 'タブを削除しますか?',
+    deleteConfirmBodyNodes: 'このタブには {n} 個のノードが含まれています',
+    deleteConfirmBodyJumps: '{n} 個のジャンプノードがこのタブを参照しています',
+    cannotDeleteLast: '最後のタブは削除できません',
+    moveNodesTo: '別のタブへ移動',
+    moveNodesToWithCount: '{n} 個のノードを別のタブへ移動',
+    noOtherTabs: '他のタブがありません',
+  },
+  jumpTarget: {
+    search: 'ノードを検索…',
+    noResults: '該当するノードがありません',
+    broken: 'リンク切れ',
+    tooMany: '候補が多すぎます。絞り込んでください',
+  },
+  moveNodesToTab: {
+    edgeBreakTitle: 'エッジが分断されます',
+    edgeBreakBody: 'この移動により、{n} 個のエッジがタブをまたぎます。どう扱いますか?',
+    choiceDelete: 'エッジを削除する',
+    choiceReplaceJump: 'ジャンプノードに置き換える',
+    jumpNodeDefaultLabel: 'Jump → {label}',
+  },
+  migration: {
+    futureVersion: 'このシナリオはより新しいバージョン (v{n}) で作成されています。ARKHAM を更新してください',
+  },
 
 };

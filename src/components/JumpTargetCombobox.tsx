@@ -82,7 +82,7 @@ export function JumpTargetCombobox({ value, onChange, excludeNodeId }: JumpTarge
         className="w-full text-left border border-input rounded px-2 py-1 bg-background flex items-center justify-between gap-2 min-h-[36px]"
       >
         <span className={`truncate text-sm ${isBroken ? 'text-destructive' : ''}`}>
-          {isBroken ? t('jumpTarget.broken' as any) : (currentLabel || t('jumpTarget.search' as any))}
+          {isBroken ? t('jumpTarget.broken') : (currentLabel || t('jumpTarget.search'))}
         </span>
         <div className="flex items-center gap-1 shrink-0">
           {value && (
@@ -130,12 +130,12 @@ export function JumpTargetCombobox({ value, onChange, excludeNodeId }: JumpTarge
                 setOpen(false);
               }
             }}
-            placeholder={t('jumpTarget.search' as any)}
+            placeholder={t('jumpTarget.search')}
             className="border-b border-border px-2 py-1 outline-none bg-background text-sm"
           />
           <div className="overflow-y-auto">
             {filtered.length === 0 ? (
-              <div className="px-2 py-2 text-sm text-muted-foreground">{t('jumpTarget.noResults' as any)}</div>
+              <div className="px-2 py-2 text-sm text-muted-foreground">{t('jumpTarget.noResults')}</div>
             ) : (
               filtered.map((c, i) => (
                 <div
@@ -154,7 +154,7 @@ export function JumpTargetCombobox({ value, onChange, excludeNodeId }: JumpTarge
             )}
             {tooMany && (
               <div className="px-2 py-1 text-xs text-muted-foreground border-t border-border">
-                {t('jumpTarget.tooMany' as any)}
+                {t('jumpTarget.tooMany')}
               </div>
             )}
           </div>

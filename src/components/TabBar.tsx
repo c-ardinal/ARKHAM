@@ -69,7 +69,7 @@ export function TabBar({ onRequestDeleteConfirm }: TabBarProps) {
       <button
         type="button"
         onClick={handleAdd}
-        aria-label={t('tab.add' as any)}
+        aria-label={t('tab.add')}
         className="inline-flex items-center justify-center min-w-[36px] min-h-[36px] hover:bg-accent text-muted-foreground"
       >
         <Plus size={14} />

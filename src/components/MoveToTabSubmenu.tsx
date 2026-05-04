@@ -29,8 +29,8 @@ export function MoveToTabSubmenu({ selectedCount, onMove, direction = 'right' }:
   // [SPEC-TAB-MV-001] Label changes to show the node count when multiple nodes are selected.
   const label =
     selectedCount > 1
-      ? (t('tab.moveNodesToWithCount' as any) as string).replace('{n}', String(selectedCount))
-      : t('tab.moveNodesTo' as any);
+      ? t('tab.moveNodesToWithCount').replace('{n}', String(selectedCount))
+      : t('tab.moveNodesTo');
 
   // [SPEC-TAB-MV-002] Disabled state when no other tabs are available.
   if (otherTabs.length === 0) {
@@ -39,7 +39,7 @@ export function MoveToTabSubmenu({ selectedCount, onMove, direction = 'right' }:
         role="menuitem"
         disabled
         className="min-h-[44px] px-4 py-2.5 text-left w-full flex items-center justify-between text-muted-foreground cursor-not-allowed"
-        title={t('tab.noOtherTabs' as any)}
+        title={t('tab.noOtherTabs')}
       >
         <span>{label}</span>
       </button>

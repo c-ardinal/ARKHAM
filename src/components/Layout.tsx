@@ -408,7 +408,7 @@ export const Layout = () => {
   // Prevent deleting the last remaining tab: show toast and clear target instead of opening modal
   useEffect(() => {
     if (tabDeleteTarget && tabs.length <= 1) {
-      toast.error(t('tab.cannotDeleteLast' as any));
+      toast.error(t('tab.cannotDeleteLast'));
       setTabDeleteTarget(null);
     }
   }, [tabDeleteTarget, tabs.length, t]);
@@ -664,8 +664,8 @@ const menuActions = {
             title: t('menu.loadSample'),
             message: t('menu.confirmLoadSample'),
             danger: true,
-            confirmLabel: t('common.confirm' as any),
-            cancelLabel: t('common.cancel' as any),
+            confirmLabel: t('common.confirm'),
+            cancelLabel: t('common.cancel'),
             onConfirm: () => {
                 const sampleData = type === 'story' ? sampleStory : sampleNestedGroup;
                 console.log('[Layout] Loading sample data:', { type, hasViewport: !!(sampleData as any).viewport, viewport: (sampleData as any).viewport });
@@ -693,11 +693,11 @@ const menuActions = {
     },
     onReset: () => setConfirmModal({
       isOpen: true,
-      title: t('common.reset' as any),
-      message: t('common.confirmReset' as any),
+      title: t('common.reset'),
+      message: t('common.confirmReset'),
       danger: true,
-      confirmLabel: t('common.confirm' as any),
-      cancelLabel: t('common.cancel' as any),
+      confirmLabel: t('common.confirm'),
+      cancelLabel: t('common.cancel'),
       onConfirm: async () => {
         useScenarioStore.getState().resetToInitialState();
         // リセット後にfitViewを実行し、完了後にビューポートを保存
@@ -938,20 +938,20 @@ const menuActions = {
           tt.nodes.filter(n => n.type === 'jump' && (n.data?.jumpTarget as any)?.tabId === tabDeleteTarget)
         ).length;
         const messageParts = [
-          t('tab.deleteConfirmBodyNodes' as any).replace('{n}', String(tab.nodes.length)),
+          t('tab.deleteConfirmBodyNodes').replace('{n}', String(tab.nodes.length)),
         ];
         if (jumpRefs > 0) {
-          messageParts.push(`⚠ ${t('tab.deleteConfirmBodyJumps' as any).replace('{n}', String(jumpRefs))}`);
+          messageParts.push(`⚠ ${t('tab.deleteConfirmBodyJumps').replace('{n}', String(jumpRefs))}`);
         }
         const message = messageParts.join('\n');
         return (
           <ConfirmationModal
             isOpen={true}
-            title={t('tab.deleteConfirmTitle' as any)}
+            title={t('tab.deleteConfirmTitle')}
             message={message}
             danger={true}
-            confirmLabel={t('tab.delete' as any)}
-            cancelLabel={t('common.cancel' as any)}
+            confirmLabel={t('tab.delete')}
+            cancelLabel={t('common.cancel')}
             onConfirm={() => {
               useScenarioStore.getState().deleteTab(tabDeleteTarget);
               setTabDeleteTarget(null);
