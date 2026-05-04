@@ -29,7 +29,7 @@ export function TabBar({ onRequestDeleteConfirm }: TabBarProps) {
   return (
     <div
       role="tablist"
-      className="flex items-center bg-background border-b border-border h-9 overflow-x-auto"
+      className="flex items-center bg-background border-b border-border h-9 overflow-x-auto tab-bar-scroll"
     >
       {tabs.map((tab, idx) => (
         <TabBarItem

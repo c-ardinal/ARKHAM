@@ -222,6 +222,19 @@
   }
 }
 
+/*
+ * TabBar の横スクロール時にスクロールバーを視覚的に隠す。
+ * Windows のように常時表示されるブラウザでも 36px のタブ帯の下に細い
+ * スクロールバーが現れないように。スクロール機能(ホイール/ドラッグ/キー)は維持。
+ */
+.tab-bar-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+.tab-bar-scroll::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
 /* Force StickyNode handle to center, overriding mobile directional styles */
 .sticky-handle-center {
     top: 50% !important;
