@@ -220,6 +220,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   } | null>(null);
   // Removed local isUpdatingSticky
   const lastDuplicatedIds = useRef<string[]>([]);
+  // BL-3: アクティブタブ変化を追跡し viewport を退避/復元するための前タブ ID ref
+  const prevActiveTabIdRef = useRef<string>(activeTabId);
   
   // ビューポート復元管理（stateで変更を検知）
   const [pendingViewport, setPendingViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
@@ -383,6 +385,31 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     timeoutId = setTimeout(tryFocus, 50); // initial delay for tab switch render
     return () => clearTimeout(timeoutId);
   }, [pendingCrossTabFocus, getNodes, getZoom, setCenter, setSelectedNode]);
+
+  // BL-3: activeTabId 変化を検知して viewport を退避・復元する
+  // 前タブの viewport を Tab.viewport フィールドに保存し、新タブの viewport を復元する。
+  // viewport が未保存の場合は fitView を実行してキャンバスを整列させる。
+  useEffect(() => {
+    if (prevActiveTabIdRef.current === activeTabId) return;
+
+    const prevId = prevActiveTabIdRef.current;
+
+    // 1. 前タブの現在 viewport を store に退避
+    const currentVp = getViewport();
+    useScenarioStore.setState((state) => ({
+      tabs: state.tabs.map((t) => (t.id === prevId ? { ...t, viewport: currentVp } : t)),
+    }));
+
+    // 2. 新タブの viewport を復元（未保存なら fitView）
+    const newTab = useScenarioStore.getState().tabs.find((t) => t.id === activeTabId);
+    if (newTab?.viewport) {
+      setViewport(newTab.viewport, { duration: 0 });
+    } else {
+      fitView({ padding: 0.2, duration: 200 });
+    }
+
+    prevActiveTabIdRef.current = activeTabId;
+  }, [activeTabId, getViewport, setViewport, fitView]);
 
   // Dedicated effect for removing the loader
   useEffect(() => {

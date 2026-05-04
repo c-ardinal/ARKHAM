@@ -20,6 +20,8 @@ import { recomputeEdgeVisibility } from './edgeVisibility';
 import type { Tab } from '../types/tab';
 import { generateTabId, SCHEMA_VERSION } from '../types/tab';
 import { isLegacyFormat, isFutureFormat, migrateLegacyToTabbed } from './migration';
+import { retargetJumpReferencesForMove } from '../utils/jumpReferences';
+import { toast } from '../components/common/toast';
 
 // Per-group rAF id for drag-time throttled updateGroupSize calls. A flurry
 // of position changes within the same animation frame collapses into a
@@ -32,6 +34,34 @@ const _groupSizeRafIds = new Map<string, number>();
 const PUSH_HISTORY_DEBOUNCE_MS = 200;
 let _pushHistoryWindowOpen = false;
 let _pushHistoryTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * H-T2: loadScenario の引数型 — v2 タブ形式と v1 レガシー形式の弁別ユニオン
+ * JSON.parse 経由の unknown データをここで型付けし、実装内部の as any を最小化する。
+ */
+type LoadScenarioInput =
+  | {
+      /** v2 タブ形式: tabs 配列を持つ */
+      tabs: unknown[];
+      activeTabId?: string;
+      gameState?: unknown;
+      characters?: unknown[];
+      resources?: unknown[];
+      version?: number;
+      edgeType?: string;
+      [k: string]: unknown;
+    }
+  | {
+      /** v1 レガシー形式: nodes/edges をトップレベルに持つ */
+      nodes: unknown[];
+      edges?: unknown[];
+      gameState?: unknown;
+      characters?: unknown[];
+      resources?: unknown[];
+      viewport?: unknown;
+      edgeType?: string;
+      [k: string]: unknown;
+    };
 
 // Helpers — operate on active tab
 function getActiveTabFrom(state: ScenarioState): Tab | undefined {
@@ -59,7 +89,7 @@ interface ScenarioState {
   deleteNodes: (nodeIds: string[]) => void;
   setMode: (mode: 'edit' | 'play') => void;
   setSelectedNode: (id: string | string[] | null) => void;
-  loadScenario: (data: any) => void;
+  loadScenario: (data: LoadScenarioInput) => void;
 
   // Tab CRUD
   addTab: (name?: string) => string;
@@ -194,7 +224,8 @@ const loadInitialState = () => {
       const key = `${FUTURE_BACKUP_PREFIX}${Date.now()}`;
       try { localStorage.setItem(key, stored); } catch { /* ignore */ }
       pruneBackups(FUTURE_BACKUP_PREFIX);
-      (window as any).__ARKHAM_FUTURE_VERSION_DETECTED__ = (parsed as any).version;
+      // H-T1: global.d.ts で Window 型を拡張したため as any 不要
+      window.__ARKHAM_FUTURE_VERSION_DETECTED__ = (parsed as Record<string, unknown>).version as number;
       return null;
     }
 
@@ -693,14 +724,15 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   updateNodeData: (id: string, data: any) => {
     get().pushHistory();
     const state = get();
-    const activeTab = getActiveTabFrom(state);
-    const currentNodes = activeTab?.nodes ?? [];
+    // BL-4: 全タブを走査して該当 nodeId のタブのみ更新（仕様 §5.3 cross-tab update）
     set({
-      tabs: withActiveTab(state, () => ({
-        nodes: currentNodes.map((node) =>
-          node.id === id ? { ...node, data: { ...node.data, ...data } } : node
-        ),
-      })),
+      tabs: state.tabs.map((t) => {
+        if (!t.nodes.some((n) => n.id === id)) return t;
+        return {
+          ...t,
+          nodes: t.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...data } } : n)),
+        };
+      }),
     });
     get().recalculateGameState();
   },
@@ -782,21 +814,22 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       get().recalculateGameState();
   },
   loadScenario: (data) => {
-       const { gameState, characters, resources, edgeType } = data as any;
+       // H-T2: LoadScenarioInput 弁別ユニオン型により型安全に分岐
        const currentLanguage = get().language;
 
        // Detect format and migrate if needed
        let tabs: Tab[];
        let activeTabId: string;
 
-       if (data.tabs && Array.isArray(data.tabs)) {
-           // New tabbed format
-           tabs = data.tabs;
-           activeTabId = data.activeTabId ?? data.tabs[0]?.id;
+       if ('tabs' in data && Array.isArray(data.tabs)) {
+           // v2 タブ形式
+           tabs = data.tabs as Tab[];
+           activeTabId = (data.activeTabId as string | undefined) ?? (data.tabs[0] as any)?.id;
        } else {
-           // Legacy format: nodes/edges at top level
-           const { nodes, edges } = data as any;
-           const cleanedNodes = (nodes || []).map((node: any) => {
+           // v1 レガシー形式: nodes/edges at top level
+           const legacyData = data as Extract<LoadScenarioInput, { nodes: unknown[] }>;
+           const rawNodes = (legacyData.nodes || []) as any[];
+           const cleanedNodes = rawNodes.map((node: any) => {
              const { dragging, selected, ...cleanNode } = node;
              return cleanNode;
            });
@@ -805,10 +838,17 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                id: tabId,
                name: defaultTabName(1, currentLanguage),
                nodes: cleanedNodes,
-               edges: edges || [],
+               edges: (legacyData.edges || []) as any[],
            }];
            activeTabId = tabId;
        }
+
+       const { gameState, characters, resources, edgeType } = data as Record<string, unknown> & {
+         gameState?: GameState;
+         characters?: CharacterData[];
+         resources?: ResourceData[];
+         edgeType?: string;
+       };
 
        set({
            tabs,
@@ -1147,22 +1187,19 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
     if (state.gameState.variables[name]) return; // Already exists
 
-    const activeTab = getActiveTabFrom(state);
-    const currentNodes = activeTab?.nodes ?? [];
-
-    // Auto-assign to unassigned variable nodes
-    const updatedNodes = currentNodes.map(node => {
+    // BL-1b: 全タブの未割当 VariableNode に Auto-assign（アクティブタブのみでは他タブに反映されない）
+    const updatedTabs = state.tabs.map((tab) => ({
+      ...tab,
+      nodes: tab.nodes.map((node) => {
         if (node.type === 'variable' && !node.data.targetVariable) {
-            return {
-                ...node,
-                data: { ...node.data, targetVariable: name }
-            };
+          return { ...node, data: { ...node.data, targetVariable: name } };
         }
         return node;
-    });
+      }),
+    }));
 
     set({
-      tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
+      tabs: updatedTabs,
       gameState: {
         ...state.gameState,
         variables: {
@@ -1304,11 +1341,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               }
           });
 
-          const activeTab = getActiveTabFrom(state);
-          const currentNodes = activeTab?.nodes ?? [];
-
-          // Refactor references in nodes
-          const updatedNodes = currentNodes.map(node => {
+          // BL-1a: 全タブを走査してノード参照を書き換える（アクティブタブのみでは他タブの VariableNode が古い名前のまま残る）
+          const refactorNodes = (nodes: typeof state.tabs[0]['nodes']) =>
+            nodes.map(node => {
               const newData = { ...node.data };
 
               newData.label = replaceRef(newData.label) || '';
@@ -1317,28 +1352,28 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               newData.conditionValue = replaceRef(newData.conditionValue);
 
               if (newData.conditionValue === oldName) {
-                  newData.conditionValue = newName;
+                newData.conditionValue = newName;
               }
 
               // Update targetVariable and variableValue for VariableNodes
               if (newData.targetVariable === oldName) {
-                  newData.targetVariable = newName;
+                newData.targetVariable = newName;
               }
               newData.variableValue = replaceRef(newData.variableValue);
 
               // Update Switch cases
               if (newData.branches) {
-                  newData.branches = newData.branches.map((b: any) => ({
-                      ...b,
-                      label: replaceRef(b.label) || b.label
-                  }));
+                newData.branches = newData.branches.map((b: any) => ({
+                  ...b,
+                  label: replaceRef(b.label) || b.label,
+                }));
               }
 
               return { ...node, data: newData };
-          });
+            });
 
           set({
-              tabs: withActiveTab(state, () => ({ nodes: updatedNodes })),
+              tabs: state.tabs.map((t) => ({ ...t, nodes: refactorNodes(t.nodes) })),
               gameState: { ...state.gameState, variables }
           });
       }
@@ -2647,14 +2682,18 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     const targetTab = state.tabs.find((t) => t.id === targetTabId);
     if (!sourceTab || !targetTab) return;
 
-    // 1. Group の子ノードを再帰的に同伴
+    // 1. Group の子孫ノードを BFS で再帰収集（直接子だけでなく孫以下も同伴）
+    // BL-2 fix: 1階層ループでは孫(ネストグループの子)が漏れるため while-loop に変更
     const movedSet = new Set(nodeIds);
-    for (const id of nodeIds) {
-      const node = sourceTab.nodes.find((n) => n.id === id);
-      if (node?.type === 'group') {
-        sourceTab.nodes.forEach((n) => {
-          if ((n as any).parentNode === id) movedSet.add(n.id);
-        });
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const n of sourceTab.nodes) {
+        const parent = (n as any).parentNode;
+        if (parent && movedSet.has(parent) && !movedSet.has(n.id)) {
+          movedSet.add(n.id);
+          changed = true;
+        }
       }
     }
 
@@ -2755,17 +2794,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     });
 
     // 6. 移動対象ノードを指す全タブのジャンプ参照を追従
-    const finalTabs = newTabs.map((tab) => ({
-      ...tab,
-      nodes: tab.nodes.map((n) => {
-        if (n.type !== 'jump') return n;
-        const jt = (n as any).data?.jumpTarget;
-        if (jt && typeof jt === 'object' && movedSet.has(jt.nodeId)) {
-          return { ...n, data: { ...(n as any).data, jumpTarget: { ...jt, tabId: targetTabId } } };
-        }
-        return n;
-      }),
-    }));
+    // H-D2: インラインロジックを共有ヘルパーに統一（retargetJumpReferencesForMove と等価）
+    const finalTabs = retargetJumpReferencesForMove(newTabs, [...movedSet], targetTabId);
 
     set({ tabs: finalTabs, activeTabId: targetTabId, selectedNodeId: null });
     get().pushHistory();
@@ -2798,7 +2828,12 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     } catch (error) {
-      console.error('Failed to save to LocalStorage:', error);
+      // H-D1: QuotaExceededError はユーザへ通知する（サイレント失敗を防止）
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        toast.error('自動保存の容量上限を超えました。古いデータを削除するかエクスポートしてください');
+      } else {
+        console.error('Failed to save to LocalStorage:', error);
+      }
     }
   },
 

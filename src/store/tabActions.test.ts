@@ -230,4 +230,123 @@ describe('moveNodesToTab', () => {
     // Source タブに a → jump のエッジが残る
     expect(tab1.edges.some(e => e.source === 'a' && e.target === jumpInSource!.id)).toBe(true);
   });
+
+  // BL-2: ネストグループ（孫ノード）の再帰収集
+  it('BL-2: ネストグループ移動時に孫ノードも同伴する', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    const t2 = useScenarioStore.getState().addTab('B');
+    const outerGroup = { id: 'outer', type: 'group', position: {x:0,y:0}, data: { label: 'Outer' } } as any;
+    const innerGroup = { id: 'inner', type: 'group', position: {x:0,y:0}, data: { label: 'Inner' }, parentNode: 'outer' } as any;
+    const grandchild = { id: 'grand', type: 'event', position: {x:0,y:0}, data: { label: 'G' }, parentNode: 'inner' } as any;
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addNode(outerGroup);
+    useScenarioStore.getState().addNode(innerGroup);
+    useScenarioStore.getState().addNode(grandchild);
+    useScenarioStore.getState().moveNodesToTab(['outer'], t2);
+
+    const tab2 = useScenarioStore.getState().tabs.find((t) => t.id === t2)!;
+    expect(tab2.nodes.some((n) => n.id === 'outer')).toBe(true);
+    expect(tab2.nodes.some((n) => n.id === 'inner')).toBe(true);
+    // 孫ノードも同伴される (BL-2 fix)
+    expect(tab2.nodes.some((n) => n.id === 'grand')).toBe(true);
+    // ソースタブには残らない
+    const tab1 = useScenarioStore.getState().tabs.find((t) => t.id === t1)!;
+    expect(tab1.nodes.some((n) => n.id === 'grand')).toBe(false);
+  });
+});
+
+describe('updateVariableMetadata (BL-1a): 全タブ走査', () => {
+  beforeEach(reset);
+
+  it('BL-1a: 変数名変更が非アクティブタブの VariableNode にも反映される', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    const t2 = useScenarioStore.getState().addTab('B');
+
+    // t1 に variable ノードを追加
+    const varNodeT1 = {
+      id: 'vn1', type: 'variable', position: {x:0,y:0},
+      data: { label: 'x', targetVariable: 'x' }
+    } as any;
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addNode(varNodeT1);
+
+    // t2 に variable ノードを追加
+    const varNodeT2 = {
+      id: 'vn2', type: 'variable', position: {x:0,y:0},
+      data: { label: 'x', targetVariable: 'x' }
+    } as any;
+    useScenarioStore.getState().setActiveTab(t2);
+    useScenarioStore.getState().addNode(varNodeT2);
+
+    // t1 をアクティブにして変数を追加後、変数名を変更
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addVariable('x', 'string', '');
+    useScenarioStore.getState().updateVariableMetadata('x', 'x_renamed', 'string');
+
+    const state = useScenarioStore.getState();
+    // t1 の VariableNode も更新されている
+    const vn1 = state.tabs.find(t => t.id === t1)!.nodes.find(n => n.id === 'vn1') as any;
+    expect(vn1.data.targetVariable).toBe('x_renamed');
+    // t2 (非アクティブタブ) の VariableNode も更新されている (BL-1a)
+    const vn2 = state.tabs.find(t => t.id === t2)!.nodes.find(n => n.id === 'vn2') as any;
+    expect(vn2.data.targetVariable).toBe('x_renamed');
+  });
+});
+
+describe('addVariable (BL-1b): 全タブ Auto-assign', () => {
+  beforeEach(reset);
+
+  it('BL-1b: 変数追加時に非アクティブタブの未割当 VariableNode にも Auto-assign される', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    const t2 = useScenarioStore.getState().addTab('B');
+
+    // t1 に未割当 variable ノードを追加
+    const varNodeT1 = {
+      id: 'vn_t1', type: 'variable', position: {x:0,y:0},
+      data: { label: 'unassigned', targetVariable: '' }
+    } as any;
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addNode(varNodeT1);
+
+    // t2 に未割当 variable ノードを追加
+    const varNodeT2 = {
+      id: 'vn_t2', type: 'variable', position: {x:0,y:0},
+      data: { label: 'unassigned', targetVariable: '' }
+    } as any;
+    useScenarioStore.getState().setActiveTab(t2);
+    useScenarioStore.getState().addNode(varNodeT2);
+
+    // t1 をアクティブにして変数を追加 (Auto-assign が走る)
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().addVariable('newVar', 'string', '');
+
+    const state = useScenarioStore.getState();
+    // t1 の未割当 VariableNode は割り当てられる
+    const n1 = state.tabs.find(t => t.id === t1)!.nodes.find(n => n.id === 'vn_t1') as any;
+    expect(n1.data.targetVariable).toBe('newVar');
+    // t2 (非アクティブ) の未割当 VariableNode も割り当てられる (BL-1b)
+    const n2 = state.tabs.find(t => t.id === t2)!.nodes.find(n => n.id === 'vn_t2') as any;
+    expect(n2.data.targetVariable).toBe('newVar');
+  });
+});
+
+describe('updateNodeData (BL-4): cross-tab 更新', () => {
+  beforeEach(reset);
+
+  it('BL-4: 非アクティブタブのノードデータを更新できる', () => {
+    const t1 = useScenarioStore.getState().activeTabId;
+    const t2 = useScenarioStore.getState().addTab('B');
+
+    // t2 にノードを追加
+    const nodeT2 = { id: 'nd_t2', type: 'event', position: {x:0,y:0}, data: { label: 'Old' } } as any;
+    useScenarioStore.getState().setActiveTab(t2);
+    useScenarioStore.getState().addNode(nodeT2);
+
+    // t1 に切り替えて t2 のノードを updateNodeData
+    useScenarioStore.getState().setActiveTab(t1);
+    useScenarioStore.getState().updateNodeData('nd_t2', { label: 'New' });
+
+    const nd = useScenarioStore.getState().tabs.find(t => t.id === t2)!.nodes.find(n => n.id === 'nd_t2') as any;
+    expect(nd.data.label).toBe('New');
+  });
 });

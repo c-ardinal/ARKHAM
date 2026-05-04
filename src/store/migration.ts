@@ -1,14 +1,15 @@
 // src/store/migration.ts
-import type { ScenarioNode } from '../types';
+import type { ScenarioNode, GameState, CharacterData, ResourceData } from '../types';
 import { SCHEMA_VERSION, generateTabId, type Tab } from '../types/tab';
 
+// H-T3: MigratedState の gameState/characters/resources を any から厳密型へ変更
 interface MigratedState {
   version: typeof SCHEMA_VERSION;
   tabs: Tab[];
   activeTabId: string;
-  gameState: any;
-  characters: any[];
-  resources: any[];
+  gameState: GameState;
+  characters: CharacterData[];
+  resources: ResourceData[];
   language?: 'en' | 'ja';
   theme?: 'light' | 'dark';
   edgeType?: string;
@@ -59,7 +60,8 @@ export function migrateLegacyToTabbed(legacy: any, defaultTabName: string): Migr
       },
     ],
     activeTabId: tabId,
-    gameState: legacy?.gameState ?? {
+    // H-T3: gameState フォールバックを GameState 型と整合させる
+    gameState: (legacy?.gameState ?? {
       currentNodes: [],
       revealedNodes: [],
       inventory: {},
@@ -68,9 +70,9 @@ export function migrateLegacyToTabbed(legacy: any, defaultTabName: string): Migr
       skills: {},
       stats: {},
       variables: {},
-    },
-    characters: Array.isArray(legacy?.characters) ? legacy.characters : [],
-    resources: Array.isArray(legacy?.resources) ? legacy.resources : [],
+    }) as GameState,
+    characters: (Array.isArray(legacy?.characters) ? legacy.characters : []) as CharacterData[],
+    resources: (Array.isArray(legacy?.resources) ? legacy.resources : []) as ResourceData[],
     language: legacy?.language ?? 'ja',
     theme: legacy?.theme ?? 'light',
     edgeType: legacy?.edgeType,

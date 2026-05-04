@@ -379,10 +379,11 @@ export const Layout = () => {
   // was detected during loadInitialState. The flag is set on window by the store before
   // React mounts, so reading it once on mount is sufficient.
   useEffect(() => {
-    const v = (window as any).__ARKHAM_FUTURE_VERSION_DETECTED__;
+    // H-T1: global.d.ts で Window 型を拡張したため as any 不要
+    const v = window.__ARKHAM_FUTURE_VERSION_DETECTED__;
     if (v) {
       toast.error(t('migration.futureVersion').replace('{n}', String(v)));
-      delete (window as any).__ARKHAM_FUTURE_VERSION_DETECTED__;
+      delete window.__ARKHAM_FUTURE_VERSION_DETECTED__;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
