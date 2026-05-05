@@ -2,6 +2,18 @@
 
 # 更新履歴
 
+## v2.3.0 (2026-05-04)
+
+### 機能追加
+
+- 章やシーンなどの単位でフローを分割する事を目的としたタブ機能を追加
+- 変数ノード・要素ノードの操作対象プロパティに検索機能を追加
+- ジャンプノードのジャンプ先プロパティに検索機能を追加
+
+### バグ修正
+
+- 「開示済」バッジや付箋インジケータが見切れる不具合を修正
+
 ## v2.2.0 (2026-05-01)
 
 ### 変更・改善
@@ -105,6 +117,18 @@
 <!-- SECTION: en -->
 
 # Update History
+
+## v2.3.0 (2026-05-04)
+
+### New Features
+
+- Added a Tabs feature for splitting scenario flows by chapter, scene, or other unit
+- Added a search filter to the target property of Variable and Element nodes
+- Added a search filter to the jump-target property of Jump nodes
+
+### Bug Fixes
+
+- Fixed an issue where the "revealed" badge and sticky-note indicators were clipped
 
 ## v2.2.0 (2026-05-01)
 

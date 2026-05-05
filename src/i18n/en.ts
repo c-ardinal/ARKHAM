@@ -32,6 +32,8 @@ export const en: TranslationKeys = {
     cancel: 'Cancel',
     resizePanel: 'Resize panel',
     swipeToDelete: 'Swipe left to delete',
+    loadingScenario: 'Loading scenario…',
+    loading: 'Loading…',
   },
   toast: {
     scenarioSaved: 'Scenario saved',
@@ -277,6 +279,35 @@ export const en: TranslationKeys = {
     hideSticky: 'Hide Sticky',
     showStickies: 'Show Stickies',
     hideStickies: 'Hide Stickies',
+  },
+  tab: {
+    defaultName: 'Tab {n}',
+    add: 'Add tab',
+    rename: 'Rename',
+    delete: 'Delete',
+    deleteConfirmTitle: 'Delete tab?',
+    deleteConfirmBodyNodes: 'This tab contains {n} nodes',
+    deleteConfirmBodyJumps: '{n} jump nodes reference this tab',
+    cannotDeleteLast: 'Cannot delete the last tab',
+    moveNodesTo: 'Move to tab',
+    moveNodesToWithCount: 'Move {n} nodes to tab',
+    noOtherTabs: 'No other tabs',
+  },
+  jumpTarget: {
+    search: 'Search nodes…',
+    noResults: 'No matching nodes',
+    broken: 'Broken link',
+    tooMany: 'Too many results. Please refine',
+  },
+  moveNodesToTab: {
+    edgeBreakTitle: 'Edges will be broken',
+    edgeBreakBody: 'This move will break {n} edges across tabs. How do you want to handle them?',
+    choiceDelete: 'Delete the edges',
+    choiceReplaceJump: 'Replace with jump nodes',
+    jumpNodeDefaultLabel: 'Jump → {label}',
+  },
+  migration: {
+    futureVersion: 'This scenario was created with a newer version (v{n}). Please update ARKHAM.',
   },
 
 };

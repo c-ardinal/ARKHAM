@@ -35,8 +35,8 @@ function App() {
       }
     };
   }, [
-    store.nodes,
-    store.edges,
+    store.tabs,
+    store.activeTabId,
     store.gameState,
     store.mode,
     store.characters,

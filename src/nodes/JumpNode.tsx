@@ -1,26 +1,23 @@
 import { memo, useEffect } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { Rabbit } from 'lucide-react';
-import type { ScenarioNodeData } from '../types';
+import type { ScenarioNodeData, ScenarioNode } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
 const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const nodes = useScenarioStore((s) => s.nodes);
+  const nodes = useScenarioStore((s) => s.tabs.find(t => t.id === s.activeTabId)?.nodes ?? []);
   const variables = useScenarioStore((s) => s.gameState.variables);
   const updateNodeData = useScenarioStore((s) => s.updateNodeData);
   const description = data.description;
 
   // Auto-select first available node if target is empty
+  // TODO(Task 5.x): Re-enable with proper {tabId,nodeId} payload after JumpTargetCombobox lands
+  // Disabled during type transition to avoid writing string-form ID into object field.
   useEffect(() => {
-      if (!data.jumpTarget) {
-          const availableNodes = nodes.filter(n => n.id !== id && n.type !== 'sticky');
-          if (availableNodes.length > 0) {
-              updateNodeData(id, { jumpTarget: availableNodes[0].id });
-          }
-      }
+      // intentionally no-op until Phase 5
   }, [data.jumpTarget, nodes, id, updateNodeData]);
 
   return (
@@ -56,7 +53,12 @@ const JumpNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
           <label className="text-sm uppercase font-bold opacity-70 block mb-1 cursor-pointer text-yellow-900 dark:text-yellow-100">Jump To</label>
           <div className="text-sm p-1 rounded border border-yellow-300 dark:border-yellow-700 bg-white/50 dark:bg-black/20 min-h-[24px] cursor-pointer">
               {data.jumpTarget ? (
-                  substituteVariables(nodes.find(n => n.id === data.jumpTarget)?.data.label || 'Unknown Node', variables)
+                  (() => {
+                      const targetNodeId = typeof data.jumpTarget === 'string'
+                          ? data.jumpTarget
+                          : data.jumpTarget.nodeId;
+                      return substituteVariables(nodes.find((n: ScenarioNode) => n.id === targetNodeId)?.data.label || 'Unknown Node', variables);
+                  })()
               ) : (
                   <span className="opacity-50 italic">None</span>
               )}

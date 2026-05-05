@@ -1,11 +1,13 @@
 import { useScenarioStore } from '../store/scenarioStore';
 import React, { useEffect, type ChangeEvent } from 'react';
+import type { ScenarioNode } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
-import { substituteVariables } from '../utils/textUtils';
 import { INPUT_CLASS, LABEL_CLASS, ERROR_MSG_CLASS as ERROR_CLASS } from '../styles/common';
 import { X } from 'lucide-react';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
+import { JumpTargetCombobox } from './JumpTargetCombobox';
+import { SearchableSelect } from './SearchableSelect';
 
 const MobileBackdrop = ({ children, isMobile }: { children: React.ReactNode, isMobile: boolean }) => {
     if (!isMobile) return <>{children}</>;
@@ -23,17 +25,19 @@ interface PropertyPanelProps {
 }
 
 export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPanelProps>(({ width, isMobile = false, onClose }, ref) => {
-  const { 
-      nodes, selectedNodeId, updateNodeData, gameState,
+  const {
+      tabs, activeTabId, selectedNodeId, updateNodeData, gameState,
       characters, resources, updateCharacter, updateResource
   } = useScenarioStore();
+  const activeTab = tabs.find(t => t.id === activeTabId);
+  const nodes = activeTab?.nodes ?? [];
   const { t } = useTranslation();
   
   // レンダリング計測(デバッグモード時のみ)
   useRenderMetricsIfDebug('PropertyPanel');
   
   // Resolve selected item
-  let selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  let selectedNode = nodes.find((n: ScenarioNode) => n.id === selectedNodeId);
   const selectedCharacter = !selectedNode 
       ? characters.find(c => c.id === selectedNodeId)
       : (selectedNode.type === 'character' ? characters.find(c => c.id === selectedNode.data.referenceId) : null);
@@ -329,26 +333,30 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                            {t('resources.noResources') || "Elements not defined"}
                        </div>
                     ) : (
-                        <select
-                            value={selectedNode.data.referenceId || ''}
-                            onChange={(e) => {
-                                 const selectedId = e.target.value;
-                                 const resource = resources.find(r => r.id === selectedId);
-                                 // Update referenceId AND infoValue (for backward compatibility or display)
-                                 updateNodeData(selectedNode.id, { 
-                                     referenceId: selectedId,
-                                     infoValue: resource?.name || ''
-                                 });
+                        <SearchableSelect
+                            items={resources.map((r) => {
+                                const typeLabel = t(`resources.types.${r.type}` as any) || r.type;
+                                return {
+                                    id: r.id,
+                                    label: `${r.name} (${typeLabel})`,
+                                    // Allow searching by raw type key in addition to the localised label.
+                                    searchableText: `${r.name} ${typeLabel} ${r.type}`,
+                                };
+                            })}
+                            value={selectedNode.data.referenceId ?? null}
+                            onChange={(id) => {
+                                if (!id) {
+                                    updateNodeData(selectedNode.id, { referenceId: undefined, infoValue: '' });
+                                    return;
+                                }
+                                const resource = resources.find((r) => r.id === id);
+                                // Update referenceId AND infoValue (for backward compatibility or display)
+                                updateNodeData(selectedNode.id, {
+                                    referenceId: id,
+                                    infoValue: resource?.name || '',
+                                });
                             }}
-                            className={inputClass}
-                        >
-    
-                            {resources.map((r) => (
-                                <option key={r.id} value={r.id}>
-                                    {r.name} ({t(`resources.types.${r.type}` as any) || r.type})
-                                </option>
-                            ))}
-                        </select>
+                        />
                     )}
                   </div>
     
@@ -374,15 +382,14 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                {t('variables.noVariables') || "No variables defined"}
                            </div>
                         ) : (
-                            <select
-                                value={selectedNode.data.targetVariable || ''}
-                                onChange={(e) => handleFieldChange('targetVariable', e.target.value)}
-                                className={inputClass}
-                            >
-                                {Object.keys(gameState.variables).map((v) => (
-                                    <option key={v} value={v}>{v}</option>
-                                ))}
-                            </select>
+                            <SearchableSelect
+                                items={Object.keys(gameState.variables).map((name) => ({
+                                    id: name,
+                                    label: name,
+                                }))}
+                                value={selectedNode.data.targetVariable ?? null}
+                                onChange={(id) => handleFieldChange('targetVariable', id ?? '')}
+                            />
                         )}
                     </div>
                     <div>
@@ -468,7 +475,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       <div className="mt-4 border-t pt-4 border-border">
                           <label className={`block text-sm font-medium mb-2 ${labelClass}`}>Cases (Branches)</label>
                           <div className="space-y-2">
-                              {(selectedNode.data.branches || []).map((branch, index) => (
+                              {(selectedNode.data.branches || []).map((branch: { id: string; label: string }, index: number) => (
                                   <div key={branch.id} className="flex gap-2">
                                       <div className="flex-1">
                                         <VariableSuggestInput
@@ -484,7 +491,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                       </div>
                                       <button 
                                           onClick={() => {
-                                              const newBranches = (selectedNode.data.branches || []).filter((_, i) => i !== index);
+                                              const newBranches = (selectedNode.data.branches || []).filter((_: { id: string; label: string }, i: number) => i !== index);
                                               updateNodeData(selectedNode.id, { branches: newBranches });
                                           }}
                                           className="px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
@@ -524,26 +531,15 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
               {selectedNode.type === 'jump' && (
                   <div>
                       <label className={labelClass}>{t('properties.jumpTarget')}</label>
-                      {nodes.filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource').length === 0 ? (
-                           <div className={ERROR_CLASS}>
-                               {t('properties.noNodesAvailable') || "No jump targets available"}
-                           </div>
-                      ) : (
-                          <select
-                              value={selectedNode.data.jumpTarget || ''}
-                              onChange={(e) => updateNodeData(selectedNode.id, { jumpTarget: e.target.value })}
-                              className={inputClass}
-                          >
-                              {nodes
-                                  .filter(n => n.id !== selectedNode.id && n.type !== 'sticky' && n.type !== 'character' && n.type !== 'resource')
-                                  .map(n => (
-                                      <option key={n.id} value={n.id}>
-                                          {substituteVariables(n.data.label, gameState.variables)} ({n.type})
-                                      </option>
-                                  ))
-                              }
-                          </select>
-                      )}
+                      <JumpTargetCombobox
+                          value={
+                              typeof selectedNode.data.jumpTarget === 'string'
+                                  ? null
+                                  : (selectedNode.data.jumpTarget ?? null)
+                          }
+                          onChange={(target) => updateNodeData(selectedNode.id, { jumpTarget: target })}
+                          excludeNodeId={selectedNode.id}
+                      />
                   </div>
               )}
             </div>

@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { useScenarioStore } from '../store/scenarioStore';
 import type { ScenarioNodeData } from '../types';
+import { MoveToTabSubmenu } from './MoveToTabSubmenu';
 
 export interface ContextMenuState {
   id: string;
@@ -41,11 +42,11 @@ const MenuButton = ({ children, onClick, danger, className = "", ...props }: Men
   </button>
 );
 
-export const ContextMenu = ({ 
-  menu, 
-  onClose, 
-  onDelete, 
-  onDuplicate, 
+export const ContextMenu = ({
+  menu,
+  onClose,
+  onDelete,
+  onDuplicate,
   onReduplicate,
   onCopyText,
   onToggleState,
@@ -55,8 +56,10 @@ export const ContextMenu = ({
   onToggleStickies,
   onDeleteStickies,
   onHideSticky,
-}: { 
-  menu: ContextMenuState; 
+  onMoveToTab,
+  selectedCount = 1,
+}: {
+  menu: ContextMenuState;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate?: () => void;
@@ -70,6 +73,10 @@ export const ContextMenu = ({
   onToggleStickies?: (targetId: string) => void;
   onDeleteStickies?: (targetId: string) => void;
   onHideSticky?: (stickyId: string) => void;
+  /** Callback invoked when the user picks a tab to move the selected node(s) to */
+  onMoveToTab?: (targetTabId: string) => void;
+  /** Number of selected nodes; controls plural/singular label in MoveToTabSubmenu */
+  selectedCount?: number;
   isRevealed?: boolean;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -233,7 +240,19 @@ export const ContextMenu = ({
                     )}
                 </>
             )}
-            
+
+            {/* [SPEC-TAB-MV-003] Move to tab submenu — edit mode only, not for sticky nodes */}
+            {mode === 'edit' && menu.nodeType !== 'sticky' && onMoveToTab && (
+                <>
+                    <div className="h-px bg-border my-1" />
+                    <MoveToTabSubmenu
+                        selectedCount={selectedCount}
+                        onMove={onMoveToTab}
+                        direction={subMenuDirection}
+                    />
+                </>
+            )}
+
             {(mode === 'edit' || (menu.nodeType === 'sticky')) && (
                 <>
                     <div className="h-px bg-border my-1" />

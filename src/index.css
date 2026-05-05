@@ -111,13 +111,14 @@
 .react-flow__node {
   padding: 0 !important;
   /*
-   * contain hints to the engine that paint side effects from this node
-   * (and its descendants) cannot escape the node's box. The Compositor
-   * can then raster each node independently and skip work for nodes that
-   * didn't actually change between frames -- a big win during repeated
-   * zoom changes, which otherwise rasterize every layer at the new scale.
+   * `contain: paint` is intentionally excluded here.
+   * paint containment clips the paint area to the node's own box, which
+   * causes absolutely-positioned children with negative offsets (e.g.
+   * RevealedBadge at -top-2 / -left-2, StickyIndicator) to be invisible.
+   * layout + style containment is preserved to let the browser skip style
+   * recalculation and layout for siblings when a single node changes.
    */
-  contain: layout style paint;
+  contain: layout style;
 }
 
 .react-flow__node-group {
@@ -219,6 +220,19 @@
   * {
     -webkit-tap-highlight-color: transparent;
   }
+}
+
+/*
+ * TabBar の横スクロール時にスクロールバーを視覚的に隠す。
+ * Windows のように常時表示されるブラウザでも 36px のタブ帯の下に細い
+ * スクロールバーが現れないように。スクロール機能(ホイール/ドラッグ/キー)は維持。
+ */
+.tab-bar-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+.tab-bar-scroll::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 /* Force StickyNode handle to center, overriding mobile directional styles */

@@ -29,7 +29,8 @@ export interface ScenarioNodeData {
   previousValue?: any; // To restore value when un-revealed
   
   // For Jump nodes
-  jumpTarget?: string;
+  // TODO(Task 5.2): Replace PropertyPanel shim (as any) with JumpTargetCombobox
+  jumpTarget?: { tabId: string; nodeId: string } | null;
 
   // For Sticky nodes
   targetNodeId?: string; // If attached to a node

@@ -12,6 +12,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useScenarioStore } from '../store/scenarioStore';
+import { useActiveNodes, useActiveEdges } from '../store/tabSelectors';
 import EventNode from '../nodes/EventNode';
 import ElementNode from '../nodes/ElementNode';
 import BranchNode from '../nodes/BranchNode';
@@ -22,12 +23,14 @@ import JumpNode from '../nodes/JumpNode';
 import StickyNode from '../nodes/StickyNode';
 import CharacterNode from '../nodes/CharacterNode';
 import ResourceNode from '../nodes/ResourceNode';
-import type { NodeType, ScenarioNode } from '../types';
+import type { NodeType, ScenarioNode, ScenarioEdge } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
 import { getJumpTargetCenter } from '../utils/nodeAbsolutePosition';
 import { NodeInfoModal } from './NodeInfoModal';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
+import { EdgeBreakDialog } from './EdgeBreakDialog';
+import { detectBrokenEdges } from '../utils/jumpReferences';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 import { ZoomLevelContext, resolveZoomLevel, type ZoomLevel } from '../contexts/ZoomLevelContext';
 
@@ -59,31 +62,34 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     fontsLoaded?: boolean;
 }>(({ onCanvasClick, isMobile, onOpenPropertyPanel, fontsLoaded }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { 
-    nodes, 
-    edges, 
-    onNodesChange, 
-    onEdgesChange, 
-    onConnect, 
-    onReconnect,
-    addNode,
-    duplicateNodes,
-    deleteNodes,
-    setSelectedNode,
-    mode,
-    toggleNodeState,
-    groupNodes,
-    ungroupNodes,
-    pushHistory,
-    edgeType,
-    gameState,
-    selectedNodeId,
-    bringNodeToFront,
-    addSticky,
-    toggleStickies,
-    deleteStickies,
-    hideSticky,
-  } = useScenarioStore();
+  // Purpose-built selectors: each subscribes only to the slice it needs,
+  // avoiding full-store re-renders on unrelated mutations (H-P1, H-P2).
+  const nodes = useActiveNodes();
+  const edges = useActiveEdges();
+  const activeTabId = useScenarioStore((s) => s.activeTabId);
+  const executeJump = useScenarioStore((s) => s.executeJump);
+  const onNodesChange = useScenarioStore((s) => s.onNodesChange);
+  const onEdgesChange = useScenarioStore((s) => s.onEdgesChange);
+  const onConnect = useScenarioStore((s) => s.onConnect);
+  const onReconnect = useScenarioStore((s) => s.onReconnect);
+  const addNode = useScenarioStore((s) => s.addNode);
+  const duplicateNodes = useScenarioStore((s) => s.duplicateNodes);
+  const deleteNodes = useScenarioStore((s) => s.deleteNodes);
+  const setSelectedNode = useScenarioStore((s) => s.setSelectedNode);
+  const mode = useScenarioStore((s) => s.mode);
+  const toggleNodeState = useScenarioStore((s) => s.toggleNodeState);
+  const groupNodes = useScenarioStore((s) => s.groupNodes);
+  const ungroupNodes = useScenarioStore((s) => s.ungroupNodes);
+  const pushHistory = useScenarioStore((s) => s.pushHistory);
+  const edgeType = useScenarioStore((s) => s.edgeType);
+  const gameState = useScenarioStore((s) => s.gameState);
+  const selectedNodeId = useScenarioStore((s) => s.selectedNodeId);
+  const bringNodeToFront = useScenarioStore((s) => s.bringNodeToFront);
+  const addSticky = useScenarioStore((s) => s.addSticky);
+  const toggleStickies = useScenarioStore((s) => s.toggleStickies);
+  const deleteStickies = useScenarioStore((s) => s.deleteStickies);
+  const hideSticky = useScenarioStore((s) => s.hideSticky);
+  const moveNodesToTab = useScenarioStore((s) => s.moveNodesToTab);
   const { 
       setEdges, 
       getNodes,
@@ -205,12 +211,22 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [zoom, setZoomState] = useState(1);
   const [infoModalData, setInfoModalData] = useState<string | null>(null);
+  // Pending move awaiting EdgeBreakDialog confirmation
+  const [pendingMove, setPendingMove] = useState<{
+    targetTabId: string;
+    nodeIds: string[];
+    brokenCount: number;
+  } | null>(null);
   // Removed local isUpdatingSticky
   const lastDuplicatedIds = useRef<string[]>([]);
+  // BL-3: アクティブタブ変化を追跡し viewport を退避/復元するための前タブ ID ref
+  const prevActiveTabIdRef = useRef<string>(activeTabId);
   
   // ビューポート復元管理（stateで変更を検知）
   const [pendingViewport, setPendingViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const [hasAppliedViewport, setHasAppliedViewport] = useState(false);
+  // Cross-tab jump: after executeJump switches activeTabId, focus the target node in the new tab
+  const [pendingCrossTabFocus, setPendingCrossTabFocus] = useState<string | null>(null);
   // Coarse zoom tier for LOD rendering. Updated on viewport changes only
   // when the tier is actually crossed, so steady-state pan/drag never trigger
   // re-renders here.
@@ -259,7 +275,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     const nodesChanged = Math.abs(nodes.length - previousNodesLength.current) > 5;
     
     // ノードのサイズがすべて確定しているかチェック
-    const allNodesHaveDimensions = nodes.every(n => n.width && n.height);
+    const allNodesHaveDimensions = nodes.every((n: ScenarioNode) => n.width && n.height);
 
     // 寸法が確定していない場合は処理を保留（previousNodesLengthも更新しない）
     // これにより、寸法確定後の再レンダリングで正しく処理される
@@ -336,6 +352,63 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
     previousNodesLength.current = nodes.length;
   }, [nodes, pendingViewport, fitView, setViewport]);
+
+  // When a cross-tab jump just happened, the active tab has switched.
+  // We now find the target node in the new active tab and center on it.
+  // Retry up to maxAttempts times (100ms each) to handle slow devices and
+  // large canvases where ReactFlow may not have mounted all nodes yet.
+  useEffect(() => {
+    if (!pendingCrossTabFocus) return;
+    const targetId = pendingCrossTabFocus;
+    let attempts = 0;
+    const maxAttempts = 10; // 100ms x 10 = 1s upper bound
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const tryFocus = () => {
+      const targetNode = getNodes().find((n) => n.id === targetId);
+      if (targetNode) {
+        const { cx, cy } = getJumpTargetCenter(targetNode as ScenarioNode);
+        const currentZoom = getZoom();
+        setCenter(cx, cy, { zoom: currentZoom, duration: 600 });
+        setSelectedNode(targetId);
+        setPendingCrossTabFocus(null);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        timeoutId = setTimeout(tryFocus, 100);
+      } else {
+        // Give up silently after 1s — target node may not exist
+        setPendingCrossTabFocus(null);
+      }
+    };
+
+    timeoutId = setTimeout(tryFocus, 50); // initial delay for tab switch render
+    return () => clearTimeout(timeoutId);
+  }, [pendingCrossTabFocus, getNodes, getZoom, setCenter, setSelectedNode]);
+
+  // BL-3: activeTabId 変化を検知して viewport を退避・復元する
+  // 前タブの viewport を Tab.viewport フィールドに保存し、新タブの viewport を復元する。
+  // viewport が未保存の場合は fitView を実行してキャンバスを整列させる。
+  useEffect(() => {
+    if (prevActiveTabIdRef.current === activeTabId) return;
+
+    const prevId = prevActiveTabIdRef.current;
+
+    // 1. 前タブの現在 viewport を store に退避
+    const currentVp = getViewport();
+    useScenarioStore.setState((state) => ({
+      tabs: state.tabs.map((t) => (t.id === prevId ? { ...t, viewport: currentVp } : t)),
+    }));
+
+    // 2. 新タブの viewport を復元（未保存なら fitView）
+    const newTab = useScenarioStore.getState().tabs.find((t) => t.id === activeTabId);
+    if (newTab?.viewport) {
+      setViewport(newTab.viewport, { duration: 0 });
+    } else {
+      fitView({ padding: 0.2, duration: 200 });
+    }
+
+    prevActiveTabIdRef.current = activeTabId;
+  }, [activeTabId, getViewport, setViewport, fitView]);
 
   // Dedicated effect for removing the loader
   useEffect(() => {
@@ -630,7 +703,17 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
                   onOpenPropertyPanel?.();
               } else if (node.type === 'jump' && node.data.jumpTarget) {
                   // Jump Node: Jump on Double Click
-                  handleJump(node.data.jumpTarget);
+                  const target = node.data.jumpTarget;
+                  if (typeof target === 'string') {
+                      // Legacy string form — same-tab assumption
+                      handleJump(target);
+                  } else if (target.tabId === activeTabId) {
+                      handleJump(target.nodeId);
+                  } else {
+                      // Cross-tab: switch tab, then focus on landing
+                      executeJump(target);
+                      setPendingCrossTabFocus(target.nodeId);
+                  }
               }
               // Other nodes: Do nothing
           }
@@ -646,16 +729,24 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
     if (isDoubleClick && node.type === 'jump' && node.data.jumpTarget) {
         // Jump Node Logic
-        // In Edit Mode: Only jump if NOT mobile. 
+        // In Edit Mode: Only jump if NOT mobile.
         if (!isMobile) {
-            handleJump(node.data.jumpTarget);
+            const target = node.data.jumpTarget;
+            if (typeof target === 'string') {
+                handleJump(target);
+            } else if (target.tabId === activeTabId) {
+                handleJump(target.nodeId);
+            } else {
+                executeJump(target);
+                setPendingCrossTabFocus(target.nodeId);
+            }
         }
     }
 
     if (node.type === 'group') {
         bringNodeToFront(node.id);
     }
-  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode, mode, isMobile, onOpenPropertyPanel]);
+  }, [bringNodeToFront, getNodes, getZoom, setCenter, setSelectedNode, mode, isMobile, onOpenPropertyPanel, activeTabId, executeJump]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -1010,6 +1101,39 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       setMenu(null);
   }, [hideSticky]);
 
+  /**
+   * [SPEC-TAB-MV-004] Move selected (or right-clicked) nodes to another tab.
+   * If any edges would be broken by the move, the EdgeBreakDialog is shown so
+   * the user can choose a resolution strategy.
+   */
+  const handleMoveToTab = useCallback((targetTabId: string) => {
+      // Prefer explicitly selected nodes; fall back to the single right-clicked node.
+      const selected = getNodes().filter((n) => n.selected);
+      const nodeIds =
+          selected.length > 0
+              ? selected.map((n) => n.id)
+              : menu?.type === 'node'
+              ? [menu.id]
+              : [];
+
+      if (nodeIds.length === 0) {
+          setMenu(null);
+          return;
+      }
+
+      // Detect edges that would be severed by moving these nodes to another tab.
+      const movedSet = new Set(nodeIds);
+      const broken = detectBrokenEdges(edges, movedSet);
+
+      if (broken.length > 0) {
+          // Surface the EdgeBreakDialog before committing the move.
+          setPendingMove({ targetTabId, nodeIds, brokenCount: broken.length });
+      } else {
+          moveNodesToTab(nodeIds, targetTabId, 'delete');
+      }
+      setMenu(null);
+  }, [getNodes, menu, edges, moveNodesToTab]);
+
   const handleDelete = useCallback(() => {
     const selectedNodes = getNodes().filter(n => n.selected);
     const nodesToDelete = selectedNodes.length > 0 ? selectedNodes : (menu?.type === 'node' ? getNodes().filter(n => n.id === menu.id) : []);
@@ -1018,11 +1142,11 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         deleteNodes(nodesToDelete.map(n => n.id));
     } else {
         // Check for selected edges
-        const selectedEdges = edges.filter(e => e.selected);
-        const edgesToDelete = selectedEdges.length > 0 ? selectedEdges : (menu?.type === 'edge' ? edges.filter(e => e.id === menu.id) : []);
-        
+        const selectedEdges = edges.filter((e: ScenarioEdge) => e.selected);
+        const edgesToDelete = selectedEdges.length > 0 ? selectedEdges : (menu?.type === 'edge' ? edges.filter((e: ScenarioEdge) => e.id === menu.id) : []);
+
         if (edgesToDelete.length > 0) {
-            setEdges((currentEdges) => currentEdges.filter((e) => !edgesToDelete.some(del => del.id === e.id)));
+            setEdges((currentEdges) => currentEdges.filter((e) => !edgesToDelete.some((del: ScenarioEdge) => del.id === e.id)));
         }
     }
     setMenu(null);
@@ -1547,8 +1671,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       </ReactFlow>
       
       {menu && (
-        <ContextMenu 
-          menu={menu} 
+        <ContextMenu
+          menu={menu}
           onClose={() => setMenu(null)}
           onDelete={handleDelete}
           onDuplicate={handleDuplicate}
@@ -1562,6 +1686,20 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
           onToggleStickies={handleToggleStickies}
           onDeleteStickies={handleDeleteStickies}
           onHideSticky={handleHideSticky}
+          onMoveToTab={handleMoveToTab}
+          selectedCount={Math.max(1, getNodes().filter((n) => n.selected).length)}
+        />
+      )}
+
+      {pendingMove && (
+        <EdgeBreakDialog
+          isOpen={true}
+          edgeCount={pendingMove.brokenCount}
+          onConfirm={(strategy) => {
+            moveNodesToTab(pendingMove.nodeIds, pendingMove.targetTabId, strategy);
+            setPendingMove(null);
+          }}
+          onCancel={() => setPendingMove(null)}
         />
       )}
     </div>

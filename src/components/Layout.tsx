@@ -14,9 +14,11 @@ import { Toaster, toast } from './common/Toaster';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useDebugStore } from '../store/debugStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
+import { countJumpReferencesToTab } from '../utils/jumpReferences';
 import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight } from 'lucide-react';
 
 import { useTranslation } from '../hooks/useTranslation';
+import { TabBar } from './TabBar';
 import { generateScenarioText } from '../utils/exportUtils';
 import sampleStory from '../../sample/sample_Story.json';
 import sampleNestedGroup from '../../sample/sample_NestedGroupNodes.json';
@@ -24,6 +26,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { createPortal } from 'react-dom'; // Import createPortal
 import { useMenuStructure } from '../hooks/useMenuStructure';
 import type { MenuItem as MenuItemType } from '../types/menu';
+import type { ScenarioNode } from '../types';
 
 interface MenuItemProps {
     onClick?: (e: React.MouseEvent) => void;
@@ -221,6 +224,7 @@ interface ConfirmationModalProps {
 }
 
 const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger = false, confirmLabel, cancelLabel }: ConfirmationModalProps) => {
+    const { t } = useTranslation();
     const confirmRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
@@ -255,7 +259,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger 
                         onClick={onClose}
                         className="min-h-[44px] px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                        {cancelLabel ?? 'Cancel'}
+                        {cancelLabel ?? t('common.cancel')}
                     </button>
                     <button
                         ref={confirmRef}
@@ -265,7 +269,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger 
                         }}
                         className={`min-h-[44px] px-4 py-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${confirmButtonClass}`}
                     >
-                        {confirmLabel ?? 'Confirm'}
+                        {confirmLabel ?? t('common.confirm')}
                     </button>
                 </div>
             </div>
@@ -274,7 +278,10 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger 
 };
 
 export const Layout = () => {
-  const { mode, setMode, nodes, edges, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, edgeType, selectedNodeId, setSelectedNode, characters, resources } = useScenarioStore();
+  const { mode, setMode, tabs, activeTabId, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, edgeType, selectedNodeId, setSelectedNode, characters, resources } = useScenarioStore();
+  const activeTab = tabs.find(t => t.id === activeTabId);
+  const nodes = activeTab?.nodes ?? [];
+  const edges = activeTab?.edges ?? [];
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -284,6 +291,7 @@ export const Layout = () => {
   
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; danger?: boolean; confirmLabel?: string; cancelLabel?: string } | null>(null);
+  const [tabDeleteTarget, setTabDeleteTarget] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<{ errors: string[]; warnings: string[]; corrections?: string[]; jsonContent?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const isDebugModeEnabled = (() => {
@@ -368,6 +376,18 @@ export const Layout = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
 
+  // Show a warning toast when a scenario saved with a future (unknown) format version
+  // was detected during loadInitialState. The flag is set on window by the store before
+  // React mounts, so reading it once on mount is sufficient.
+  useEffect(() => {
+    // H-T1: global.d.ts で Window 型を拡張したため as any 不要
+    const v = window.__ARKHAM_FUTURE_VERSION_DETECTED__;
+    if (v) {
+      toast.error(t('migration.futureVersion').replace('{n}', String(v)));
+      delete window.__ARKHAM_FUTURE_VERSION_DETECTED__;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleMode = useCallback(() => {
       setMode(mode === 'edit' ? 'play' : 'edit');
@@ -399,21 +419,37 @@ export const Layout = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Prevent deleting the last remaining tab: show toast and clear target instead of opening modal
+  useEffect(() => {
+    if (tabDeleteTarget && tabs.length <= 1) {
+      toast.error(t('tab.cannotDeleteLast'));
+      setTabDeleteTarget(null);
+    }
+  }, [tabDeleteTarget, tabs.length, t]);
+
   const handleSave = () => {
     try {
+      // Save in v2 tabbed format so all tabs are preserved, not just the active one.
+      // validateScenarioData expects legacy (nodes/edges) format; skip it here since
+      // we are producing a well-formed object directly from store state.
+      const activeViewport = canvasRef.current?.getViewport();
+      const tabsWithViewport = activeViewport
+        ? tabs.map((t) =>
+            t.id === activeTabId ? { ...t, viewport: activeViewport } : t
+          )
+        : tabs;
+
       const data = {
-        nodes,
-        edges,
+        version: 2,
+        tabs: tabsWithViewport,
+        activeTabId,
         gameState,
         characters,
         resources,
         edgeType,
-        viewport: canvasRef.current?.getViewport()
       };
 
-      // Validate and correct the data before saving
-      const validation = validateScenarioData(data);
-      const dataToSave = validation.correctedData || data;
+      const dataToSave = data;
 
       const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -487,7 +523,7 @@ export const Layout = () => {
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, nodes, edges, gameState, handleZoomIn, handleZoomOut]);
+  }, [undo, redo, tabs, activeTabId, gameState, handleZoomIn, handleZoomOut]);
 
   // モバイル/タブレットでのノード位置ずれを防ぐため、シナリオを2回読み込む
   const loadScenarioWithStabilization = useCallback(async (data: any) => {
@@ -642,8 +678,8 @@ const menuActions = {
             title: t('menu.loadSample'),
             message: t('menu.confirmLoadSample'),
             danger: true,
-            confirmLabel: t('common.confirm' as any),
-            cancelLabel: t('common.cancel' as any),
+            confirmLabel: t('common.confirm'),
+            cancelLabel: t('common.cancel'),
             onConfirm: () => {
                 const sampleData = type === 'story' ? sampleStory : sampleNestedGroup;
                 console.log('[Layout] Loading sample data:', { type, hasViewport: !!(sampleData as any).viewport, viewport: (sampleData as any).viewport });
@@ -671,11 +707,11 @@ const menuActions = {
     },
     onReset: () => setConfirmModal({
       isOpen: true,
-      title: t('common.reset' as any),
-      message: t('common.confirmReset' as any),
+      title: t('common.reset'),
+      message: t('common.confirmReset'),
       danger: true,
-      confirmLabel: t('common.confirm' as any),
-      cancelLabel: t('common.cancel' as any),
+      confirmLabel: t('common.confirm'),
+      cancelLabel: t('common.cancel'),
       onConfirm: async () => {
         useScenarioStore.getState().resetToInitialState();
         // リセット後にfitViewを実行し、完了後にビューポートを保存
@@ -831,6 +867,7 @@ const menuActions = {
             </button>
         </div>
       </header>
+      <TabBar onRequestDeleteConfirm={(id) => setTabDeleteTarget(id)} />
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Main Content Area */}
@@ -864,7 +901,7 @@ const menuActions = {
         />
         
         {/* Helper for property resizing (Desktop) */}
-        {!isMobile && selectedNodeId && (mode === 'edit' || nodes.find(n => n.id === selectedNodeId)?.type === 'sticky') && (
+        {!isMobile && selectedNodeId && (mode === 'edit' || nodes.find((n: ScenarioNode) => n.id === selectedNodeId)?.type === 'sticky') && (
             <div
                 role="separator"
                 aria-orientation="vertical"
@@ -877,7 +914,7 @@ const menuActions = {
             </div>
         )}
 
-        {(isMobile ? mobilePropertyPanelOpen : (selectedNodeId && (mode === 'edit' || nodes.find(n => n.id === selectedNodeId)?.type === 'sticky'))) && (
+        {(isMobile ? mobilePropertyPanelOpen : (selectedNodeId && (mode === 'edit' || nodes.find((n: ScenarioNode) => n.id === selectedNodeId)?.type === 'sticky'))) && (
            <PropertyPanel 
                 width={propertyPanelWidth} 
                 isMobile={isMobile}
@@ -907,6 +944,34 @@ const menuActions = {
             onClose={() => setConfirmModal(null)}
         />
       )}
+      {/* Tab delete confirmation dialog — only shown when more than 1 tab exists */}
+      {tabDeleteTarget !== null && tabs.length > 1 && (() => {
+        const tab = tabs.find(tt => tt.id === tabDeleteTarget);
+        if (!tab) return null;
+        const jumpRefs = countJumpReferencesToTab(tabs, tabDeleteTarget);
+        const messageParts = [
+          t('tab.deleteConfirmBodyNodes').replace('{n}', String(tab.nodes.length)),
+        ];
+        if (jumpRefs > 0) {
+          messageParts.push(`⚠ ${t('tab.deleteConfirmBodyJumps').replace('{n}', String(jumpRefs))}`);
+        }
+        const message = messageParts.join('\n');
+        return (
+          <ConfirmationModal
+            isOpen={true}
+            title={t('tab.deleteConfirmTitle')}
+            message={message}
+            danger={true}
+            confirmLabel={t('tab.delete')}
+            cancelLabel={t('common.cancel')}
+            onConfirm={() => {
+              useScenarioStore.getState().deleteTab(tabDeleteTarget);
+              setTabDeleteTarget(null);
+            }}
+            onClose={() => setTabDeleteTarget(null)}
+          />
+        );
+      })()}
       <UpdateHistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
       <ManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
@@ -924,7 +989,7 @@ const menuActions = {
         onClose={() => setValidationError(null)}
       />
       {isDebugModeEnabled && <DebugPanel />}
-      <LoadingOverlay isLoading={isLoading} message="シナリオを読み込んでいます..." />
+      <LoadingOverlay isLoading={isLoading} message={t('common.loadingScenario')} />
       <Toaster />
 
       </div>
