@@ -7,6 +7,7 @@ import { INPUT_CLASS, LABEL_CLASS, ERROR_MSG_CLASS as ERROR_CLASS } from '../sty
 import { X } from 'lucide-react';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 import { JumpTargetCombobox } from './JumpTargetCombobox';
+import { SearchableSelect } from './SearchableSelect';
 
 const MobileBackdrop = ({ children, isMobile }: { children: React.ReactNode, isMobile: boolean }) => {
     if (!isMobile) return <>{children}</>;
@@ -332,26 +333,30 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                            {t('resources.noResources') || "Elements not defined"}
                        </div>
                     ) : (
-                        <select
-                            value={selectedNode.data.referenceId || ''}
-                            onChange={(e) => {
-                                 const selectedId = e.target.value;
-                                 const resource = resources.find(r => r.id === selectedId);
-                                 // Update referenceId AND infoValue (for backward compatibility or display)
-                                 updateNodeData(selectedNode.id, { 
-                                     referenceId: selectedId,
-                                     infoValue: resource?.name || ''
-                                 });
+                        <SearchableSelect
+                            items={resources.map((r) => {
+                                const typeLabel = t(`resources.types.${r.type}` as any) || r.type;
+                                return {
+                                    id: r.id,
+                                    label: `${r.name} (${typeLabel})`,
+                                    // Allow searching by raw type key in addition to the localised label.
+                                    searchableText: `${r.name} ${typeLabel} ${r.type}`,
+                                };
+                            })}
+                            value={selectedNode.data.referenceId ?? null}
+                            onChange={(id) => {
+                                if (!id) {
+                                    updateNodeData(selectedNode.id, { referenceId: undefined, infoValue: '' });
+                                    return;
+                                }
+                                const resource = resources.find((r) => r.id === id);
+                                // Update referenceId AND infoValue (for backward compatibility or display)
+                                updateNodeData(selectedNode.id, {
+                                    referenceId: id,
+                                    infoValue: resource?.name || '',
+                                });
                             }}
-                            className={inputClass}
-                        >
-    
-                            {resources.map((r) => (
-                                <option key={r.id} value={r.id}>
-                                    {r.name} ({t(`resources.types.${r.type}` as any) || r.type})
-                                </option>
-                            ))}
-                        </select>
+                        />
                     )}
                   </div>
     
@@ -377,15 +382,14 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                {t('variables.noVariables') || "No variables defined"}
                            </div>
                         ) : (
-                            <select
-                                value={selectedNode.data.targetVariable || ''}
-                                onChange={(e) => handleFieldChange('targetVariable', e.target.value)}
-                                className={inputClass}
-                            >
-                                {Object.keys(gameState.variables).map((v) => (
-                                    <option key={v} value={v}>{v}</option>
-                                ))}
-                            </select>
+                            <SearchableSelect
+                                items={Object.keys(gameState.variables).map((name) => ({
+                                    id: name,
+                                    label: name,
+                                }))}
+                                value={selectedNode.data.targetVariable ?? null}
+                                onChange={(id) => handleFieldChange('targetVariable', id ?? '')}
+                            />
                         )}
                     </div>
                     <div>
