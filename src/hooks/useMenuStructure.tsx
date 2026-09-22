@@ -8,17 +8,20 @@ import {
     Eye as ViewIcon, Settings, HelpCircle, History, Info,
     Languages, Activity,
     Maximize, Spline, Minus, CornerDownRight, Route,
-    Shield
+    Shield, PlusCircle, Settings2
 } from 'lucide-react';
 import type { MenuSection } from '../types/menu';
 import { ZoomControls } from '../components/common/ZoomControls';
 
 // Define the actions required by the hook that are local to the Layout/Component
 export interface MenuExternalActions {
+    onNewScenario?: () => void;
+    onOpenSystemConfig?: () => void;
     onSave: () => void;
     onLoadClick: () => void;
-    onLoadSample: (type: 'story' | 'nested') => void;
+    onLoadSample: (type: 'story' | 'nested' | 'indeterminate_organ') => void;
     onExport: (type: 'text' | 'markdown') => void;
+    onOpenCoreEngine?: () => void;
     onReset: () => void;
     onOpenManual: () => void;
     onOpenUpdateHistory: () => void;
@@ -59,6 +62,17 @@ export const useMenuStructure = (actions: MenuExternalActions, isDebugModeEnable
             label: t('menu.file'),
             icon: FileText,
             items: [
+                ...(actions.onNewScenario
+                    ? [
+                        { id: 'new_scenario', type: 'item' as const, label: '新規シナリオ作成... (New)', icon: PlusCircle, action: actions.onNewScenario },
+                      ]
+                    : []),
+                ...(actions.onOpenSystemConfig
+                    ? [
+                        { id: 'system_config', type: 'item' as const, label: 'TRPGシステム設定...', icon: Settings2, action: actions.onOpenSystemConfig },
+                      ]
+                    : []),
+                { id: 'sep0', type: 'divider' },
                 { id: 'save', type: 'item', label: t('common.save'), icon: Save, action: actions.onSave },
                 { id: 'load', type: 'item', label: t('common.load'), icon: Upload, action: actions.onLoadClick },
                 { 
@@ -67,11 +81,23 @@ export const useMenuStructure = (actions: MenuExternalActions, isDebugModeEnable
                     label: t('menu.loadSample'), 
                     icon: Book,
                     children: [
+                        { id: 'sample_indeterminate', type: 'item', label: '不確定性器官の拍動 (実例シナリオ)', icon: Book, action: () => actions.onLoadSample('indeterminate_organ') },
                         { id: 'sample_story', type: 'item', label: t('menu.loadStory'), icon: Book, action: () => actions.onLoadSample('story') },
                         { id: 'sample_nested', type: 'item', label: t('menu.loadNestedGroup'), icon: Folder, action: () => actions.onLoadSample('nested') }
                     ]
                 },
                 { id: 'sep1', type: 'divider' },
+                ...(actions.onOpenCoreEngine
+                    ? [
+                        {
+                            id: 'arkham_engine',
+                            type: 'item' as const,
+                            label: 'ARKHAM Engine (検証・シミュレーション)',
+                            icon: Activity,
+                            action: actions.onOpenCoreEngine,
+                        },
+                      ]
+                    : []),
                 {
                     id: 'export',
                     type: 'submenu',

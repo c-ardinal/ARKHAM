@@ -1,5 +1,5 @@
 // src/store/migration.ts
-import type { ScenarioNode, GameState, CharacterData, ResourceData } from '../types';
+import type { ScenarioNode, GameState, CharacterData, ResourceData, StageData } from '../types';
 import { SCHEMA_VERSION, generateTabId, type Tab } from '../types/tab';
 
 // H-T3: MigratedState の gameState/characters/resources を any から厳密型へ変更
@@ -9,6 +9,7 @@ interface MigratedState {
   activeTabId: string;
   gameState: GameState;
   characters: CharacterData[];
+  stages: StageData[];
   resources: ResourceData[];
   language?: 'en' | 'ja';
   theme?: 'light' | 'dark';
@@ -48,6 +49,27 @@ export function migrateLegacyToTabbed(legacy: any, defaultTabName: string): Migr
   const migratedNodes = migrateJumpTargets(rawNodes, tabId);
   const edges = Array.isArray(legacy?.edges) ? legacy.edges : [];
 
+  const stages: StageData[] = (Array.isArray(legacy?.stages) ? legacy.stages : []) as StageData[];
+  const rawResources: ResourceData[] = Array.isArray(legacy?.resources) ? legacy.resources : [];
+  const resources: ResourceData[] = [];
+
+  for (const r of rawResources) {
+    if (r.type === 'Location') {
+      if (!stages.some((s) => s.id === r.id)) {
+        stages.push({
+          id: r.id,
+          type: 'Location',
+          name: r.name,
+          reading: r.reading,
+          description: r.description,
+          note: r.note,
+        });
+      }
+    } else {
+      resources.push(r);
+    }
+  }
+
   return {
     version: SCHEMA_VERSION,
     tabs: [
@@ -72,7 +94,8 @@ export function migrateLegacyToTabbed(legacy: any, defaultTabName: string): Migr
       variables: {},
     }) as GameState,
     characters: (Array.isArray(legacy?.characters) ? legacy.characters : []) as CharacterData[],
-    resources: (Array.isArray(legacy?.resources) ? legacy.resources : []) as ResourceData[],
+    stages,
+    resources,
     language: legacy?.language ?? 'ja',
     theme: legacy?.theme ?? 'light',
     edgeType: legacy?.edgeType,

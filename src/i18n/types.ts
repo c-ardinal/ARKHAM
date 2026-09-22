@@ -18,8 +18,15 @@ export type TranslationKeys = {
     confirmRevealAll: string;
     confirmUnrevealAll: string;
     characters: string;
+    stages: string;
+    stagesShort: string;
     elements: string;
     variables: string;
+    all: string;
+    search: string;
+    edit: string;
+    add: string;
+    delete: string;
     reset: string;
     confirmReset: string;
     deleteConfirm: string;
@@ -185,6 +192,22 @@ export type TranslationKeys = {
     };
     noCharacters: string;
   };
+  stages: {
+    title: string;
+    add: string;
+    name: string;
+    reading: string;
+    description: string;
+    details: string;
+    note: string;
+    type: string;
+    types: {
+      Location: string;
+      Faction: string;
+      Lore: string;
+    };
+    noStages: string;
+  };
   resources: {
     title: string;
     add: string;
@@ -201,6 +224,7 @@ export type TranslationKeys = {
       Knowledge: string;
       Skill: string;
       Status: string;
+      Location: string;
     };
     categoryLabels: {
         item: string;
@@ -208,6 +232,7 @@ export type TranslationKeys = {
         knowledge: string;
         skill: string;
         status: string;
+        location: string;
     };
     statusView: {
         empty: string;

@@ -11,17 +11,21 @@ import { LegalModal, type LegalDocumentType } from './LegalModal';
 import { DebugPanel } from './DebugPanel/DebugPanel';
 import { LoadingOverlay } from './LoadingOverlay';
 import { Toaster, toast } from './common/Toaster';
+import { CoreEngineModal } from './CoreEngineModal';
+import { NewScenarioModal } from './NewScenarioModal';
+import { SystemConfigModal } from './SystemConfigModal';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useDebugStore } from '../store/debugStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
 import { countJumpReferencesToTab } from '../utils/jumpReferences';
-import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight } from 'lucide-react';
+import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Activity } from 'lucide-react';
 
 import { useTranslation } from '../hooks/useTranslation';
 import { TabBar } from './TabBar';
 import { generateScenarioText } from '../utils/exportUtils';
 import sampleStory from '../../sample/sample_Story.json';
 import sampleNestedGroup from '../../sample/sample_NestedGroupNodes.json';
+import sampleIndeterminateOrgan from '../../sample/scenario_indeterminate_organ.json';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { createPortal } from 'react-dom'; // Import createPortal
 import { useMenuStructure } from '../hooks/useMenuStructure';
@@ -278,7 +282,7 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose, danger 
 };
 
 export const Layout = () => {
-  const { mode, setMode, tabs, activeTabId, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, edgeType, selectedNodeId, setSelectedNode, characters, resources } = useScenarioStore();
+  const { mode, setMode, tabs, activeTabId, gameState, language, setLanguage, theme, setTheme, undo, redo, past, future, edgeType, selectedNodeId, setSelectedNode, characters, resources, systemConfig, scenarioTitle } = useScenarioStore();
   const activeTab = tabs.find(t => t.id === activeTabId);
   const nodes = activeTab?.nodes ?? [];
   const edges = activeTab?.edges ?? [];
@@ -287,6 +291,9 @@ export const Layout = () => {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isCoreEngineOpen, setIsCoreEngineOpen] = useState(false);
+  const [isNewScenarioModalOpen, setIsNewScenarioModalOpen] = useState(false);
+  const [isSystemConfigModalOpen, setIsSystemConfigModalOpen] = useState(false);
   const [legalModal, setLegalModal] = useState<LegalDocumentType | null>(null);
   
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -315,8 +322,6 @@ export const Layout = () => {
       }
       return true; 
   });
-  const [propertyPanelWidth, setPropertyPanelWidth] = useState(320);
-  const [isResizingProperty, setIsResizingProperty] = useState(false);
   const [mobilePropertyPanelOpen, setMobilePropertyPanelOpen] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const canvasRef = useRef<{ 
@@ -441,6 +446,8 @@ export const Layout = () => {
 
       const data = {
         version: 2,
+        scenarioTitle,
+        systemConfig,
         tabs: tabsWithViewport,
         activeTabId,
         gameState,
@@ -510,8 +517,13 @@ export const Layout = () => {
               e.preventDefault();
               handleSave();
           }
-          // Zoom In: Ctrl + + (or = which is unshifted + on US keyboards)
-          if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+          // New Scenario: Ctrl + N
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+              e.preventDefault();
+              setIsNewScenarioModalOpen(true);
+          }
+          // Zoom In: Ctrl + + (or Ctrl + =)
+          if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) {
               e.preventDefault();
               handleZoomIn();
           }
@@ -633,46 +645,15 @@ export const Layout = () => {
   };
 
 
-  const propertyPanelRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isResizingProperty && propertyPanelRef.current) {
-        const newWidth = Math.max(250, Math.min(600, window.innerWidth - e.clientX));
-        propertyPanelRef.current.style.width = `${newWidth}px`;
-      }
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-        if (isResizingProperty) {
-            setIsResizingProperty(false);
-            setPropertyPanelWidth(Math.max(250, Math.min(600, window.innerWidth - e.clientX)));
-        }
-        document.body.style.cursor = 'default';
-    };
-
-    if (isResizingProperty) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none'; // Prevent text selection
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = ''; 
-    };
-  }, [isResizingProperty]);
-
   const closeMenu = useCallback(() => setOpenMenuId(null), []);
 
   // ... inside Layout ...
 const menuActions = {
+    onNewScenario: () => setIsNewScenarioModalOpen(true),
+    onOpenSystemConfig: () => setIsSystemConfigModalOpen(true),
     onSave: handleSave,
     onLoadClick: () => fileInputRef.current?.click(),
-    onLoadSample: (type: 'story' | 'nested') => {
+    onLoadSample: (type: 'story' | 'nested' | 'indeterminate_organ') => {
         setConfirmModal({
             isOpen: true,
             title: t('menu.loadSample'),
@@ -681,9 +662,10 @@ const menuActions = {
             confirmLabel: t('common.confirm'),
             cancelLabel: t('common.cancel'),
             onConfirm: () => {
-                const sampleData = type === 'story' ? sampleStory : sampleNestedGroup;
+                let sampleData: any = sampleStory;
+                if (type === 'nested') sampleData = sampleNestedGroup;
+                else if (type === 'indeterminate_organ') sampleData = sampleIndeterminateOrgan;
                 console.log('[Layout] Loading sample data:', { type, hasViewport: !!(sampleData as any).viewport, viewport: (sampleData as any).viewport });
-                // @ts-ignore
                 loadScenarioWithStabilization(sampleData);
                 toast.success(t('toast.sampleLoaded' as any));
             }
@@ -727,6 +709,7 @@ const menuActions = {
     onOpenManual: () => setIsManualOpen(true),
     onOpenAbout: () => setIsAboutOpen(true),
     onOpenUpdateHistory: () => setIsHistoryOpen(true),
+    onOpenCoreEngine: () => setIsCoreEngineOpen(true),
     onOpenTerms: () => setLegalModal('terms'),
     onOpenPrivacy: () => setLegalModal('privacy'),
     onOpenDebugPanel: () => {
@@ -843,6 +826,28 @@ const menuActions = {
                 </button>
             </div>
 
+            {/* TRPG System Badge Button */}
+            <button
+                onClick={() => setIsSystemConfigModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] rounded-md font-medium text-xs sm:text-sm bg-accent/60 hover:bg-accent border border-border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                title={`TRPGシステム設定: ${systemConfig?.name || '未設定'}`}
+                aria-label="TRPGシステム設定"
+            >
+                <span className="text-sm">{systemConfig?.icon || '🎲'}</span>
+                <span className="hidden md:inline font-semibold max-w-[130px] truncate">{systemConfig?.name ? systemConfig.name.split(' ')[0] : 'TRPG'}</span>
+            </button>
+
+            {/* ARKHAM Core Engine Button */}
+            <button
+                onClick={() => setIsCoreEngineOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] rounded-md font-medium text-xs sm:text-sm bg-purple-700/20 text-purple-400 hover:bg-purple-700/30 border border-purple-600/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                title="ARKHAM 検証・シミュレーション・統一出力"
+                aria-label="ARKHAM Engine"
+            >
+                <Activity size={16} className="text-purple-400" />
+                <span className="hidden sm:inline font-semibold">ARKHAM Engine</span>
+            </button>
+
             {/* Mode Toggle */}
              <button
                 onClick={() => setMode(mode === 'edit' ? 'play' : 'edit')}
@@ -899,24 +904,8 @@ const menuActions = {
             onOpenPropertyPanel={() => setMobilePropertyPanelOpen(true)}
             fontsLoaded={fontsLoaded}
         />
-        
-        {/* Helper for property resizing (Desktop) */}
-        {!isMobile && selectedNodeId && (mode === 'edit' || nodes.find((n: ScenarioNode) => n.id === selectedNodeId)?.type === 'sticky') && (
-            <div
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('common.resizePanel' as any)}
-                tabIndex={0}
-                className="group relative w-3 cursor-col-resize z-10 flex items-center justify-center"
-                onMouseDown={() => setIsResizingProperty(true)}
-            >
-                <div className={`w-px h-full transition-colors ${isResizingProperty ? 'bg-primary' : 'bg-border group-hover:bg-primary/60'}`} />
-            </div>
-        )}
-
         {(isMobile ? mobilePropertyPanelOpen : (selectedNodeId && (mode === 'edit' || nodes.find((n: ScenarioNode) => n.id === selectedNodeId)?.type === 'sticky'))) && (
            <PropertyPanel 
-                width={propertyPanelWidth} 
                 isMobile={isMobile}
                 onClose={() => setMobilePropertyPanelOpen(false)}
             />
@@ -987,6 +976,28 @@ const menuActions = {
         corrections={validationError?.corrections || []}
         jsonContent={validationError?.jsonContent}
         onClose={() => setValidationError(null)}
+      />
+      <CoreEngineModal
+        isOpen={isCoreEngineOpen}
+        onClose={() => setIsCoreEngineOpen(false)}
+        onFocusNode={() => {
+          if (canvasRef.current) {
+            canvasRef.current.fitViewWithSave();
+          }
+        }}
+      />
+      <NewScenarioModal
+        isOpen={isNewScenarioModalOpen}
+        onClose={() => setIsNewScenarioModalOpen(false)}
+        onCreated={() => {
+          if (canvasRef.current) {
+            canvasRef.current.fitViewWithSave();
+          }
+        }}
+      />
+      <SystemConfigModal
+        isOpen={isSystemConfigModalOpen}
+        onClose={() => setIsSystemConfigModalOpen(false)}
       />
       {isDebugModeEnabled && <DebugPanel />}
       <LoadingOverlay isLoading={isLoading} message={t('common.loadingScenario')} />

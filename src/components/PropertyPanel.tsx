@@ -1,13 +1,14 @@
 import { useScenarioStore } from '../store/scenarioStore';
-import React, { useEffect, type ChangeEvent } from 'react';
+import React, { useState, useEffect, type ChangeEvent } from 'react';
 import type { ScenarioNode } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { INPUT_CLASS, LABEL_CLASS, ERROR_MSG_CLASS as ERROR_CLASS } from '../styles/common';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 import { JumpTargetCombobox } from './JumpTargetCombobox';
 import { SearchableSelect } from './SearchableSelect';
+import { FORBIDDEN_READ_ALOUD_TERMS } from '../core/linter';
 
 const MobileBackdrop = ({ children, isMobile }: { children: React.ReactNode, isMobile: boolean }) => {
     if (!isMobile) return <>{children}</>;
@@ -19,7 +20,7 @@ const MobileBackdrop = ({ children, isMobile }: { children: React.ReactNode, isM
 };
 
 interface PropertyPanelProps {
-  width: number;
+  width?: number;
   isMobile?: boolean; // Added isMobile prop
   onClose?: () => void; // Added onClose prop
 }
@@ -27,12 +28,59 @@ interface PropertyPanelProps {
 export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPanelProps>(({ width, isMobile = false, onClose }, ref) => {
   const {
       tabs, activeTabId, selectedNodeId, updateNodeData, gameState,
-      characters, resources, updateCharacter, updateResource
+      characters, resources, stages, updateCharacter, updateResource, updateStage, systemConfig,
+      addStage
   } = useScenarioStore();
   const activeTab = tabs.find(t => t.id === activeTabId);
   const nodes = activeTab?.nodes ?? [];
   const { t } = useTranslation();
   
+  // --- PropertyPanel Width Resizing (Desktop) ---
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('arkham_property_panel_width');
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (!isNaN(val) && val >= 250 && val <= 750) return val;
+      }
+    } catch (_) {}
+    return width ?? 320;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(250, Math.min(750, window.innerWidth - e.clientX));
+      setPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      setIsResizing(false);
+      const finalWidth = Math.max(250, Math.min(750, window.innerWidth - e.clientX));
+      setPanelWidth(finalWidth);
+      try {
+        localStorage.setItem('arkham_property_panel_width', String(finalWidth));
+      } catch (_) {}
+      window.dispatchEvent(new Event('resize'));
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
+
   // レンダリング計測(デバッグモード時のみ)
   useRenderMetricsIfDebug('PropertyPanel');
   
@@ -44,6 +92,9 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
   const selectedResource = !selectedNode
       ? resources.find(r => r.id === selectedNodeId)
       : (selectedNode.type === 'resource' ? resources.find(r => r.id === selectedNode.data.referenceId) : null);
+  const selectedStage = !selectedNode
+      ? stages.find(s => s.id === selectedNodeId)
+      : (selectedNode.type === 'stage' ? stages.find(s => s.id === selectedNode.data.referenceId) : null);
 
 
 
@@ -72,7 +123,34 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
 
   const panelClass = isMobile
       ? `bg-card border border-border rounded-lg shadow-xl w-full max-w-[400px] max-h-[85vh] flex flex-col overflow-hidden` 
-      : `border-l flex flex-col bg-card border-border shrink-0`;
+      : `border-l flex flex-col bg-card border-border shrink-0 relative ${isResizing ? '' : 'transition-[width] duration-200'}`;
+
+  const renderResizeHandle = () => {
+    if (isMobile) return null;
+    return (
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t('common.resizePanel' as any) || 'パネル幅を変更'}
+        tabIndex={0}
+        title="ドラッグで幅を変更 / ダブルクリックでリセット"
+        className="group absolute top-0 -left-1.5 w-3 h-full cursor-col-resize z-30 flex items-center justify-center hover:bg-primary/15 select-none"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsResizing(true);
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          setPanelWidth(320);
+          try { localStorage.setItem('arkham_property_panel_width', '320'); } catch (_) {}
+          window.dispatchEvent(new Event('resize'));
+        }}
+      >
+        <div className={`w-0.5 h-full transition-colors ${isResizing ? 'bg-primary' : 'bg-transparent group-hover:bg-primary/60'}`} />
+      </div>
+    );
+  };
 
 
   // Header helper to include Close button on mobile
@@ -81,7 +159,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
           <div>
             <h2 className="text-lg font-semibold text-card-foreground">{title}</h2>
             {subTitle && <div className="text-xs mt-1 text-muted-foreground">{subTitle}</div>}
-            {selectedNode && !selectedCharacter && !selectedResource && (
+            {selectedNode && !selectedCharacter && !selectedResource && !selectedStage && (
                 <div className="text-xs text-muted-foreground">Type: {selectedNode.type}</div>
             )}
           </div>
@@ -105,7 +183,8 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
 
         return (
             <MobileBackdrop isMobile={isMobile}>
-                 <aside ref={ref} className={panelClass} style={{ width: isMobile ? '100%' : width }}>
+                 <aside ref={ref} className={panelClass} style={{ width: isMobile ? '100%' : `${panelWidth}px` }}>
+                     {renderResizeHandle()}
                      {renderHeader(t('characters.title'), `ID: ${selectedCharacter.id}`)}
                      <div className="p-4 flex-1 overflow-y-auto space-y-4">
                          <div>
@@ -183,7 +262,8 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
 
         return (
             <MobileBackdrop isMobile={isMobile}>
-                 <aside ref={ref} className={panelClass} style={{ width: isMobile ? '100%' : width }}>
+                 <aside ref={ref} className={panelClass} style={{ width: isMobile ? '100%' : `${panelWidth}px` }}>
+                     {renderResizeHandle()}
                      {renderHeader(t('resources.title'), `ID: ${selectedResource.id}`)}
                      <div className="p-4 flex-1 overflow-y-auto space-y-4">
                          <div>
@@ -254,13 +334,86 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
         );
   }
 
+  // --- Stage Editing ---
+  if (selectedStage) {
+       const handleChange = (name: string, value: string) => {
+           updateStage(selectedStage.id, { [name]: value });
+       };
+
+        return (
+            <MobileBackdrop isMobile={isMobile}>
+                 <aside ref={ref} className={panelClass} style={{ width: isMobile ? '100%' : `${panelWidth}px` }}>
+                     {renderResizeHandle()}
+                     {renderHeader(t('stages.title'), `ID: ${selectedStage.id}`)}
+                     <div className="p-4 flex-1 overflow-y-auto space-y-4">
+                         <div>
+                             <label className={labelClass}>{t('stages.name')}</label>
+                             <input
+                                 value={selectedStage.name}
+                                 onChange={(e) => handleChange('name', e.target.value)}
+                                 className={inputClass}
+                             />
+                         </div>
+                          <div>
+                             <label className={labelClass}>{t('stages.reading')}</label>
+                             <input
+                                 value={selectedStage.reading || ''}
+                                 onChange={(e) => handleChange('reading', e.target.value)}
+                                 className={inputClass}
+                             />
+                         </div>
+                         <div>
+                             <label className={labelClass}>{t('stages.type')}</label>
+                              <select
+                                 value={selectedStage.type}
+                                 onChange={(e) => handleChange('type', e.target.value)}
+                                 className={inputClass}
+                             >
+                                 {Object.entries((t('stages.types') as any) || {}).map(([key, label]) => (
+                                     <option key={key} value={key}>{label as string}</option>
+                                 ))}
+                             </select>
+                         </div>
+                         <div>
+                             <label className={labelClass}>{t('stages.description')}</label>
+                              <VariableSuggestInput
+                                 multiline
+                                 value={selectedStage.description || ''}
+                                 onChange={(val) => handleChange('description', val)}
+                                 className={`${inputClass} min-h-[80px]`}
+                             />
+                         </div>
+                          <div>
+                             <label className={labelClass}>{t('stages.details')}</label>
+                             <VariableSuggestInput
+                                 multiline
+                                 value={selectedStage.details || ''}
+                                 onChange={(val) => handleChange('details', val)}
+                                 className={`${inputClass} min-h-[60px]`}
+                             />
+                         </div>
+                          <div>
+                             <label className={labelClass}>{t('stages.note')}</label>
+                             <textarea
+                                 value={selectedStage.note || ''}
+                                 onChange={(e) => handleChange('note', e.target.value)}
+                                 className={`${inputClass} min-h-[60px]`}
+                             />
+                         </div>
+                     </div>
+                 </aside>
+            </MobileBackdrop>
+        );
+  }
+
   // --- Standard Node Editing ---
   if (!selectedNode) {
     if (isMobile) return null; // If nothing selected on mobile, default hidden (though parent likely handles this)
 
     return (
       <MobileBackdrop isMobile={isMobile}>
-          <aside ref={ref} className={panelClass} style={{ width: isMobile ? '100%' : width }}>
+          <aside ref={ref} className={panelClass} style={{ width: isMobile ? '100%' : `${panelWidth}px` }}>
+            {renderResizeHandle()}
             {renderHeader(t('common.properties'))}
             <div className="p-4 flex-1 overflow-y-auto text-muted-foreground">
               <p>{t('properties.selectNode')}</p>
@@ -284,8 +437,8 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
 
   return (
     <MobileBackdrop isMobile={isMobile}>
-        <aside ref={ref} className={panelClass} style={{ width: isMobile ? '100%' : width }}>
-    
+        <aside ref={ref} className={panelClass} style={{ width: isMobile ? '100%' : `${panelWidth}px` }}>
+          {renderResizeHandle()}
           {renderHeader(t('common.properties'), `ID: ${selectedNode.id}`)}
     
           <div className="p-4 flex-1 overflow-y-auto">
@@ -311,8 +464,6 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
     
               {(selectedNode.type === 'information' || selectedNode.type === 'element') && (
                 <>
-                  {/* InfoType removed as per request */}
-                  
                   <div>
                     <label className={labelClass}>{t('properties.actionType')}</label>
                     <select
@@ -350,7 +501,6 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                     return;
                                 }
                                 const resource = resources.find((r) => r.id === id);
-                                // Update referenceId AND infoValue (for backward compatibility or display)
                                 updateNodeData(selectedNode.id, {
                                     referenceId: id,
                                     infoValue: resource?.name || '',
@@ -367,6 +517,20 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       name="quantity"
                       value={selectedNode.data.quantity || 1}
                       onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>章番号 (Chapter)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={selectedNode.data.chapter ?? 1}
+                      onChange={(e) =>
+                        updateNodeData(selectedNode.id, { chapter: Number(e.target.value) })
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -446,86 +610,390 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       onChange={handleChange}
                       className={inputClass}
                     >
-                      <option value="if_else">If / Else</option>
-                      <option value="switch">Switch</option>
+                      <option value="if_else">If / Else (条件分岐)</option>
+                      <option value="switch">Switch (多分岐)</option>
                     </select>
                   </div>
-                  <div>
-                    <label className={labelClass}>
-                        {t('properties.checkTarget')}
-                    </label>
-                    {selectedNode.data.branchType === 'switch' ? (
-                        <VariableSuggestInput
-                            value={selectedNode.data.conditionValue || selectedNode.data.conditionVariable || ''}
-                            onChange={(val) => handleFieldChange('conditionValue', val)}
-                            className={inputClass}
-                            placeholder={t('properties.selectVariable')}
-                        />
-                    ) : (
-                        <VariableSuggestInput
+
+                  {selectedNode.data.branchType !== 'switch' ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className={labelClass}>判定種別 (Condition Type)</label>
+                        <select
+                          value={selectedNode.data.conditionType || 'item_held'}
+                          onChange={(e) => {
+                            const newType = e.target.value;
+                            updateNodeData(selectedNode.id, {
+                              conditionType: newType,
+                              conditionValue: newType === 'item_held'
+                                ? (resources.find(r => r.type === 'Item' || r.type === 'Equipment')?.id || '')
+                                : ''
+                            });
+                          }}
+                          className={inputClass}
+                        >
+                          <option value="item_held">アイテム所持判定 (Item Check)</option>
+                          <option value="variable">変数・条件式 (Variable / Expression)</option>
+                        </select>
+                      </div>
+
+                      {selectedNode.data.conditionType === 'item_held' ? (
+                        <div>
+                          <label className={labelClass}>判定対象アイテム 【Required Item】</label>
+                          {resources.filter(r => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge').length === 0 ? (
+                            <div className={ERROR_CLASS}>アイテムが未登録です</div>
+                          ) : (
+                            <SearchableSelect
+                              items={resources
+                                .filter(r => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge')
+                                .map(r => ({
+                                  id: r.id,
+                                  label: `${r.name} (${t(`resources.types.${r.type}` as any) || r.type})`,
+                                  searchableText: `${r.name} ${r.type}`
+                                }))}
+                              value={selectedNode.data.conditionValue ?? null}
+                              onChange={(id) => updateNodeData(selectedNode.id, { conditionValue: id ?? '' })}
+                            />
+                          )}
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            所持時（True）と未所持時（False）のルートへ分岐します。
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className={labelClass}>{t('properties.checkTarget')}</label>
+                          <VariableSuggestInput
                             value={selectedNode.data.conditionValue || ''}
                             onChange={(val) => handleFieldChange('conditionValue', val)}
                             className={inputClass}
-                            placeholder="e.g. hp >= 10"
-                        />
-                    )}
-                  </div>
-    
-                  {selectedNode.data.branchType === 'switch' && (
-                      <div className="mt-4 border-t pt-4 border-border">
-                          <label className={`block text-sm font-medium mb-2 ${labelClass}`}>Cases (Branches)</label>
-                          <div className="space-y-2">
-                              {(selectedNode.data.branches || []).map((branch: { id: string; label: string }, index: number) => (
-                                  <div key={branch.id} className="flex gap-2">
-                                      <div className="flex-1">
-                                        <VariableSuggestInput
-                                            value={branch.label}
-                                            onChange={(val) => {
-                                                const newBranches = [...(selectedNode.data.branches || [])];
-                                                newBranches[index] = { ...branch, label: val };
-                                                updateNodeData(selectedNode.id, { branches: newBranches });
-                                            }}
-                                            className={`w-full border rounded px-2 py-1 text-sm bg-background border-input text-foreground`}
-                                            placeholder="Case Value"
-                                        />
-                                      </div>
-                                      <button 
-                                          onClick={() => {
-                                              const newBranches = (selectedNode.data.branches || []).filter((_: { id: string; label: string }, i: number) => i !== index);
-                                              updateNodeData(selectedNode.id, { branches: newBranches });
-                                          }}
-                                          className="px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
-                                      >
-                                          ×
-                                      </button>
-                                  </div>
-                              ))}
-                              <button 
-                                   onClick={() => {
-                                      const newBranches = [...(selectedNode.data.branches || []), { id: `case-${Date.now()}`, label: 'New Case' }];
-                                      updateNodeData(selectedNode.id, { branches: newBranches });
-                                  }}
-                                  className="w-full py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 text-sm"
-                              >
-                                  + Add Case
-                              </button>
-                          </div>
-                      </div>
+                            placeholder="例: hp >= 10 または 変数名"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <label className={labelClass}>{t('properties.checkTarget')}</label>
+                      <VariableSuggestInput
+                        value={selectedNode.data.conditionValue || selectedNode.data.conditionVariable || ''}
+                        onChange={(val) => handleFieldChange('conditionValue', val)}
+                        className={inputClass}
+                        placeholder={t('properties.selectVariable')}
+                      />
+                    </div>
                   )}
+
+                  {selectedNode.data.branchType === 'switch' && (
+                    <div className="mt-4 border-t pt-4 border-border">
+                      <label className={`block text-sm font-medium mb-2 ${labelClass}`}>Cases (Branches)</label>
+                      <div className="space-y-2">
+                        {(selectedNode.data.branches || []).map((branch: { id: string; label: string }, index: number) => (
+                          <div key={branch.id} className="flex gap-2">
+                            <div className="flex-1">
+                              <VariableSuggestInput
+                                value={branch.label}
+                                onChange={(val) => {
+                                  const newBranches = [...(selectedNode.data.branches || [])];
+                                  newBranches[index] = { ...branch, label: val };
+                                  updateNodeData(selectedNode.id, { branches: newBranches });
+                                }}
+                                className={`w-full border rounded px-2 py-1 text-sm bg-background border-input text-foreground`}
+                                placeholder="Case Value"
+                              />
+                            </div>
+                            <button 
+                              onClick={() => {
+                                const newBranches = (selectedNode.data.branches || []).filter((_: { id: string; label: string }, i: number) => i !== index);
+                                updateNodeData(selectedNode.id, { branches: newBranches });
+                              }}
+                              className="px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <button 
+                          onClick={() => {
+                            const newBranches = [...(selectedNode.data.branches || []), { id: `case-${Date.now()}`, label: 'New Case' }];
+                            updateNodeData(selectedNode.id, { branches: newBranches });
+                          }}
+                          className="w-full py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 text-sm"
+                        >
+                          + Add Case
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className={labelClass}>章番号 (Chapter)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={selectedNode.data.chapter ?? 1}
+                      onChange={(e) =>
+                        updateNodeData(selectedNode.id, { chapter: Number(e.target.value) })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
                 </>
               )}
               
               {selectedNode.type === 'event' && (
-                 <div className="flex items-center gap-2">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
                     <input 
-                        type="checkbox"
-                        name="isStart"
-                        checked={!!selectedNode.data.isStart}
-                        onChange={(e) => updateNodeData(selectedNode.id, { isStart: e.target.checked })}
-                        className="w-4 h-4"
+                      type="checkbox"
+                      name="isStart"
+                      checked={!!selectedNode.data.isStart}
+                      onChange={(e) => updateNodeData(selectedNode.id, { isStart: e.target.checked })}
+                      className="w-4 h-4"
                     />
                     <label className={labelClass}>{t('properties.isStartNode')}</label>
-                 </div>
+                  </div>
+
+                  {/* Chapter & Time Cost */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelClass}>章番号 (Chapter)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={selectedNode.data.chapter ?? 1}
+                        onChange={(e) =>
+                          updateNodeData(selectedNode.id, { chapter: Number(e.target.value) })
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>所要時間 (分)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={600}
+                        step={5}
+                        value={selectedNode.data.timeCostMinutes ?? 10}
+                        onChange={(e) =>
+                          updateNodeData(selectedNode.id, { timeCostMinutes: Number(e.target.value) })
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Location ID / Selection */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className={labelClass}>場所 ［Location］</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const name = window.prompt('新しい場所名を入力してください:');
+                          if (name && name.trim()) {
+                            const newLocId = `loc_${Date.now()}`;
+                            addStage({
+                              id: newLocId,
+                              type: 'Location',
+                              name: name.trim(),
+                              description: '',
+                              details: '',
+                              reading: '',
+                              note: ''
+                            });
+                            updateNodeData(selectedNode.id, { locationId: newLocId });
+                          }
+                        }}
+                        className="text-xs text-primary hover:underline"
+                        title="新しい場所を作成して設定"
+                      >
+                        + 場所を追加
+                      </button>
+                    </div>
+                    {stages.filter((s) => s.type === 'Location').length > 0 ? (
+                      <div className="space-y-1">
+                        <SearchableSelect
+                          items={stages
+                            .filter((s) => s.type === 'Location')
+                            .map((s) => ({ id: s.id, label: s.name }))}
+                          value={selectedNode.data.locationId ?? null}
+                          onChange={(id) => updateNodeData(selectedNode.id, { locationId: id ?? '' })}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          ※場所の一覧編集・詳細・削除は、左サイドバーの「🎭 舞台」タブから行えます。
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <input
+                          type="text"
+                          placeholder="例: エントランスロビー"
+                          value={selectedNode.data.locationId || ''}
+                          onChange={(e) => updateNodeData(selectedNode.id, { locationId: e.target.value })}
+                          className={inputClass}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          ※上の「+ 場所を追加」または左サイドバーの「🎭 舞台」タブ（種別: 場所）で登録・管理できます。
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Purpose */}
+                  <div>
+                    <label className={labelClass}>シーンの目的 (Purpose)</label>
+                    <input
+                      type="text"
+                      placeholder="例: 警備室への進入路確保"
+                      value={selectedNode.data.purpose || ''}
+                      onChange={(e) => updateNodeData(selectedNode.id, { purpose: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  {/* Read Aloud Text with Forbidden Terms Warning */}
+                  <div>
+                    <label className={labelClass}>PL向け読み上げ描写 (&gt; ...)</label>
+                    <textarea
+                      rows={3}
+                      placeholder="プレイヤーに読み上げる情景描写（※ボス、エネミー等のメタ用語は禁止）"
+                      value={selectedNode.data.readAloudText || ''}
+                      onChange={(e) => updateNodeData(selectedNode.id, { readAloudText: e.target.value })}
+                      className={`${inputClass} min-h-[70px] text-xs`}
+                    />
+                    {(() => {
+                      const forbidden = FORBIDDEN_READ_ALOUD_TERMS.filter((term) =>
+                        (selectedNode.data.readAloudText || '').includes(term)
+                      );
+                      if (forbidden.length > 0) {
+                        return (
+                          <div className="flex items-start gap-1.5 mt-1 text-[11px] text-destructive bg-destructive/10 p-2 rounded border border-destructive/20">
+                            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                            <div>
+                              禁則メタ用語「{forbidden.join(', ')}」が含まれています。恐怖描写に置き換えてください。
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+
+                  {/* Resource Check Subform (SAN check / Resource check) */}
+                  {(() => {
+                    const activeCheck = selectedNode.data.resourceCheck || selectedNode.data.sanCheck;
+                    return (
+                      <div className="p-2.5 rounded border border-border bg-muted/20 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            <span>{systemConfig.icon || '🎲'}</span>
+                            <span>{systemConfig.checkLabel}</span>
+                          </div>
+                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(activeCheck)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  const defaultCheck = {
+                                    trigger: '',
+                                    successLoss: '0',
+                                    failLoss: '1D3',
+                                    resourceName: systemConfig.resourceName,
+                                  };
+                                  updateNodeData(selectedNode.id, {
+                                    resourceCheck: defaultCheck,
+                                    sanCheck: defaultCheck,
+                                  });
+                                } else {
+                                  updateNodeData(selectedNode.id, {
+                                    resourceCheck: undefined,
+                                    sanCheck: undefined,
+                                  });
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded"
+                            />
+                            <span>判定を設定</span>
+                          </label>
+                        </div>
+
+                        {activeCheck && (
+                          <div className="space-y-2 pt-1 border-t border-border/60">
+                            <div>
+                              <label className="text-[10px] text-muted-foreground block mb-0.5">
+                                判定の契機・トリガー (Trigger)
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="例: 怪異の目撃、罠の発動、精神的重圧"
+                                value={activeCheck.trigger || ''}
+                                onChange={(e) => {
+                                  const updated = {
+                                    ...activeCheck,
+                                    trigger: e.target.value,
+                                  };
+                                  updateNodeData(selectedNode.id, {
+                                    resourceCheck: updated,
+                                    sanCheck: updated,
+                                  });
+                                }}
+                                className={inputClass}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5">
+                                  {systemConfig.successLossLabel} (例: 0, 1)
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  value={activeCheck.successLoss || ''}
+                                  onChange={(e) => {
+                                    const updated = {
+                                      ...activeCheck,
+                                      successLoss: e.target.value,
+                                    };
+                                    updateNodeData(selectedNode.id, {
+                                      resourceCheck: updated,
+                                      sanCheck: updated,
+                                    });
+                                  }}
+                                  className={inputClass}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5">
+                                  {systemConfig.failLossLabel} (例: 1D3, 1D6)
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="1D3"
+                                  value={activeCheck.failLoss || ''}
+                                  onChange={(e) => {
+                                    const updated = {
+                                      ...activeCheck,
+                                      failLoss: e.target.value,
+                                    };
+                                    updateNodeData(selectedNode.id, {
+                                      resourceCheck: updated,
+                                      sanCheck: updated,
+                                    });
+                                  }}
+                                  className={inputClass}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
               )}
     
               {selectedNode.type === 'jump' && (

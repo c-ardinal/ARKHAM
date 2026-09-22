@@ -1,6 +1,6 @@
 
-import { Package, BookOpen, Zap, Activity, Shield, User, Users, Ghost, HelpCircle } from 'lucide-react';
-import type { ResourceType, CharacterType } from '../types';
+import { Package, BookOpen, Zap, Activity, Shield, User, Users, Ghost, HelpCircle, MapPin, Landmark, Scroll } from 'lucide-react';
+import type { ResourceType, CharacterType, StageType } from '../types';
 
 export const getIconForResourceType = (type: ResourceType | string, size: number = 16) => {
   // Normalize type to handle potential case differences or legacy data
@@ -23,8 +23,27 @@ export const getIconForResourceType = (type: ResourceType | string, size: number
     case 'Status':
     case 'stat': // Legacy support
       return <Activity size={size} />;
+    case 'Location':
+    case 'location':
+      return <MapPin size={size} />;
     default:
       return <Package size={size} />;
+  }
+};
+
+export const getIconForStageType = (type: StageType | string, size: number = 16) => {
+  switch (type) {
+    case 'Location':
+    case 'location':
+      return <MapPin size={size} />;
+    case 'Faction':
+    case 'faction':
+      return <Landmark size={size} />;
+    case 'Lore':
+    case 'lore':
+      return <Scroll size={size} />;
+    default:
+      return <MapPin size={size} />;
   }
 };
 
@@ -42,3 +61,4 @@ export const getIconForCharacterType = (type: CharacterType | string, size: numb
             return <User size={size} />;
     }
 };
+

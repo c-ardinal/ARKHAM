@@ -29,13 +29,18 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           <div className="rounded-full p-2 mr-2 bg-orange-100 text-orange-600 dark:bg-orange-800 dark:text-orange-300 shrink-0">
             <Flag size={16} />
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             {data.isStart && (
               <Star
                 size={14}
-                className="mr-2 fill-yellow-400 text-yellow-500"
+                className="mr-1 fill-yellow-400 text-yellow-500 shrink-0"
                 aria-label={t('common.startNode') || 'Start Node'}
               />
+            )}
+            {typeof data.chapter === 'number' && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-orange-200/80 dark:bg-orange-800/80 text-orange-800 dark:text-orange-200 font-medium shrink-0">
+                第{data.chapter}章
+              </span>
             )}
             <div className="text-lg font-bold text-orange-900 dark:text-orange-100">{label}</div>
           </div>

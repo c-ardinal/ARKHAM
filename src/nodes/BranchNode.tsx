@@ -25,14 +25,19 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
       <Handle type="target" position={Position.Top} className="w-16 !bg-purple-400 dark:!bg-purple-500" />
       
       <div className="flex flex-col">
-        <div className="flex items-center">
-          <div className="rounded-full p-2 mr-2 bg-purple-100 text-purple-600 dark:bg-purple-800 dark:text-purple-300 shrink-0">
-            <GitBranch size={16} />
+          <div className="flex items-center gap-2">
+            <div className="rounded-full p-2 mr-1 bg-purple-100 text-purple-600 dark:bg-purple-800 dark:text-purple-300 shrink-0">
+              <GitBranch size={16} />
+            </div>
+            {typeof data.chapter === 'number' && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-purple-200/80 dark:bg-purple-800/80 text-purple-800 dark:text-purple-200 font-medium shrink-0">
+                第{data.chapter}章
+              </span>
+            )}
+            <div className="text-base font-bold text-purple-900 dark:text-purple-100">
+                {label}
+            </div>
           </div>
-          <div className="text-base font-bold text-purple-900 dark:text-purple-100">
-              {label}
-          </div>
-        </div>
 
         {description && (
             <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-800">

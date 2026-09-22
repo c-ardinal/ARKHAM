@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useScenarioStore } from '../store/scenarioStore';
 import { useTranslation } from '../hooks/useTranslation';
-import { Plus, Trash2, GripVertical, Package, Edit2, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Package, Edit2, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { getIconForResourceType } from '../utils/iconUtils';
 import type { ResourceType } from '../types';
 
@@ -129,7 +129,7 @@ const ResourceListItem = React.memo(({
     return (
         <div className="relative overflow-hidden mb-2 rounded-lg shadow-sm w-full select-none group">
             {/* Delete Action Background */}
-            <div className="absolute inset-y-0 right-0 w-[70px] bg-destructive flex items-center justify-center z-0 rounded-r-lg swipe-delete-button">
+            <div className="md:hidden absolute inset-y-0 right-0 w-[70px] bg-destructive flex items-center justify-center z-0 rounded-r-lg swipe-delete-button">
                 <button 
                     className="w-full h-full flex items-center justify-center text-destructive-foreground active:bg-destructive/80"
                     onClick={(e) => {
@@ -240,6 +240,15 @@ const ResourceListItem = React.memo(({
     );
 });
 
+const RESOURCE_CATEGORIES: { key: 'all' | ResourceType; defaultName: string }[] = [
+  { key: 'all', defaultName: '新規要素' },
+  { key: 'Item', defaultName: '新しい道具' },
+  { key: 'Knowledge', defaultName: '新しい情報' },
+  { key: 'Equipment', defaultName: '新しい装備' },
+  { key: 'Skill', defaultName: '新しいスキル' },
+  { key: 'Status', defaultName: '新しいステータス' },
+];
+
 export const ResourceList = React.memo(({ onMobileDragStart, onEdit }: ResourceListProps) => {
   const { t } = useTranslation();
   // Optimize selectors
@@ -250,7 +259,135 @@ export const ResourceList = React.memo(({ onMobileDragStart, onEdit }: ResourceL
   const selectedNodeId = useScenarioStore((state) => state.selectedNodeId);
   const mode = useScenarioStore((state) => state.mode);
 
+  const [selectedCategory, setSelectedCategory] = useState<'all' | ResourceType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [swipedId, setSwipedId] = useState<string | null>(null);
+
+  // Category horizontal scroll & drag state
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const activeCatButtonRef = useRef<HTMLButtonElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const isMouseDownRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragScrollLeftRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+  const [isDraggingCategory, setIsDraggingCategory] = useState(false);
+
+  // Category item counts
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: resources.length };
+    for (const r of resources) {
+      c[r.type] = (c[r.type] || 0) + 1;
+    }
+    return c;
+  }, [resources]);
+
+  // Check category scroll boundary to toggle chevron buttons
+  const checkScrollBoundary = useCallback(() => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  // Update boundary on scroll, resize, or counts change
+  useEffect(() => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+
+    checkScrollBoundary();
+    el.addEventListener('scroll', checkScrollBoundary, { passive: true });
+    window.addEventListener('resize', checkScrollBoundary);
+
+    return () => {
+      el.removeEventListener('scroll', checkScrollBoundary);
+      window.removeEventListener('resize', checkScrollBoundary);
+    };
+  }, [checkScrollBoundary, counts]);
+
+  // Mouse wheel horizontal scroll (passive: false to prevent default page jump)
+  useEffect(() => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+        checkScrollBoundary();
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [checkScrollBoundary]);
+
+  // Scroll active tab into view when selection changes
+  useEffect(() => {
+    if (activeCatButtonRef.current) {
+      activeCatButtonRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'nearest'
+      });
+    }
+  }, [selectedCategory]);
+
+  // Drag-to-scroll handlers
+  const handleCatMouseDown = (e: React.MouseEvent) => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    isMouseDownRef.current = true;
+    hasDraggedRef.current = false;
+    dragStartXRef.current = e.pageX - el.offsetLeft;
+    dragScrollLeftRef.current = el.scrollLeft;
+    setIsDraggingCategory(true);
+  };
+
+  const handleCatMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDownRef.current || !categoryScrollRef.current) return;
+    const el = categoryScrollRef.current;
+    const x = e.pageX - el.offsetLeft;
+    const walk = x - dragStartXRef.current;
+    if (Math.abs(walk) > 3) {
+      hasDraggedRef.current = true;
+    }
+    el.scrollLeft = dragScrollLeftRef.current - walk;
+    checkScrollBoundary();
+  };
+
+  const handleCatMouseUpOrLeave = () => {
+    isMouseDownRef.current = false;
+    setIsDraggingCategory(false);
+  };
+
+  const scrollByAmount = (delta: number) => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: delta, behavior: 'smooth' });
+  };
+
+  // Filtered resources based on category and search query
+  const filteredResources = useMemo(() => {
+    return resources.filter((res) => {
+      if (selectedCategory !== 'all' && res.type !== selectedCategory) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = (res.name || '').toLowerCase().includes(q);
+        const matchReading = (res.reading || '').toLowerCase().includes(q);
+        const matchDesc = (res.description || '').toLowerCase().includes(q);
+        const matchEffect = (res.effect || '').toLowerCase().includes(q);
+        if (!matchName && !matchReading && !matchDesc && !matchEffect) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [resources, selectedCategory, searchQuery]);
 
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent | TouchEvent) => {
@@ -279,10 +416,12 @@ export const ResourceList = React.memo(({ onMobileDragStart, onEdit }: ResourceL
   };
 
   const handleAdd = () => {
+    const targetType: ResourceType = selectedCategory === 'all' ? 'Item' : selectedCategory;
+    const catDef = RESOURCE_CATEGORIES.find((c) => c.key === targetType);
     const newRes = {
       id: `res-${Date.now()}`,
-      type: 'Item' as ResourceType,
-      name: 'New Element',
+      type: targetType,
+      name: catDef?.defaultName || 'New Element',
       description: '',
       cost: '',
       effect: '',
@@ -319,13 +458,18 @@ export const ResourceList = React.memo(({ onMobileDragStart, onEdit }: ResourceL
       if (onEdit) onEdit();
   };
 
+  const activeCategoryLabel = selectedCategory === 'all'
+    ? t('common.all')
+    : (t(`resources.types.${selectedCategory}` as any) || selectedCategory);
+
   return (
     <div 
         className="flex flex-col h-full bg-card"
         onClick={(e) => { e.stopPropagation(); setSelectedNode(null); setSwipedId(null); }} 
         onContextMenu={(e) => e.preventDefault()}
     >
-        <div className="flex justify-between items-center mb-2 px-2 pt-2">
+        {/* Header */}
+        <div className="flex justify-between items-center px-2 pt-2 pb-1">
             <h3 className="text-sm font-semibold flex items-center gap-2">
                 <Package size={16} />
                 {t('resources.title')}
@@ -334,15 +478,122 @@ export const ResourceList = React.memo(({ onMobileDragStart, onEdit }: ResourceL
             <button 
                 onClick={(e) => { e.stopPropagation(); handleAdd(); }} 
                 onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleAdd(); }}
-                className="p-1 hover:bg-muted active:bg-muted rounded text-primary hover:text-primary/80" 
+                className="p-1 hover:bg-muted active:bg-muted rounded text-primary hover:text-primary/80 transition-colors" 
                 style={{ touchAction: 'manipulation' }}
+                title={selectedCategory === 'all' ? '要素を追加' : `「${activeCategoryLabel}」を追加`}
             >
                 <Plus size={16} />
             </button>
             )}
         </div>
+
+        {/* Sub-tabs / Category Filter Chips with Drag, Wheel & Chevrons */}
+        <div className="relative border-b border-border/50 py-1.5 px-1 group" onClick={(e) => e.stopPropagation()}>
+          {/* Scroll Left Button */}
+          {canScrollLeft && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); scrollByAmount(-90); }}
+              className="absolute left-0 top-0 bottom-0 z-10 w-6 flex items-center justify-center bg-gradient-to-r from-card via-card/90 to-transparent text-muted-foreground hover:text-foreground transition-opacity"
+              aria-label="前へスクロール"
+              title="前へスクロール"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          )}
+
+          {/* Scrollable Container */}
+          <div 
+            ref={categoryScrollRef}
+            className={`flex items-center gap-1 overflow-x-auto px-2 select-none ${
+              isDraggingCategory ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            onMouseDown={handleCatMouseDown}
+            onMouseMove={handleCatMouseMove}
+            onMouseUp={handleCatMouseUpOrLeave}
+            onMouseLeave={handleCatMouseUpOrLeave}
+          >
+            {RESOURCE_CATEGORIES.map((cat) => {
+              const count = counts[cat.key] || 0;
+              const isSelected = selectedCategory === cat.key;
+              const label = cat.key === 'all'
+                ? t('common.all')
+                : (t(`resources.types.${cat.key}` as any) || cat.key);
+
+              return (
+                <button
+                  key={cat.key}
+                  ref={isSelected ? activeCatButtonRef : null}
+                  type="button"
+                  onClick={(e) => {
+                    if (hasDraggedRef.current) {
+                      e.preventDefault();
+                      return;
+                    }
+                    e.stopPropagation();
+                    setSelectedCategory(cat.key);
+                  }}
+                  className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-primary text-primary-foreground font-medium shadow-sm'
+                      : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  {cat.key !== 'all' && (
+                    <span className="shrink-0">{getIconForResourceType(cat.key, 12)}</span>
+                  )}
+                  <span>{label}</span>
+                  <span className={`text-[10px] px-1 rounded-full ${
+                    isSelected ? 'bg-primary-foreground/25 text-primary-foreground' : 'bg-background/80 text-muted-foreground'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Scroll Right Button */}
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); scrollByAmount(90); }}
+              className="absolute right-0 top-0 bottom-0 z-10 w-6 flex items-center justify-center bg-gradient-to-l from-card via-card/90 to-transparent text-muted-foreground hover:text-foreground transition-opacity"
+              aria-label="次へスクロール"
+              title="次へスクロール"
+            >
+              <ChevronRight size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Search Input */}
+        <div className="px-2 pt-2 pb-1" onClick={(e) => e.stopPropagation()}>
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              placeholder={t('common.search')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-7 pr-7 py-1 text-xs bg-muted/40 hover:bg-muted/60 focus:bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Resource List */}
         <div className="flex-1 overflow-y-auto space-y-1 px-2 pb-2">
-            {resources.map(res => (
+            {filteredResources.map(res => (
                 <ResourceListItem
                     key={res.id}
                     res={res}
@@ -360,9 +611,26 @@ export const ResourceList = React.memo(({ onMobileDragStart, onEdit }: ResourceL
                     onDoubleClick={handleDoubleClick}
                 />
             ))}
-            {resources.length === 0 && (
-                <div className="text-xs text-muted-foreground text-center py-4 border border-dashed rounded m-2">
-                    Start by adding an element
+            {filteredResources.length === 0 && (
+                <div className="text-xs text-muted-foreground text-center py-6 border border-dashed rounded m-2 px-3">
+                  {searchQuery ? (
+                    <div>「{searchQuery}」に一致する要素はありません</div>
+                  ) : selectedCategory !== 'all' ? (
+                    <div className="space-y-1.5">
+                      <div>「{activeCategoryLabel}」は登録されていません</div>
+                      {mode === 'edit' && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleAdd(); }}
+                          className="text-primary hover:underline text-[11px] block mx-auto cursor-pointer"
+                        >
+                          + 「{activeCategoryLabel}」を新規追加
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div>要素がありません。「+」から追加してください</div>
+                  )}
                 </div>
             )}
         </div>

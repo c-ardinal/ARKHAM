@@ -133,7 +133,7 @@ const CharacterListItem = React.memo(({
     return (
         <div className="relative overflow-hidden mb-2 rounded-lg shadow-sm w-full select-none group">
             {/* Delete Action Background */}
-            <div className="absolute inset-y-0 right-0 w-[70px] bg-destructive flex items-center justify-center z-0 rounded-r-lg swipe-delete-button">
+            <div className="md:hidden absolute inset-y-0 right-0 w-[70px] bg-destructive flex items-center justify-center z-0 rounded-r-lg swipe-delete-button">
                 <button 
                     className="w-full h-full flex items-center justify-center text-destructive-foreground active:bg-destructive/80"
                     onClick={(e) => {

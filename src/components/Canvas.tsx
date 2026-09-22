@@ -23,6 +23,7 @@ import JumpNode from '../nodes/JumpNode';
 import StickyNode from '../nodes/StickyNode';
 import CharacterNode from '../nodes/CharacterNode';
 import ResourceNode from '../nodes/ResourceNode';
+import StageNode from '../nodes/StageNode';
 import type { NodeType, ScenarioNode, ScenarioEdge } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { substituteVariables } from '../utils/textUtils';
@@ -46,6 +47,7 @@ const nodeTypes = {
   sticky: StickyNode,
   character: CharacterNode,
   resource: ResourceNode,
+  stage: StageNode,
 };
 
 import StickyEdge from '../edges/StickyEdge';
@@ -471,7 +473,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         type,
         position,
         data: { 
-            label: `${type === 'character' || type === 'resource' ? '' : t('nodes.new') + ' ' + type}`,
+            label: `${type === 'character' || type === 'resource' || type === 'stage' ? '' : t('nodes.new') + ' ' + type}`,
             referenceId: referenceId || undefined,
             // Set defaults
             infoType: (type === 'element') ? 'knowledge' : undefined,
@@ -510,7 +512,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       const allNodes = getNodes();
       // Groups logic - prevent stickies from interacting with groups
       // Groups logic - prevent stickies and reference nodes from interacting with groups
-      if (node.type === 'sticky' || node.type === 'character' || node.type === 'resource') return;
+      if (node.type === 'sticky' || node.type === 'character' || node.type === 'resource' || node.type === 'stage') return;
 
       const groups = allNodes.filter(n => n.type === 'group' && n.id !== node.id);
       

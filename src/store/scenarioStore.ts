@@ -14,7 +14,8 @@ import type {
   OnEdgesChange,
   OnConnect,
 } from 'reactflow';
-import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData } from '../types';
+import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData, StageData, SystemConfig } from '../types';
+import { DEFAULT_SYSTEM_CONFIG, DEFAULT_SYSTEM_PRESETS } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 import { recomputeEdgeVisibility } from './edgeVisibility';
 import type { Tab } from '../types/tab';
@@ -91,6 +92,13 @@ interface ScenarioState {
   setSelectedNode: (id: string | string[] | null) => void;
   loadScenario: (data: LoadScenarioInput) => void;
 
+  // System & Scenario Metadata
+  systemConfig: SystemConfig;
+  scenarioTitle: string;
+  setSystemConfig: (config: SystemConfig) => void;
+  setScenarioTitle: (title: string) => void;
+  createNewScenario: (title: string, system: SystemConfig) => void;
+
   // Tab CRUD
   addTab: (name?: string) => string;
   renameTab: (id: string, newName: string) => void;
@@ -122,6 +130,12 @@ interface ScenarioState {
   addCharacter: (char: CharacterData) => void;
   updateCharacter: (id: string, char: Partial<CharacterData>) => void;
   deleteCharacter: (id: string) => void;
+
+  // Stages (舞台)
+  stages: StageData[];
+  addStage: (stage: StageData) => void;
+  updateStage: (id: string, stage: Partial<StageData>) => void;
+  deleteStage: (id: string) => void;
 
   // Resources
   resources: ResourceData[];
@@ -264,6 +278,30 @@ const loadInitialState = () => {
         edges: Array.isArray(tab.edges) ? tab.edges : [],
       }));
     }
+
+    if (Array.isArray(parsed.resources)) {
+      const stages: StageData[] = Array.isArray(parsed.stages) ? parsed.stages : [];
+      const cleanResources: ResourceData[] = [];
+      for (const r of parsed.resources) {
+        if (r.type === 'Location') {
+          if (!stages.some((s: any) => s.id === r.id)) {
+            stages.push({
+              id: r.id,
+              type: 'Location',
+              name: r.name,
+              reading: r.reading,
+              description: r.description,
+              note: r.note,
+            });
+          }
+        } else {
+          cleanResources.push(r);
+        }
+      }
+      parsed.stages = stages;
+      parsed.resources = cleanResources;
+    }
+
     return parsed;
   } catch (error) {
     console.error('Failed to load from LocalStorage:', error);
@@ -312,7 +350,62 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
   mode: initialStoredState?.mode || 'edit',
   characters: initialStoredState?.characters || [],
+  stages: (initialStoredState as any)?.stages || [],
   resources: initialStoredState?.resources || [],
+  systemConfig: (initialStoredState as any)?.systemConfig || DEFAULT_SYSTEM_CONFIG,
+  scenarioTitle: (initialStoredState as any)?.scenarioTitle || '無題のシナリオ',
+
+  setSystemConfig: (config) => {
+    set({ systemConfig: config });
+    get().pushHistory();
+    get().saveToLocalStorage();
+  },
+
+  setScenarioTitle: (title) => {
+    set({ scenarioTitle: title });
+    get().pushHistory();
+    get().saveToLocalStorage();
+  },
+
+  createNewScenario: (title, system) => {
+    const currentLanguage = get().language;
+    const currentTheme = get().theme;
+    const currentEdgeType = get().edgeType;
+    const newTab = createInitialTab();
+
+    set({
+      scenarioTitle: title || '無題のシナリオ',
+      systemConfig: system || DEFAULT_SYSTEM_CONFIG,
+      tabs: [newTab],
+      activeTabId: newTab.id,
+      gameState: {
+        currentNodes: [],
+        revealedNodes: [],
+        inventory: {},
+        equipment: {},
+        knowledge: {},
+        skills: {},
+        stats: {},
+        variables: {},
+      },
+      mode: 'edit',
+      characters: [],
+      stages: [],
+      resources: [],
+      past: [],
+      future: [],
+      selectedNodeId: null,
+
+      language: currentLanguage,
+      theme: currentTheme,
+      edgeType: currentEdgeType,
+    });
+
+    get().saveToLocalStorage();
+    try {
+      localStorage.setItem('canvas-viewport', JSON.stringify({ x: 0, y: 0, zoom: 1 }));
+    } catch (e) { /* ignore */ }
+  },
 
   addCharacter: (char) => set((state) => ({ characters: [...state.characters, char] })),
   updateCharacter: (id, char) => set((state) => ({
@@ -335,6 +428,43 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       });
       return {
           characters: state.characters.filter((c) => c.id !== id),
+          tabs: newTabs,
+      };
+  }),
+
+  addStage: (stage) => set((state) => ({ stages: [...state.stages, stage] })),
+  updateStage: (id, stage) => set((state) => ({
+      stages: state.stages.map((s) => (s.id === id ? { ...s, ...stage } : s))
+  })),
+  deleteStage: (id) => set((state) => {
+      // Clear locationId from event nodes and remove stage nodes referencing this stage across all tabs
+      const newTabs = state.tabs.map((t) => {
+          const nodesToDelete = t.nodes
+              .filter((n) => n.type === 'stage' && n.data.referenceId === id)
+              .map((n) => n.id);
+
+          const updatedNodes = t.nodes
+              .filter((n) => !nodesToDelete.includes(n.id))
+              .map((node) => {
+                  if (node.type === 'event' && node.data.locationId === id) {
+                      return {
+                          ...node,
+                          data: { ...node.data, locationId: '' },
+                      };
+                  }
+                  return node;
+              });
+
+          const updatedEdges = nodesToDelete.length > 0
+              ? t.edges.filter(
+                  (e) => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target)
+                )
+              : t.edges;
+
+          return { ...t, nodes: updatedNodes, edges: updatedEdges };
+      });
+      return {
+          stages: state.stages.filter((s) => s.id !== id),
           tabs: newTabs,
       };
   }),
@@ -843,16 +973,66 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
            activeTabId = tabId;
        }
 
-       const { gameState, characters, resources, edgeType } = data as Record<string, unknown> & {
+       const rawData = data as any;
+       let loadedSystemConfig: SystemConfig = rawData.systemConfig;
+       if (!loadedSystemConfig || !loadedSystemConfig.name) {
+         const rawSys = loadedSystemConfig as any;
+         const systemId = rawSys?.id || rawSys?.systemId;
+         if (systemId && (DEFAULT_SYSTEM_PRESETS as any)[systemId]) {
+           const preset = (DEFAULT_SYSTEM_PRESETS as any)[systemId];
+           loadedSystemConfig = {
+             ...preset,
+             ...rawSys,
+             id: preset.id,
+             name: rawSys?.name || rawSys?.systemName || preset.name,
+           };
+         } else {
+           const allNodes = tabs.flatMap((t) => t.nodes);
+           const hasSanCheck = allNodes.some((n: any) => Boolean(n.data?.sanCheck || n.data?.resourceCheck));
+           loadedSystemConfig = hasSanCheck ? DEFAULT_SYSTEM_PRESETS.coc : DEFAULT_SYSTEM_CONFIG;
+         }
+       } else {
+         const preset = (DEFAULT_SYSTEM_PRESETS as any)[loadedSystemConfig.id] || DEFAULT_SYSTEM_CONFIG;
+         loadedSystemConfig = {
+           ...preset,
+           ...loadedSystemConfig,
+         };
+       }
+       const loadedTitle = rawData.scenarioTitle || rawData.title || '無題のシナリオ';
+
+
+       const { gameState, characters, stages: rawStages, resources, edgeType } = data as Record<string, unknown> & {
          gameState?: GameState;
          characters?: CharacterData[];
+         stages?: StageData[];
          resources?: ResourceData[];
          edgeType?: string;
        };
 
+       const loadedStages: StageData[] = Array.isArray(rawStages) ? [...rawStages] : [];
+       const cleanResources: ResourceData[] = [];
+       for (const r of (resources || [])) {
+         if (r.type === 'Location') {
+           if (!loadedStages.some((s) => s.id === r.id)) {
+             loadedStages.push({
+               id: r.id,
+               type: 'Location',
+               name: r.name,
+               reading: r.reading,
+               description: r.description,
+               note: r.note,
+             });
+           }
+         } else {
+           cleanResources.push(r);
+         }
+       }
+
        set({
            tabs,
            activeTabId,
+           systemConfig: loadedSystemConfig,
+           scenarioTitle: loadedTitle,
            gameState: gameState || {
               currentNodes: [],
               revealedNodes: [],
@@ -864,7 +1044,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               variables: {},
            },
            characters: characters || [],
-           resources: resources || [],
+           stages: loadedStages,
+           resources: cleanResources,
            edgeType: edgeType || 'default',
            past: [],
            future: []
@@ -2815,11 +2996,14 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     const state = get();
     const dataToSave = {
       version: SCHEMA_VERSION,
+      scenarioTitle: state.scenarioTitle,
+      systemConfig: state.systemConfig,
       tabs: state.tabs,
       activeTabId: state.activeTabId,
       gameState: state.gameState,
       mode: state.mode,
       characters: state.characters,
+      stages: state.stages,
       resources: state.resources,
       language: state.language,
       theme: state.theme,
@@ -2845,7 +3029,10 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         gameState: initialStoredState.gameState || get().gameState,
         mode: initialStoredState.mode || get().mode,
         characters: initialStoredState.characters || get().characters,
+        stages: (initialStoredState as any).stages || get().stages,
         resources: initialStoredState.resources || get().resources,
+        systemConfig: (initialStoredState as any).systemConfig || get().systemConfig,
+        scenarioTitle: (initialStoredState as any).scenarioTitle || get().scenarioTitle,
         language: initialStoredState.language || get().language,
         theme: initialStoredState.theme || get().theme,
         edgeType: initialStoredState.edgeType || get().edgeType,
@@ -2862,42 +3049,6 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   },
 
   resetToInitialState: () => {
-    const currentLanguage = get().language;
-    const currentTheme = get().theme;
-    const currentEdgeType = get().edgeType;
-    const newTab = createInitialTab();
-
-    set({
-      tabs: [newTab],
-      activeTabId: newTab.id,
-      gameState: {
-        currentNodes: [],
-        revealedNodes: [],
-        inventory: {},
-        equipment: {},
-        knowledge: {},
-        skills: {},
-        stats: {},
-        variables: {},
-      },
-      mode: 'edit',
-      characters: [],
-      resources: [],
-      past: [],
-      future: [],
-      selectedNodeId: null,
-      // 設定は保持
-      language: currentLanguage,
-      theme: currentTheme,
-      edgeType: currentEdgeType,
-    });
-
-    // LocalStorageも更新
-    get().saveToLocalStorage();
-
-    // ビューポートもリセット
-    try {
-      localStorage.setItem('canvas-viewport', JSON.stringify({ x: 0, y: 0, zoom: 1 }));
-    } catch (e) { /* localStorage may be unavailable in tests */ }
+    get().createNewScenario('無題のシナリオ', DEFAULT_SYSTEM_CONFIG);
   },
 }));

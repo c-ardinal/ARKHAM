@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom';
 import { useReactFlow } from 'reactflow';
 import type { NodeType } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { Package, Users, Zap, Variable as VariableIcon, Menu, Flag, Rabbit, Check, ChartBarStacked, Shield, GripVertical, ChevronDown, ChevronRight, BookOpen, Activity, GitBranch, Folder, StickyNote } from 'lucide-react';
-import { getIconForCharacterType, getIconForResourceType } from '../utils/iconUtils';
+import { Package, Users, Zap, Variable as VariableIcon, Menu, Flag, Rabbit, Check, ChartBarStacked, Shield, GripVertical, ChevronDown, ChevronRight, BookOpen, Activity, GitBranch, Folder, StickyNote, Landmark } from 'lucide-react';
+import { getIconForCharacterType, getIconForResourceType, getIconForStageType } from '../utils/iconUtils';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableList } from './VariableList';
 import { CharacterList } from './CharacterList';
+import { StageList } from './StageList';
 import { ResourceList } from './ResourceList';
 import type { MenuSection, MenuItem } from '../types/menu';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
@@ -27,6 +28,7 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
   const gameState = useScenarioStore(s => s.gameState);
   const resources = useScenarioStore(s => s.resources);
   const characters = useScenarioStore(s => s.characters);
+  const stages = useScenarioStore(s => s.stages);
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -36,8 +38,55 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
   const toggleMenu = (section: string) => {
       setOpenMenu(prev => prev === section ? null : section);
   };
-  const [activeTab, setActiveTab] = useState<'nodes' | 'characters' | 'resources' | 'variables' | 'menu'>(isMobile ? 'menu' : 'nodes');
+  const [activeTab, setActiveTab] = useState<'nodes' | 'characters' | 'stages' | 'resources' | 'variables' | 'menu'>(isMobile ? 'menu' : 'nodes');
   const { screenToFlowPosition } = useReactFlow();
+
+  // --- Sidebar Panel Width Resizing (Desktop) ---
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('arkham_sidebar_panel_width');
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (!isNaN(val) && val >= 220 && val <= 600) return val;
+      }
+    } catch (_) {}
+    return 300;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // The icon bar is 64px (w-16) wide. ClientX - 64 is the panel width.
+      const newWidth = Math.max(220, Math.min(600, e.clientX - 64));
+      setPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      setIsResizing(false);
+      const finalWidth = Math.max(220, Math.min(600, e.clientX - 64));
+      setPanelWidth(finalWidth);
+      try {
+        localStorage.setItem('arkham_sidebar_panel_width', String(finalWidth));
+      } catch (_) {}
+      window.dispatchEvent(new Event('resize'));
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
 
   // --- Mobile Drag Support ---
   const [dragType, setDragType] = useState<NodeType | null>(null);
@@ -227,7 +276,7 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
   };
 
   interface TabButtonProps {
-      id: 'nodes' | 'characters' | 'resources' | 'variables' | 'menu';
+      id: 'nodes' | 'characters' | 'stages' | 'resources' | 'variables' | 'menu';
       label: string;
       icon: React.ElementType;
   }
@@ -272,6 +321,7 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
             case 'jump': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-100';
             case 'memo': return 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700';
             case 'character': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-100';
+            case 'stage': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-100';
             case 'resource': return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-100';
             default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200';
         }
@@ -281,7 +331,7 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
     <>
     <aside 
         ref={ref} 
-        className={`flex h-full shrink-0 z-40 bg-card border-r border-border transition-all duration-300 relative`}
+        className={`flex h-full shrink-0 z-40 bg-card border-r border-border ${isResizing ? '' : 'transition-[width] duration-200'} relative`}
         style={{ width: 'auto' }}
         onClick={(e) => {
             e.stopPropagation();
@@ -297,16 +347,18 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
         {isMobile && <TabButton id="menu" label="Menu" icon={Menu} />}
         <TabButton id="nodes" label={mode === 'play' ? t('common.gameState') : t('common.nodes')} icon={mode === 'play' ? ChartBarStacked : Package} />
         <TabButton id="characters" label={t('common.charactersShort' as any)} icon={Users} />
+        <TabButton id="stages" label={t('common.stagesShort' as any) || '舞台'} icon={Landmark} />
         <TabButton id="resources" label={t('common.resources' as any)} icon={Zap} />
         <TabButton id="variables" label={t('common.variables' as any)} icon={VariableIcon} />
       </div>
 
       {/* Panel Content (Visible only when open) */}
       <div 
-        className={`flex flex-col h-full bg-card overflow-hidden transition-all duration-300 ${isOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'} ${isMobile ? 'absolute z-[60] h-full top-0 left-16 shadow-xl border-l' : ''}`}
+        className={`flex flex-col h-full bg-card overflow-hidden relative ${isResizing ? '' : 'transition-[width,opacity] duration-200'} ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} ${isMobile ? 'absolute z-[60] h-full top-0 left-16 shadow-xl border-l' : ''}`}
         style={{ 
             position: isMobile ? 'absolute' : 'relative',
             zIndex: isMobile ? 60 : 'auto',
+            width: isOpen ? (isMobile ? '16rem' : `${panelWidth}px`) : 0,
             height: '100%',
             boxShadow: isMobile ? '4px 0 15px rgba(0,0,0,0.1)' : 'none' 
         }}
@@ -438,6 +490,7 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                             )}
 
                             {activeTab === 'characters' && <CharacterList onMobileDragStart={isMobile ? (e: React.TouchEvent, id: string) => onNodeTouchStart(e, 'character', id) : undefined} onEdit={onOpenPropertyPanel} />}
+                            {activeTab === 'stages' && <StageList onMobileDragStart={isMobile ? (e: React.TouchEvent, id: string) => onNodeTouchStart(e, 'stage', id) : undefined} onEdit={onOpenPropertyPanel} />}
                             {activeTab === 'resources' && <ResourceList onMobileDragStart={isMobile ? (e: React.TouchEvent, id: string) => onNodeTouchStart(e, 'resource', id) : undefined} onEdit={onOpenPropertyPanel} />}
                             {activeTab === 'variables' && <VariableList />}
                         </>
@@ -445,6 +498,30 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                     </div>
                 </div>
             </>
+        )}
+        {/* Resize Handle (Desktop only) */}
+        {!isMobile && isOpen && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t('common.resizePanel' as any) || 'パネル幅を変更'}
+            tabIndex={0}
+            title="ドラッグで幅を変更 / ダブルクリックでリセット"
+            className="group absolute top-0 right-0 w-2.5 h-full cursor-col-resize z-30 flex items-center justify-center hover:bg-primary/15 select-none"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsResizing(true);
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setPanelWidth(300);
+              try { localStorage.setItem('arkham_sidebar_panel_width', '300'); } catch (_) {}
+              window.dispatchEvent(new Event('resize'));
+            }}
+          >
+            <div className={`w-0.5 h-full transition-colors ${isResizing ? 'bg-primary' : 'bg-transparent group-hover:bg-primary/60'}`} />
+          </div>
         )}
       </div>
     </aside>
@@ -457,15 +534,16 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                 top: dragPos.y,
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
-                width: (dragType === 'character' || dragType === 'resource') ? '280px' : '80px'
+                width: (dragType === 'character' || dragType === 'resource' || dragType === 'stage') ? '280px' : '80px'
             }}
         >
-            {(dragType === 'character' || dragType === 'resource') ? (
+            {(dragType === 'character' || dragType === 'resource' || dragType === 'stage') ? (
                 // Detailed Card Style Ghost
                 (() => {
                     const dataId = dragData;
                     const char = dragType === 'character' ? characters.find(c => c.id === dataId) : null;
                     const res = dragType === 'resource' ? resources.find(r => r.id === dataId) : null;
+                    const stg = dragType === 'stage' ? stages.find(s => s.id === dataId) : null;
                     
                     if (char) {
                         return (
@@ -498,6 +576,22 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                     <div className="flex-1 min-w-0 text-left">
                                          <div className="text-sm text-muted-foreground font-medium truncate mb-1">{t(`resources.types.${res.type}`) || res.type}</div>
                                          <div className="font-bold truncate text-base">{res.name || 'New Element'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+                    if (stg) {
+                        return (
+                            <div className="flex flex-col w-full bg-card text-card-foreground rounded-lg border-2 border-primary ring-2 ring-primary/20 shadow-xl opacity-90 backdrop-blur-sm overflow-hidden">
+                                <div className="flex items-center gap-2 p-2 border-b border-border bg-muted/30">
+                                    <GripVertical size={14} className="text-muted-foreground opacity-50 shrink-0" />
+                                    <div className="p-1.5 rounded-full bg-primary/10 text-primary shrink-0">
+                                        {getIconForStageType(stg.type, 16)}
+                                    </div>
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <div className="text-sm text-muted-foreground font-medium truncate mb-1">{t(`stages.types.${stg.type}` as any) || stg.type}</div>
+                                        <div className="font-bold truncate text-base">{stg.name || '(No Name)'}</div>
                                     </div>
                                 </div>
                             </div>

@@ -1,6 +1,6 @@
 import type { Node, Edge } from 'reactflow';
 
-export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable' | 'jump' | 'sticky' | 'character' | 'resource';
+export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable' | 'jump' | 'sticky' | 'character' | 'resource' | 'stage';
 
 export interface ScenarioNodeData {
   label: string;
@@ -14,6 +14,7 @@ export interface ScenarioNodeData {
   // For Branch nodes
   branchType?: 'if_else' | 'switch';
   branches?: { id: string; label: string }[]; // For switch cases or if/else
+  conditionType?: 'variable' | 'item_held' | 'check' | string;
   conditionVariable?: string;
   conditionValue?: string; // Used for branch condition/variable
   
@@ -45,7 +46,30 @@ export interface ScenarioNodeData {
   // Group Node Content Size
   contentWidth?: number;
   contentHeight?: number;
+
+  // ARKHAM Core Engine Extensions
+  chapter?: number;
+  locationId?: string;
+  purpose?: string;
+  kpInstructions?: string[];
+  investigationPoints?: import('./core/schema').InvestigationPoint[];
+  readAloudText?: string;
+  requiredItems?: string[];
+  acquiredItems?: string[];
+  consumedItems?: string[];
+  resourceCheck?: import('./core/schema').ResourceCheckConfig;
+  sanCheck?: import('./core/schema').SanCheckConfig; // Backward compatibility
+  timeCostMinutes?: number;
+  isEnding?: boolean;
 }
+
+export type {
+  SystemConfig,
+  SupportedSystemId,
+  ResourceCheckConfig,
+  SanCheckConfig,
+} from './core/schema';
+export { DEFAULT_SYSTEM_PRESETS, DEFAULT_SYSTEM_CONFIG } from './core/schema';
 
 export interface BranchNodeData extends ScenarioNodeData {
     branchType: 'if_else' | 'switch';
@@ -93,7 +117,19 @@ export interface CharacterData {
   note?: string;
 }
 
-export type ResourceType = 'Item' | 'Equipment' | 'Knowledge' | 'Skill' | 'Status';
+export type StageType = 'Location' | 'Faction' | 'Lore';
+
+export interface StageData {
+  id: string;
+  type: StageType;
+  name: string;
+  reading?: string;
+  description?: string;
+  details?: string;
+  note?: string;
+}
+
+export type ResourceType = 'Item' | 'Equipment' | 'Knowledge' | 'Skill' | 'Status' | 'Location';
 
 export interface ResourceData {
   id: string;
@@ -105,4 +141,5 @@ export interface ResourceData {
   effect?: string;
   note?: string;
 }
+
 
