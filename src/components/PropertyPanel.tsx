@@ -731,6 +731,195 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       </div>
                     );
                   })()}
+
+                  {/* Encapsulated Item Operations (Required & Acquired) */}
+                  <div className="border-t border-border/60 pt-3 space-y-3">
+                    {/* Required Items */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className={labelClass}>🔑 必要アイテム (Required)</label>
+                        <span className="text-[10px] text-muted-foreground">入場・達成に必要</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {(selectedNode.data.requiredItems || []).map((itemId: string) => {
+                            const res = resources.find((r) => r.id === itemId);
+                            return (
+                              <span key={itemId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs">
+                                <span>{res?.name || itemId}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = (selectedNode.data.requiredItems || []).filter((id: string) => id !== itemId);
+                                    updateNodeData(selectedNode.id, { requiredItems: next });
+                                  }}
+                                  className="hover:text-destructive text-[11px]"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {resources.filter((r) => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge').length > 0 && (
+                          <SearchableSelect
+                            placeholder="+ 必要アイテムを選択して追加..."
+                            items={resources
+                              .filter((r) => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge')
+                              .filter((r) => !(selectedNode.data.requiredItems || []).includes(r.id))
+                              .map((r) => ({
+                                id: r.id,
+                                label: `${r.name} (${r.type})`,
+                                searchableText: `${r.name} ${r.type}`,
+                              }))}
+                            value={null}
+                            onChange={(id) => {
+                              if (id) {
+                                const next = [...(selectedNode.data.requiredItems || []), id];
+                                updateNodeData(selectedNode.id, { requiredItems: next });
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Acquired Items */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className={labelClass}>🎁 獲得アイテム (Acquired)</label>
+                        <span className="text-[10px] text-muted-foreground">ノード通過時に入手</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {(selectedNode.data.acquiredItems || []).map((itemId: string) => {
+                            const res = resources.find((r) => r.id === itemId);
+                            return (
+                              <span key={itemId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs">
+                                <span>{res?.name || itemId}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = (selectedNode.data.acquiredItems || []).filter((id: string) => id !== itemId);
+                                    updateNodeData(selectedNode.id, { acquiredItems: next });
+                                  }}
+                                  className="hover:text-destructive text-[11px]"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {resources.filter((r) => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge').length > 0 && (
+                          <SearchableSelect
+                            placeholder="+ 獲得アイテムを選択して追加..."
+                            items={resources
+                              .filter((r) => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge')
+                              .filter((r) => !(selectedNode.data.acquiredItems || []).includes(r.id))
+                              .map((r) => ({
+                                id: r.id,
+                                label: `${r.name} (${r.type})`,
+                                searchableText: `${r.name} ${r.type}`,
+                              }))}
+                            value={null}
+                            onChange={(id) => {
+                              if (id) {
+                                const next = [...(selectedNode.data.acquiredItems || []), id];
+                                updateNodeData(selectedNode.id, { acquiredItems: next });
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Encapsulated Variable Operations */}
+                  <div className="border-t border-border/60 pt-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className={labelClass}>⚡ 変数操作 (Variable Operations)</label>
+                      <span className="text-[10px] text-muted-foreground">通過時に変数を更新</span>
+                    </div>
+
+                    {Object.keys(gameState.variables).length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground">※「変数」タブで変数を定義すると、ここで加算・代入が設定できます。</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(selectedNode.data.variableOperations || []).map((op: any, index: number) => (
+                          <div key={index} className="p-2 rounded border border-border bg-background flex items-center gap-1.5 text-xs">
+                            <select
+                              value={op.variableName}
+                              onChange={(e) => {
+                                const next = [...(selectedNode.data.variableOperations || [])];
+                                next[index] = { ...op, variableName: e.target.value };
+                                updateNodeData(selectedNode.id, { variableOperations: next });
+                              }}
+                              className={`${inputClass} flex-1 text-xs`}
+                            >
+                              {Object.keys(gameState.variables).map((vName) => (
+                                <option key={vName} value={vName}>{vName}</option>
+                              ))}
+                            </select>
+
+                            <select
+                              value={op.operator || 'set'}
+                              onChange={(e) => {
+                                const next = [...(selectedNode.data.variableOperations || [])];
+                                next[index] = { ...op, operator: e.target.value };
+                                updateNodeData(selectedNode.id, { variableOperations: next });
+                              }}
+                              className={`${inputClass} w-20 text-xs`}
+                            >
+                              <option value="set">＝ 代入</option>
+                              <option value="add">＋ 加算</option>
+                              <option value="subtract">－ 減算</option>
+                            </select>
+
+                            <input
+                              type="text"
+                              value={op.value ?? ''}
+                              onChange={(e) => {
+                                const next = [...(selectedNode.data.variableOperations || [])];
+                                const raw = e.target.value;
+                                next[index] = { ...op, value: !isNaN(Number(raw)) && raw !== '' ? Number(raw) : raw };
+                                updateNodeData(selectedNode.id, { variableOperations: next });
+                              }}
+                              className={`${inputClass} w-16 text-xs`}
+                              placeholder="値"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = (selectedNode.data.variableOperations || []).filter((_: any, i: number) => i !== index);
+                                updateNodeData(selectedNode.id, { variableOperations: next });
+                              }}
+                              className="text-muted-foreground hover:text-destructive px-1"
+                              title="削除"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const defaultVar = Object.keys(gameState.variables)[0] || '';
+                            const next = [
+                              ...(selectedNode.data.variableOperations || []),
+                              { variableName: defaultVar, operator: 'set', value: 1 },
+                            ];
+                            updateNodeData(selectedNode.id, { variableOperations: next });
+                          }}
+                          className="w-full py-1 text-[11px] rounded border border-dashed border-border hover:border-primary text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1"
+                        >
+                          <span>+ 変数操作を追加</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
