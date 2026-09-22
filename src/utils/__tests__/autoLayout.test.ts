@@ -64,4 +64,59 @@ describe('autoLayout', () => {
     const sticky = layouted.find((n) => n.id === 's1')!;
     expect(sticky.position).toEqual({ x: 999, y: 888 });
   });
+
+  it('positions reference-connected nodes (satellites) neatly to the right of parent event node', () => {
+    const nodes: ScenarioNode[] = [
+      { id: 'event-1', type: 'event', position: { x: 0, y: 0 }, data: { label: '調査開始' } },
+      { id: 'char-1', type: 'character', position: { x: 0, y: 0 }, data: { label: '探偵助手' } },
+      { id: 'stage-1', type: 'stage', position: { x: 0, y: 0 }, data: { label: '書斎' } },
+    ];
+
+    const edges: ScenarioEdge[] = [
+      { id: 'ref-1', source: 'event-1', target: 'char-1', type: 'reference', sourceHandle: 'ref-source', targetHandle: 'ref-target' },
+      { id: 'ref-2', source: 'event-1', target: 'stage-1', type: 'reference', sourceHandle: 'ref-source', targetHandle: 'ref-target' },
+    ];
+
+    const { nodes: layouted } = getLayoutedElements(nodes, edges, { direction: 'TB' });
+
+    const ev = layouted.find((n) => n.id === 'event-1')!;
+    const ch = layouted.find((n) => n.id === 'char-1')!;
+    const st = layouted.find((n) => n.id === 'stage-1')!;
+
+    // Satellites must be placed to the right of the event node
+    expect(ch.position.x).toBeGreaterThanOrEqual(ev.position.x + 240);
+    expect(st.position.x).toBeGreaterThanOrEqual(ev.position.x + 240);
+
+    // Satellites are vertically stacked without overlapping
+    expect(Math.abs(ch.position.y - st.position.y)).toBeGreaterThanOrEqual(70);
+  });
+
+  it('prevents collision between satellite nodes and sibling branches', () => {
+    const nodes: ScenarioNode[] = [
+      { id: 'root', type: 'event', position: { x: 0, y: 0 }, data: { label: 'Root Event' } },
+      { id: 'char-root', type: 'character', position: { x: 0, y: 0 }, data: { label: 'Key NPC' } },
+      { id: 'branch-a', type: 'event', position: { x: 0, y: 0 }, data: { label: 'Branch A' } },
+      { id: 'branch-b', type: 'event', position: { x: 0, y: 0 }, data: { label: 'Branch B' } },
+    ];
+
+    const edges: ScenarioEdge[] = [
+      { id: 'ref-c', source: 'root', target: 'char-root', type: 'reference' },
+      { id: 'e-ra', source: 'root', target: 'branch-a' },
+      { id: 'e-rb', source: 'root', target: 'branch-b' },
+    ];
+
+    const { nodes: layouted } = getLayoutedElements(nodes, edges, { direction: 'TB' });
+
+    const root = layouted.find((n) => n.id === 'root')!;
+    const sat = layouted.find((n) => n.id === 'char-root')!;
+    const bA = layouted.find((n) => n.id === 'branch-a')!;
+    const bB = layouted.find((n) => n.id === 'branch-b')!;
+
+    // Satellite is to the right of root
+    expect(sat.position.x).toBeGreaterThan(root.position.x);
+
+    // Both branches are placed below root
+    expect(bA.position.y).toBeGreaterThan(root.position.y);
+    expect(bB.position.y).toBeGreaterThan(root.position.y);
+  });
 });

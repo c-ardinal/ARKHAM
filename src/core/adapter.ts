@@ -298,9 +298,12 @@ export function buildCoreGraph(
   }
 
   const flowNodes = nodes.filter((n) => Boolean(n.type && FLOW_NODE_TYPES.has(n.type)));
-  const nodeMap = new Map(flowNodes.map((n) => [n.id, n]));
   const coreNodes = flowNodes.map(storeNodeToCoreNode);
-  const coreEdges = edges.map((e) => storeEdgeToCoreEdge(e, nodeMap));
+  const nodeMap = new Map(flowNodes.map((n) => [n.id, n]));
+  const narrativeEdges = edges.filter(
+    (e) => e.type !== 'reference' && !e.sourceHandle?.startsWith('ref-') && !e.targetHandle?.startsWith('ref-')
+  );
+  const coreEdges = narrativeEdges.map((e) => storeEdgeToCoreEdge(e, nodeMap));
 
   // Synthesize logical transition edges for JumpNodes so that
   // validator (reachability, ending path), linter, and simulator can traverse jumps seamlessly

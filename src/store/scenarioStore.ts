@@ -836,10 +836,25 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     const state = get();
     const activeTab = getActiveTabFrom(state);
     const currentEdges = activeTab?.edges ?? [];
-    const { edgeType } = state;
+    const isReference =
+      (connection as any).type === 'reference' ||
+      Boolean(connection.sourceHandle?.startsWith('ref-') || connection.targetHandle?.startsWith('ref-'));
+
+    const edgeToAdd = isReference
+      ? {
+          ...connection,
+          type: 'reference',
+          data: { category: 'reference' },
+        }
+      : {
+          ...connection,
+          type: (connection as any).type || state.edgeType || 'default',
+          markerEnd: { type: MarkerType.ArrowClosed },
+        };
+
     set({
       tabs: withActiveTab(state, () => ({
-        edges: addEdge({ ...connection, type: edgeType, markerEnd: { type: MarkerType.ArrowClosed } }, currentEdges),
+        edges: addEdge(edgeToAdd, currentEdges),
       })),
     });
   },

@@ -50,11 +50,23 @@ function getNodeDimensions(node: ScenarioNode, defaultWidth = 240, defaultHeight
   }
 }
 
+const SUPPLEMENT_TYPES = new Set(['character', 'stage', 'element', 'information', 'memo', 'resource', 'variable']);
+
+export function isReferenceEdge(edge: ScenarioEdge): boolean {
+  return (
+    edge.type === 'reference' ||
+    (typeof edge.sourceHandle === 'string' && edge.sourceHandle.startsWith('ref-')) ||
+    (typeof edge.targetHandle === 'string' && edge.targetHandle.startsWith('ref-'))
+  );
+}
+
 /**
  * Automatically calculates node positions using Dagre layout algorithm.
  * Design Philosophy:
  * - Primary flow: Top to Bottom (TB)
  * - Secondary flow: Left to Right (LR) for parallel branches
+ * - Satellite layout: Supplement nodes (character, stage, memo, clue) connected by reference edges
+ *   are cleanly aligned on the right side of their parent event node without colliding with other branches.
  */
 export function getLayoutedElements(
   nodes: ScenarioNode[],
@@ -88,7 +100,50 @@ export function getLayoutedElements(
     }
   }
 
-  // 1. Layout top-level nodes
+  // 1. Identify satellites connected via reference edges
+  const satelliteParents = new Map<string, string>(); // satId -> parentId
+  const parentSatellites = new Map<string, ScenarioNode[]>(); // parentId -> satNodes[]
+  const topLevelNodeMap = new Map(topLevelNodes.map((n) => [n.id, n]));
+
+  // Inspect reference edges among top-level nodes
+  for (const edge of edges) {
+    if (!isReferenceEdge(edge)) continue;
+    const srcId = topLevelIdMap.get(edge.source);
+    const tgtId = topLevelIdMap.get(edge.target);
+    if (!srcId || !tgtId || srcId === tgtId) continue;
+
+    const srcNode = topLevelNodeMap.get(srcId);
+    const tgtNode = topLevelNodeMap.get(tgtId);
+    if (!srcNode || !tgtNode) continue;
+
+    let parent: ScenarioNode;
+    let sat: ScenarioNode;
+
+    if (SUPPLEMENT_TYPES.has(tgtNode.type || '') && !SUPPLEMENT_TYPES.has(srcNode.type || '')) {
+      parent = srcNode;
+      sat = tgtNode;
+    } else if (SUPPLEMENT_TYPES.has(srcNode.type || '') && !SUPPLEMENT_TYPES.has(tgtNode.type || '')) {
+      parent = tgtNode;
+      sat = srcNode;
+    } else {
+      parent = srcNode;
+      sat = tgtNode;
+    }
+
+    // Ensure sat is not already assigned and parent is not a satellite
+    if (!satelliteParents.has(sat.id) && !satelliteParents.has(parent.id) && sat.id !== parent.id) {
+      satelliteParents.set(sat.id, parent.id);
+      if (!parentSatellites.has(parent.id)) {
+        parentSatellites.set(parent.id, []);
+      }
+      parentSatellites.get(parent.id)!.push(sat);
+    }
+  }
+
+  // Primary top-level nodes for Dagre (excluding satellites)
+  const dagreTopNodes = topLevelNodes.filter((n) => !satelliteParents.has(n.id));
+
+  // 2. Layout top-level primary nodes
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({
@@ -99,19 +154,38 @@ export function getLayoutedElements(
     marginy: 80,
   });
 
-  topLevelNodes.forEach((node) => {
-    const dim = getNodeDimensions(node, nodeWidth, nodeHeight);
-    g.setNode(node.id, dim);
+  const parentAllocations = new Map<string, { baseDim: { width: number; height: number }; dagreWidth: number; dagreHeight: number }>();
+
+  dagreTopNodes.forEach((node) => {
+    const baseDim = getNodeDimensions(node, nodeWidth, nodeHeight);
+    const sats = parentSatellites.get(node.id) || [];
+
+    let dagreWidth = baseDim.width;
+    let dagreHeight = baseDim.height;
+
+    if (sats.length > 0) {
+      const maxSatWidth = Math.max(...sats.map((s) => getNodeDimensions(s, nodeWidth, nodeHeight).width));
+      const totalSatHeight = sats.reduce(
+        (sum, s, idx) => sum + getNodeDimensions(s, nodeWidth, nodeHeight).height + (idx > 0 ? 12 : 0),
+        0
+      );
+      dagreWidth = baseDim.width + 36 + maxSatWidth;
+      dagreHeight = Math.max(baseDim.height, totalSatHeight);
+    }
+
+    parentAllocations.set(node.id, { baseDim, dagreWidth, dagreHeight });
+    g.setNode(node.id, { width: dagreWidth, height: dagreHeight });
   });
 
-  const topLevelIdSet = new Set(topLevelNodes.map((n) => n.id));
+  const dagreNodeIdSet = new Set(dagreTopNodes.map((n) => n.id));
   const registeredEdges = new Set<string>();
 
   edges.forEach((edge) => {
+    if (isReferenceEdge(edge)) return; // Reference edges are excluded from primary flow layout
     const srcTop = topLevelIdMap.get(edge.source);
     const tgtTop = topLevelIdMap.get(edge.target);
 
-    if (srcTop && tgtTop && srcTop !== tgtTop && topLevelIdSet.has(srcTop) && topLevelIdSet.has(tgtTop)) {
+    if (srcTop && tgtTop && srcTop !== tgtTop && dagreNodeIdSet.has(srcTop) && dagreNodeIdSet.has(tgtTop)) {
       const edgeKey = `${srcTop}->${tgtTop}`;
       if (!registeredEdges.has(edgeKey)) {
         registeredEdges.add(edgeKey);
@@ -122,18 +196,54 @@ export function getLayoutedElements(
 
   dagre.layout(g);
 
-  const updatedTopLevelNodes = topLevelNodes.map((node) => {
-    const pos = g.node(node.id);
-    if (!pos) return node;
+  // Position primary nodes and their satellites
+  const updatedTopLevelNodes: ScenarioNode[] = [];
 
-    const dim = getNodeDimensions(node, nodeWidth, nodeHeight);
-    return {
+  dagreTopNodes.forEach((node) => {
+    const pos = g.node(node.id);
+    if (!pos) {
+      updatedTopLevelNodes.push(node);
+      return;
+    }
+
+    const alloc = parentAllocations.get(node.id)!;
+    const boxLeft = Math.round(pos.x - alloc.dagreWidth / 2);
+    const boxTop = Math.round(pos.y - alloc.dagreHeight / 2);
+
+    // Parent primary node is aligned at top-left of its allocated box
+    const updatedParent: ScenarioNode = {
       ...node,
       position: {
-        x: Math.round(pos.x - dim.width / 2),
-        y: Math.round(pos.y - dim.height / 2),
+        x: boxLeft,
+        y: boxTop,
       },
     };
+    updatedTopLevelNodes.push(updatedParent);
+
+    // Position satellites vertically aligned on the right side of the parent
+    const sats = parentSatellites.get(node.id) || [];
+    let currentSatY = boxTop;
+
+    sats.forEach((sat) => {
+      const satDim = getNodeDimensions(sat, nodeWidth, nodeHeight);
+      const updatedSat: ScenarioNode = {
+        ...sat,
+        position: {
+          x: boxLeft + alloc.baseDim.width + 36,
+          y: currentSatY,
+        },
+      };
+      updatedTopLevelNodes.push(updatedSat);
+      currentSatY += satDim.height + 12;
+    });
+  });
+
+  // Include any top-level nodes that might not have been processed (e.g. detached satellites)
+  const processedTopIds = new Set(updatedTopLevelNodes.map((n) => n.id));
+  topLevelNodes.forEach((n) => {
+    if (!processedTopIds.has(n.id)) {
+      updatedTopLevelNodes.push(n);
+    }
   });
 
   // 2. Layout child nodes inside groups (relative to parent group)

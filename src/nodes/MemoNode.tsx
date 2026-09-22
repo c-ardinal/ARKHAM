@@ -27,8 +27,36 @@ const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       <div className="text-sm whitespace-pre-wrap opacity-90 leading-relaxed">
         {substituteVariables(data.description || '', variables)}
       </div>
-      <Handle type="target" position={Position.Top} className="!bg-slate-400" />
-      <Handle type="source" position={Position.Bottom} className="!bg-slate-400" />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="flow-target"
+        className="!rounded-full !w-3.5 !h-3.5 !bg-slate-400 border-2 border-background shadow-sm hover:scale-125 transition-transform"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="flow-source"
+        className="!rounded-full !w-3.5 !h-3.5 !bg-slate-400 border-2 border-background shadow-sm hover:scale-125 transition-transform"
+      />
+      
+      {/* Reference Handles (Square ■ for linking as supplementary note) */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="ref-target"
+        className="!rounded-[2px] !w-3.5 !h-3.5 !bg-teal-500 dark:!bg-teal-400 border-2 border-background shadow-sm hover:scale-125 transition-transform"
+        style={{ top: '50%', transform: 'translateY(-50%)' }}
+        title="イベントからの参照を接続 (四角ピン)"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="ref-source"
+        className="!rounded-[2px] !w-3.5 !h-3.5 !bg-teal-500 dark:!bg-teal-400 border-2 border-background shadow-sm hover:scale-125 transition-transform"
+        style={{ top: '50%', transform: 'translateY(-50%)' }}
+        title="関連ノードへ接続 (四角ピン)"
+      />
       
       <Handle 
           type="source" 

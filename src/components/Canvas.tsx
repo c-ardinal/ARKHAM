@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
-import { Plus, Minus, Maximize, Sparkles, X, GitBranch, Flag, FileText, Flame, Package } from 'lucide-react';
+import { Plus, Minus, Maximize, Sparkles, X, GitBranch, Flag, FileText, Flame, Package, User, MapPin } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -52,9 +52,11 @@ const nodeTypes = {
 };
 
 import StickyEdge from '../edges/StickyEdge';
+import ReferenceEdge from '../edges/ReferenceEdge';
 
 const edgeTypes = {
   sticky: StickyEdge,
+  reference: ReferenceEdge,
 };
 
 
@@ -1514,7 +1516,20 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     sourceNodeId: string;
     sourceHandle: string | null;
     handleType: 'source' | 'target';
+    isReference?: boolean;
   } | null>(null);
+
+  const isValidConnection = useCallback((connection: Connection) => {
+    // Normal pins vs Reference pins:
+    // Flow handles: flow-source, flow-target, or default (not starting with ref-)
+    // Reference handles: ref-source, ref-target (starting with ref-)
+    const isSourceRef = connection.sourceHandle?.startsWith('ref-') ?? false;
+    const isTargetRef = connection.targetHandle?.startsWith('ref-') ?? false;
+    if (isSourceRef !== isTargetRef) {
+      return false;
+    }
+    return true;
+  }, []);
 
   const handleConnect = useCallback((connection: Connection) => {
     connectSuccessRef.current = true;
@@ -1552,6 +1567,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       }
 
       const flowPosition = screenToFlowPosition({ x: clientX, y: clientY });
+      const isRef = Boolean(connectingRef.current.handleId?.startsWith('ref-'));
       setQuickConnectMenu({
         x: clientX,
         y: clientY,
@@ -1559,6 +1575,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         sourceNodeId: connectingRef.current.nodeId,
         sourceHandle: connectingRef.current.handleId,
         handleType: connectingRef.current.handleType || 'source',
+        isReference: isRef,
       });
     }
 
@@ -1567,7 +1584,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
   const handleQuickCreate = useCallback((type: NodeType, isEnding = false) => {
     if (!quickConnectMenu) return;
-    const { flowPosition, sourceNodeId, sourceHandle, handleType } = quickConnectMenu;
+    const { flowPosition, sourceNodeId, sourceHandle, handleType, isReference } = quickConnectMenu;
     const newNodeId = `${type}-${Date.now()}`;
 
     let label = `${t('nodes.new')} ${type}`;
@@ -1575,6 +1592,9 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     else if (type === 'branch') label = '条件分岐';
     else if (type === 'event') label = '新規イベント';
     else if (type === 'element') label = '手がかり・情報';
+    else if (type === 'character') label = '新規登場人物';
+    else if (type === 'stage') label = '新規舞台・場所';
+    else if (type === 'memo') label = 'メモ・補足';
 
     const newNode: ScenarioNode = {
       id: newNodeId,
@@ -1591,20 +1611,38 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
     addNode(newNode);
 
-    if (handleType === 'target') {
-      onConnect({
-        source: newNodeId,
-        sourceHandle: null,
-        target: sourceNodeId,
-        targetHandle: sourceHandle,
-      });
+    if (isReference) {
+      if (handleType === 'target') {
+        onConnect({
+          source: newNodeId,
+          sourceHandle: 'ref-source',
+          target: sourceNodeId,
+          targetHandle: sourceHandle || 'ref-target',
+        });
+      } else {
+        onConnect({
+          source: sourceNodeId,
+          sourceHandle: sourceHandle || 'ref-source',
+          target: newNodeId,
+          targetHandle: 'ref-target',
+        });
+      }
     } else {
-      onConnect({
-        source: sourceNodeId,
-        sourceHandle: sourceHandle,
-        target: newNodeId,
-        targetHandle: null,
-      });
+      if (handleType === 'target') {
+        onConnect({
+          source: newNodeId,
+          sourceHandle: null,
+          target: sourceNodeId,
+          targetHandle: sourceHandle,
+        });
+      } else {
+        onConnect({
+          source: sourceNodeId,
+          sourceHandle: sourceHandle,
+          target: newNodeId,
+          targetHandle: null,
+        });
+      }
     }
 
     setQuickConnectMenu(null);
@@ -1742,6 +1780,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         edges={displayEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        isValidConnection={isValidConnection}
         onConnect={handleConnect}
         onConnectStart={handleConnectStart}
         onConnectEnd={handleConnectEnd}
@@ -1990,7 +2029,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 flex items-center justify-between">
-            <span>クイック作成＆接続</span>
+            <span>{quickConnectMenu.isReference ? '参照補足ノードの作成' : 'クイック作成＆接続'}</span>
             <button
               onClick={() => setQuickConnectMenu(null)}
               className="text-muted-foreground hover:text-foreground rounded p-0.5"
@@ -1998,38 +2037,77 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
               <X size={12} />
             </button>
           </div>
-          <button
-            type="button"
-            onClick={() => handleQuickCreate('event')}
-            className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
-          >
-            <FileText size={14} className="text-orange-500" />
-            <span>イベントノード</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleQuickCreate('branch')}
-            className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
-          >
-            <GitBranch size={14} className="text-purple-500" />
-            <span>条件分岐</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleQuickCreate('event', true)}
-            className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
-          >
-            <Flag size={14} className="text-emerald-500" />
-            <span>エンディング</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleQuickCreate('element')}
-            className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
-          >
-            <Package size={14} className="text-blue-500" />
-            <span>手がかり・情報</span>
-          </button>
+          {quickConnectMenu.isReference ? (
+            <>
+              <button
+                type="button"
+                onClick={() => handleQuickCreate('character')}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+              >
+                <User size={14} className="text-pink-500" />
+                <span>登場人物 (キャラ)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickCreate('stage')}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+              >
+                <MapPin size={14} className="text-emerald-500" />
+                <span>舞台・場所</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickCreate('element')}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+              >
+                <Package size={14} className="text-blue-500" />
+                <span>手がかり・情報</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickCreate('memo')}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+              >
+                <FileText size={14} className="text-amber-500" />
+                <span>メモ・注記</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => handleQuickCreate('event')}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+              >
+                <FileText size={14} className="text-orange-500" />
+                <span>イベントノード</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickCreate('branch')}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+              >
+                <GitBranch size={14} className="text-purple-500" />
+                <span>条件分岐</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickCreate('event', true)}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+              >
+                <Flag size={14} className="text-emerald-500" />
+                <span>エンディング</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickCreate('element')}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+              >
+                <Package size={14} className="text-blue-500" />
+                <span>手がかり・情報</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

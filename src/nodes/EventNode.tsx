@@ -33,7 +33,14 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
     } border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20`}>
       {data.hasSticky && <StickyIndicator />}
       {data.revealed && <RevealedBadge />}
-      {!data.isStart && <Handle type="target" position={Position.Top} className="w-16 !bg-orange-400 dark:!bg-orange-600" />}
+      {!data.isStart && (
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="flow-target"
+          className="!rounded-full !w-3.5 !h-3.5 !bg-orange-400 dark:!bg-orange-600 border-2 border-background shadow-sm hover:scale-125 transition-transform"
+        />
+      )}
 
       <div className="flex flex-col">
         <div className="flex items-center">
@@ -106,7 +113,22 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="w-16 !bg-orange-400 dark:!bg-orange-600" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="flow-source"
+        className="!rounded-full !w-3.5 !h-3.5 !bg-orange-400 dark:!bg-orange-600 border-2 border-background shadow-sm hover:scale-125 transition-transform"
+      />
+
+      {/* Reference Handle (Square ■ for characters, stages, elements, memos) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="ref-source"
+        className="!rounded-[2px] !w-3.5 !h-3.5 !bg-teal-500 dark:!bg-teal-400 border-2 border-background shadow-sm hover:scale-125 transition-transform"
+        style={{ top: '50%', transform: 'translateY(-50%)' }}
+        title="補足・参照ノードを接続 (四角ピン)"
+      />
       
       {/* Sticky Note Connection Handle - Placed at end to avoid interfering with default handles */}
       <Handle 
