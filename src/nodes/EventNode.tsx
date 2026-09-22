@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
@@ -10,6 +10,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { Flag, Star } from 'lucide-react';
 
 const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
+  const { t } = useTranslation();
   const variables = useScenarioStore((s) => s.gameState.variables);
   const resources = useScenarioStore((s) => s.resources);
   const itemMap = useMemo(() => new Map(resources.map((r) => [r.id, r.name])), [resources]);

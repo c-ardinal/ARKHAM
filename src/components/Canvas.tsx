@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
-import { Plus, Minus, Maximize } from 'lucide-react';
+import { Plus, Minus, Maximize, Sparkles, X, ArrowRight, GitBranch, Flag, FileText } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -7,6 +7,7 @@ import ReactFlow, {
   MiniMap,
   type Edge,
   type Node,
+  type Connection,
   MarkerType,
   useReactFlow,
 } from 'reactflow';
@@ -92,6 +93,9 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   const deleteStickies = useScenarioStore((s) => s.deleteStickies);
   const hideSticky = useScenarioStore((s) => s.hideSticky);
   const moveNodesToTab = useScenarioStore((s) => s.moveNodesToTab);
+  const simulationOverlay = useScenarioStore((s) => s.simulationOverlay);
+  const clearSimulationOverlay = useScenarioStore((s) => s.clearSimulationOverlay);
+  const applyAutoLayout = useScenarioStore((s) => s.applyAutoLayout);
   const { 
       setEdges, 
       getNodes,
@@ -1396,6 +1400,226 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   // Use sortedNodes directly. Removed processedNodes to avoid object reference changes.
   const processedNodes = sortedNodes;
 
+  // Heatmap Display Overlay
+  const displayNodes = useMemo(() => {
+    if (!simulationOverlay?.active || !simulationOverlay.result) {
+      return processedNodes;
+    }
+    const { nodeLostCounts, nodeVisitCounts, totalRuns } = simulationOverlay.result;
+    return processedNodes.map((node) => {
+      const lostCount = nodeLostCounts?.[node.id] || 0;
+      const visitCount = nodeVisitCounts?.[node.id] || 0;
+      const visitRate = totalRuns > 0 ? (visitCount / totalRuns) * 100 : 0;
+
+      let extraStyle: React.CSSProperties = {};
+      if (lostCount > 0) {
+        extraStyle = {
+          boxShadow: '0 0 0 3px #ef4444, 0 4px 14px rgba(239, 68, 68, 0.45)',
+          borderColor: '#ef4444',
+        };
+      } else if (visitCount > 0) {
+        if (visitRate >= 70) {
+          extraStyle = {
+            boxShadow: '0 0 0 2.5px #10b981',
+          };
+        } else if (visitRate >= 30) {
+          extraStyle = {
+            boxShadow: '0 0 0 2px #3b82f6',
+          };
+        }
+      } else {
+        extraStyle = {
+          opacity: 0.4,
+        };
+      }
+
+      return {
+        ...node,
+        style: {
+          ...(node.style || {}),
+          ...extraStyle,
+        },
+      };
+    });
+  }, [processedNodes, simulationOverlay]);
+
+  const displayEdges = useMemo(() => {
+    if (!simulationOverlay?.active || !simulationOverlay.result) {
+      return edges;
+    }
+    const result = simulationOverlay.result;
+    return edges.map((edge) => {
+      const rate = result.edgeTraversalRates[edge.id] ?? 0;
+      const count = result.edgeTraversalCounts[edge.id] ?? 0;
+
+      let strokeColor = '#94a3b8';
+      let strokeWidth = 1.5;
+      let strokeDasharray: string | undefined = '4 4';
+      let label = '0% (未通過)';
+
+      if (count > 0) {
+        strokeDasharray = undefined;
+        if (rate >= 0.7) {
+          strokeColor = '#10b981';
+          strokeWidth = 5;
+          label = `🟩 ${Math.round(rate * 100)}% (${count.toLocaleString()}回)`;
+        } else if (rate >= 0.3) {
+          strokeColor = '#3b82f6';
+          strokeWidth = 3.5;
+          label = `🟦 ${Math.round(rate * 100)}% (${count.toLocaleString()}回)`;
+        } else {
+          strokeColor = '#f59e0b';
+          strokeWidth = 2.5;
+          label = `🟨 ${Math.round(rate * 100)}% (${count.toLocaleString()}回)`;
+        }
+      }
+
+      return {
+        ...edge,
+        style: {
+          ...(edge.style || {}),
+          stroke: strokeColor,
+          strokeWidth,
+          strokeDasharray,
+        },
+        label,
+        labelStyle: {
+          fill: strokeColor,
+          fontWeight: 700,
+          fontSize: 11,
+        },
+        labelBgStyle: {
+          fill: 'rgba(15, 23, 42, 0.85)',
+          rx: 4,
+          ry: 4,
+        },
+        labelBgPadding: [6, 4] as [number, number],
+        animated: count > 0 && rate >= 0.7,
+      };
+    });
+  }, [edges, simulationOverlay]);
+
+  // Smart Connect / Quick Create State
+  const connectingRef = useRef<{
+    nodeId: string;
+    handleId: string | null;
+    handleType: 'source' | 'target' | null;
+  } | null>(null);
+  const connectSuccessRef = useRef(false);
+
+  const [quickConnectMenu, setQuickConnectMenu] = useState<{
+    x: number;
+    y: number;
+    flowPosition: { x: number; y: number };
+    sourceNodeId: string;
+    sourceHandle: string | null;
+    handleType: 'source' | 'target';
+  } | null>(null);
+
+  const handleConnect = useCallback((connection: Connection) => {
+    connectSuccessRef.current = true;
+    onConnect(connection);
+  }, [onConnect]);
+
+  const handleConnectStart = useCallback((_event: React.MouseEvent | React.TouchEvent, params: { nodeId: string | null; handleId: string | null; handleType: 'source' | 'target' | null }) => {
+    connectSuccessRef.current = false;
+    if (params.nodeId && params.handleType) {
+      connectingRef.current = {
+        nodeId: params.nodeId,
+        handleId: params.handleId,
+        handleType: params.handleType,
+      };
+    } else {
+      connectingRef.current = null;
+    }
+  }, []);
+
+  const handleConnectEnd = useCallback((event: MouseEvent | TouchEvent) => {
+    if (mode === 'play') return;
+    if (connectSuccessRef.current || !connectingRef.current) {
+      connectingRef.current = null;
+      return;
+    }
+
+    const clientX = 'clientX' in event ? event.clientX : (event as TouchEvent).changedTouches?.[0]?.clientX;
+    const clientY = 'clientY' in event ? event.clientY : (event as TouchEvent).changedTouches?.[0]?.clientY;
+
+    if (clientX !== undefined && clientY !== undefined) {
+      const targetElement = document.elementFromPoint(clientX, clientY);
+      if (targetElement?.closest('.react-flow__handle') || targetElement?.closest('.quick-connect-menu')) {
+        connectingRef.current = null;
+        return;
+      }
+
+      const flowPosition = screenToFlowPosition({ x: clientX, y: clientY });
+      setQuickConnectMenu({
+        x: clientX,
+        y: clientY,
+        flowPosition: { x: flowPosition.x - 75, y: flowPosition.y - 25 },
+        sourceNodeId: connectingRef.current.nodeId,
+        sourceHandle: connectingRef.current.handleId,
+        handleType: connectingRef.current.handleType || 'source',
+      });
+    }
+
+    connectingRef.current = null;
+  }, [mode, screenToFlowPosition]);
+
+  const handleQuickCreate = useCallback((type: NodeType, isEnding = false) => {
+    if (!quickConnectMenu) return;
+    const { flowPosition, sourceNodeId, sourceHandle, handleType } = quickConnectMenu;
+    const newNodeId = `${type}-${Date.now()}`;
+
+    let label = `${t('nodes.new')} ${type}`;
+    if (isEnding) label = 'エンディング';
+    else if (type === 'branch') label = '条件分岐';
+    else if (type === 'event') label = '新規シーン';
+    else if (type === 'element') label = '手がかり・情報';
+
+    const newNode: ScenarioNode = {
+      id: newNodeId,
+      type,
+      position: flowPosition,
+      data: {
+        label,
+        isEnding: isEnding ? true : undefined,
+        infoType: type === 'element' ? 'knowledge' : undefined,
+        branchType: type === 'branch' ? 'if_else' : undefined,
+        quantity: type === 'element' ? 1 : undefined,
+      },
+    };
+
+    addNode(newNode);
+
+    if (handleType === 'target') {
+      onConnect({
+        source: newNodeId,
+        sourceHandle: null,
+        target: sourceNodeId,
+        targetHandle: sourceHandle,
+      });
+    } else {
+      onConnect({
+        source: sourceNodeId,
+        sourceHandle: sourceHandle,
+        target: newNodeId,
+        targetHandle: null,
+      });
+    }
+
+    setQuickConnectMenu(null);
+  }, [quickConnectMenu, addNode, onConnect, t]);
+
+  useEffect(() => {
+    const handleCloseQuickMenu = (e: MouseEvent) => {
+      if (quickConnectMenu && !(e.target as HTMLElement).closest('.quick-connect-menu')) {
+        setQuickConnectMenu(null);
+      }
+    };
+    window.addEventListener('mousedown', handleCloseQuickMenu);
+    return () => window.removeEventListener('mousedown', handleCloseQuickMenu);
+  }, [quickConnectMenu]);
+
   // Stabilize defaultEdgeOptions across renders so ReactFlow's internal
   // memoization isn't invalidated by a fresh inline object every render.
   const defaultEdgeOptions = useMemo(() => ({
@@ -1478,13 +1702,48 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
             }
           `}</style>
       )}
+      {/* Simulation Heatmap HUD */}
+      {simulationOverlay?.active && simulationOverlay.result && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-background/95 backdrop-blur-md border-2 border-emerald-500/60 shadow-2xl rounded-2xl px-5 py-2.5 flex items-center gap-5 text-sm pointer-events-auto animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-3 w-3 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <span className="font-bold text-foreground">🔥 ヒートマップ重畳表示中</span>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-mono">
+              試行: {simulationOverlay.result.totalRuns.toLocaleString()}回 / 全滅率: {(simulationOverlay.result.lostRate * 100).toFixed(1)}%
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs border-l border-border pl-4">
+            <div className="flex items-center gap-1.5"><span className="w-3 h-1 bg-emerald-500 rounded"></span><span>高頻度 (≥70%)</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-3 h-1 bg-blue-500 rounded"></span><span>中頻度 (≥30%)</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-3 h-1 bg-amber-500 rounded"></span><span>低頻度 (&lt;30%)</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-3 h-1 border-t border-dashed border-slate-400"></span><span className="text-muted-foreground">未通過 (0%)</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span><span className="text-rose-500 font-medium">ロスト地点</span></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => clearSimulationOverlay()}
+            className="ml-2 px-2.5 py-1 text-xs font-semibold bg-muted hover:bg-destructive hover:text-destructive-foreground text-foreground rounded-lg border border-border transition-colors flex items-center gap-1"
+          >
+            <X size={13} />
+            <span>解除</span>
+          </button>
+        </div>
+      )}
+
       {/* Mobile styles moved to index.css */}
       <ReactFlow
-        nodes={processedNodes}
-        edges={edges}
+        nodes={displayNodes}
+        edges={displayEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={handleConnect}
+        onConnectStart={handleConnectStart}
+        onConnectEnd={handleConnectEnd}
         onReconnect={onReconnect}
         onInit={() => {
           // 初期ロード時の安全策：保存されたビューポートがない場合、遅延させてfitViewを実行
@@ -1655,6 +1914,20 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
                 }} title={t('menu.fitView' as any)} aria-label={t('menu.fitView' as any)} className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-11 h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1">
                     <Maximize size={16} aria-hidden="true" />
                 </ControlButton>
+
+                <ControlButton 
+                    onClick={() => {
+                      applyAutoLayout('LR');
+                      setTimeout(() => {
+                        fitView({ padding: 0.2, duration: 400 });
+                      }, 50);
+                    }} 
+                    title="ノードを自動整列 (LRフロー)" 
+                    aria-label="ノードを自動整列" 
+                    className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-11 h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                >
+                    <Sparkles size={16} className="text-amber-500" aria-hidden="true" />
+                </ControlButton>
             </Controls> 
         )}
         <NodeInfoModal 
@@ -1703,6 +1976,60 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
           }}
           onCancel={() => setPendingMove(null)}
         />
+      )}
+
+      {/* Quick Connect / Smart Create Menu */}
+      {quickConnectMenu && (
+        <div
+          className="quick-connect-menu fixed z-50 bg-popover/95 backdrop-blur-md border border-border shadow-2xl rounded-xl p-1.5 flex flex-col gap-1 w-52 animate-in fade-in zoom-in-95"
+          style={{
+            left: Math.min(window.innerWidth - 220, quickConnectMenu.x),
+            top: Math.min(window.innerHeight - 220, quickConnectMenu.y),
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 flex items-center justify-between">
+            <span>クイック作成＆接続</span>
+            <button
+              onClick={() => setQuickConnectMenu(null)}
+              className="text-muted-foreground hover:text-foreground rounded p-0.5"
+            >
+              <X size={12} />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleQuickCreate('event')}
+            className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+          >
+            <ArrowRight size={14} className="text-orange-500" />
+            <span>🎬 シーンノード</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickCreate('branch')}
+            className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+          >
+            <GitBranch size={14} className="text-purple-500" />
+            <span>🔀 条件分岐</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickCreate('event', true)}
+            className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+          >
+            <Flag size={14} className="text-emerald-500" />
+            <span>🏆 エンディング</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickCreate('element')}
+            className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+          >
+            <FileText size={14} className="text-blue-500" />
+            <span>🔍 手がかり・情報</span>
+          </button>
+        </div>
       )}
     </div>
     </ZoomLevelContext.Provider>

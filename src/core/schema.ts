@@ -281,6 +281,7 @@ export interface SimulationResult {
   lostRuns: number;
   lostRate: number;                 // 0.0 - 1.0
   nodeLostCounts: Record<string, number>;
+  nodeVisitCounts?: Record<string, number>;
   edgeTraversalCounts: Record<string, number>;
   edgeTraversalRates: Record<string, number>;
   averageSanByChapter: Record<number, number>;

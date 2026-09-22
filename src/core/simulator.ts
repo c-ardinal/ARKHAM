@@ -89,6 +89,7 @@ export function runSimulation(graph: CoreGraph, config: SimulationConfig = {}): 
   let completedRuns = 0;
   let totalInsanityCount = 0;
   const nodeLostCounts: Record<string, number> = {};
+  const nodeVisitCounts: Record<string, number> = {};
   const edgeTraversalCounts: Record<string, number> = {};
   const chapterSanSamples: Record<number, number[]> = {};
   const playTimes: number[] = [];
@@ -120,6 +121,8 @@ export function runSimulation(graph: CoreGraph, config: SimulationConfig = {}): 
       stepCount++;
       const node = nodeMap.get(currentNodeId);
       if (!node) break;
+
+      nodeVisitCounts[node.id] = (nodeVisitCounts[node.id] || 0) + 1;
 
       totalTime += node.timeCostMinutes || 0;
 
@@ -279,6 +282,7 @@ export function runSimulation(graph: CoreGraph, config: SimulationConfig = {}): 
     lostRuns,
     lostRate: runs > 0 ? lostRuns / runs : 0,
     nodeLostCounts,
+    nodeVisitCounts,
     edgeTraversalCounts,
     edgeTraversalRates,
     averageSanByChapter,

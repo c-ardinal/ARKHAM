@@ -81,8 +81,8 @@ export type {
 export { DEFAULT_SYSTEM_PRESETS, DEFAULT_SYSTEM_CONFIG } from './core/schema';
 
 export interface BranchNodeData extends ScenarioNodeData {
-    branchType: 'if_else' | 'switch';
-    branches?: { id: string; label: string }[];
+    branchType: 'if_else' | 'switch' | 'multi';
+    branches?: BranchCase[];
 }
 
 export interface GroupNodeData extends ScenarioNodeData {

@@ -35,7 +35,7 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
   const [activeTab, setActiveTab] = useState<TabType>('lint');
 
   // Scenario Store
-  const { tabs, activeTabId, resources, stages, setSelectedNode, systemConfig, gameState } = useScenarioStore();
+  const { tabs, activeTabId, resources, stages, setSelectedNode, systemConfig, gameState, setSimulationOverlay } = useScenarioStore();
   const currentTab = tabs.find((t) => t.id === activeTabId);
   const nodes = currentTab?.nodes || [];
   const edges = currentTab?.edges || [];
@@ -435,6 +435,28 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
               {/* Simulation Results */}
               {simResult && (
                 <div className="space-y-6">
+                  {/* Heatmap Overlay Action Banner */}
+                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                    <div className="flex items-center gap-2.5 text-xs text-emerald-950 dark:text-emerald-200">
+                      <span className="text-xl">🔥</span>
+                      <div>
+                        <div className="font-bold text-sm">キャンバス・ヒートマップ重畳表示</div>
+                        <div className="text-[11px] opacity-85">エッジ通過率・ボトルネック・ロスト集中度をフローチャート上にカラー表示します。</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSimulationOverlay({ active: true, result: simResult });
+                        onClose();
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                    >
+                      <span>キャンバスで確認</span>
+                      <ExternalLink size={13} />
+                    </button>
+                  </div>
+
                   {/* Metric Cards */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-4 rounded-xl bg-card border border-border">

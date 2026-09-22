@@ -1,5 +1,6 @@
 {
   "clsx": "MIT",
+  "dagre": "MIT",
   "lucide-react": "ISC",
   "react": "MIT",
   "react-dom": "MIT",

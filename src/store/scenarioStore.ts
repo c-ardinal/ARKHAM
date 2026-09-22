@@ -23,6 +23,7 @@ import { generateTabId, SCHEMA_VERSION } from '../types/tab';
 import { isLegacyFormat, isFutureFormat, migrateLegacyToTabbed } from './migration';
 import { retargetJumpReferencesForMove } from '../utils/jumpReferences';
 import { toast } from '../components/common/toast';
+import { getLayoutedElements } from '../utils/autoLayout';
 
 // Per-group rAF id for drag-time throttled updateGroupSize calls. A flurry
 // of position changes within the same animation frame collapses into a
@@ -162,6 +163,17 @@ interface ScenarioState {
   addSticky: (targetNodeId: string | undefined, position: { x: number, y: number }) => void;
   toggleStickies: (parentNodeId: string) => void;
   deleteStickies: (parentNodeId: string) => void;
+
+  // Simulation Heatmap Overlay
+  simulationOverlay: {
+    active: boolean;
+    result: import('../core/schema').SimulationResult | null;
+  };
+  setSimulationOverlay: (overlay: { active: boolean; result: import('../core/schema').SimulationResult | null }) => void;
+  clearSimulationOverlay: () => void;
+
+  // Auto-Layout
+  applyAutoLayout: (direction?: 'LR' | 'TB') => void;
 
   // Bulk Sticky Operations
   showAllStickies: () => void;
@@ -354,6 +366,22 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   resources: initialStoredState?.resources || [],
   systemConfig: (initialStoredState as any)?.systemConfig || DEFAULT_SYSTEM_CONFIG,
   scenarioTitle: (initialStoredState as any)?.scenarioTitle || '無題のシナリオ',
+  simulationOverlay: { active: false, result: null },
+  setSimulationOverlay: (overlay) => set({ simulationOverlay: overlay }),
+  clearSimulationOverlay: () => set({ simulationOverlay: { active: false, result: null } }),
+
+  applyAutoLayout: (direction = 'LR') => {
+    get().pushHistory();
+    const state = get();
+    const activeTab = getActiveTabFrom(state);
+    if (!activeTab || activeTab.nodes.length === 0) return;
+    const { nodes, edges } = getLayoutedElements(activeTab.nodes, activeTab.edges, { direction });
+    set({
+      tabs: withActiveTab(state, () => ({ nodes, edges })),
+    });
+    get().recalculateGameState();
+    toast.success('ノードを自動整列しました');
+  },
 
   setSystemConfig: (config) => {
     set({ systemConfig: config });
