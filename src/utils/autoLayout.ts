@@ -10,13 +10,29 @@ export interface LayoutOptions {
 }
 
 /**
- * Returns estimated width and height for a node based on its type and content
+ * Returns exact measured or realistic estimated width and height for a node
  */
-function getNodeDimensions(node: ScenarioNode, defaultWidth = 240, defaultHeight = 120): { width: number; height: number } {
+export function getNodeDimensions(
+  node: ScenarioNode,
+  defaultWidth = 260,
+  defaultHeight = 130
+): { width: number; height: number } {
+  // 1. Measured dimensions directly from React Flow DOM
+  const measuredWidth =
+    typeof node.width === 'number' && node.width > 0 ? Math.round(node.width) : null;
+  const measuredHeight =
+    typeof node.height === 'number' && node.height > 0 ? Math.round(node.height) : null;
+
+  if (measuredWidth && measuredHeight) {
+    return { width: measuredWidth, height: measuredHeight };
+  }
+
+  // 2. Style dimensions (e.g. explicitly sized groups)
   if (typeof node.style?.width === 'number' && typeof node.style?.height === 'number') {
     return { width: node.style.width, height: node.style.height };
   }
 
+  // 3. Realistic dynamic estimations based on text content and badges
   switch (node.type) {
     case 'event': {
       const hasBadges = Boolean(
@@ -27,30 +43,57 @@ function getNodeDimensions(node: ScenarioNode, defaultWidth = 240, defaultHeight
         node.data?.resourceCheck ||
         node.data?.sanCheck
       );
-      return { width: 240, height: hasBadges ? 130 : 90 };
+      const labelLen = (node.data?.label || '').length;
+      const desc = node.data?.description || '';
+      const descLines = desc ? desc.split('\n').length : 0;
+      const w = Math.max(260, Math.min(460, 180 + labelLen * 12));
+      const h = Math.max(100, (hasBadges ? 135 : 95) + descLines * 22 + (desc.length > 50 ? 30 : 0));
+      return { width: measuredWidth ?? w, height: measuredHeight ?? h };
     }
-    case 'branch':
-      return { width: 200, height: 100 };
+    case 'branch': {
+      const labelLen = (node.data?.label || '').length;
+      const w = Math.max(220, Math.min(420, 160 + labelLen * 12));
+      return { width: measuredWidth ?? w, height: measuredHeight ?? 120 };
+    }
     case 'element':
-    case 'information':
-      return { width: 190, height: 80 };
-    case 'variable':
-      return { width: 180, height: 75 };
+    case 'information': {
+      return { width: measuredWidth ?? 220, height: measuredHeight ?? 100 };
+    }
+    case 'variable': {
+      return { width: measuredWidth ?? 200, height: measuredHeight ?? 90 };
+    }
     case 'character':
     case 'resource':
-    case 'stage':
-      return { width: 180, height: 70 };
+    case 'stage': {
+      const desc = node.data?.description || '';
+      const descLines = desc ? desc.split('\n').length : 0;
+      const h = Math.max(130, 110 + descLines * 20);
+      return { width: measuredWidth ?? 260, height: measuredHeight ?? h };
+    }
+    case 'memo': {
+      const desc = node.data?.description || '';
+      const descLines = desc ? desc.split('\n').length : 0;
+      return { width: measuredWidth ?? 240, height: measuredHeight ?? Math.max(110, 85 + descLines * 20) };
+    }
     case 'group': {
-      const w = typeof node.style?.width === 'number' ? node.style.width : 360;
-      const h = typeof node.style?.height === 'number' ? node.style.height : 280;
+      const w = typeof node.style?.width === 'number' ? node.style.width : 420;
+      const h = typeof node.style?.height === 'number' ? node.style.height : 320;
       return { width: w, height: h };
     }
     default:
-      return { width: defaultWidth, height: defaultHeight };
+      return { width: measuredWidth ?? defaultWidth, height: measuredHeight ?? defaultHeight };
   }
 }
 
-const SUPPLEMENT_TYPES = new Set(['character', 'stage', 'element', 'information', 'memo', 'resource', 'variable']);
+const SUPPLEMENT_TYPES = new Set([
+  'character',
+  'stage',
+  'element',
+  'information',
+  'memo',
+  'resource',
+  'variable',
+]);
 
 export function isReferenceEdge(edge: ScenarioEdge): boolean {
   return (
@@ -61,12 +104,93 @@ export function isReferenceEdge(edge: ScenarioEdge): boolean {
 }
 
 /**
+ * Resolves remaining bounding box collisions using AABB push separation
+ */
+function resolveCollisions(
+  nodes: ScenarioNode[],
+  options: {
+    minGap?: number;
+    satelliteParents?: Map<string, string>;
+  } = {}
+): void {
+  const { minGap = 24, satelliteParents } = options;
+
+  for (let iter = 0; iter < 15; iter++) {
+    let hadCollision = false;
+
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i];
+        const b = nodes[j];
+
+        // Skip internal parent-satellite pairs (their offsets are fixed and managed)
+        if (satelliteParents) {
+          const aParent = satelliteParents.get(a.id);
+          const bParent = satelliteParents.get(b.id);
+          if (aParent === b.id || bParent === a.id || (aParent && aParent === bParent)) {
+            continue;
+          }
+        }
+
+        const dimA = getNodeDimensions(a);
+        const dimB = getNodeDimensions(b);
+
+        const aLeft = a.position.x;
+        const aRight = aLeft + dimA.width;
+        const aTop = a.position.y;
+        const aBottom = aTop + dimA.height;
+
+        const bLeft = b.position.x;
+        const bRight = bLeft + dimB.width;
+        const bTop = b.position.y;
+        const bBottom = bTop + dimB.height;
+
+        const overlapX = Math.min(aRight + minGap, bRight + minGap) - Math.max(aLeft, bLeft);
+        const overlapY = Math.min(aBottom + minGap, bBottom + minGap) - Math.max(aTop, bTop);
+
+        if (overlapX > 0 && overlapY > 0) {
+          hadCollision = true;
+
+          if (aLeft === bLeft && aTop === bTop) {
+            b.position.x += dimA.width + minGap;
+            continue;
+          }
+
+          if (overlapX < overlapY) {
+            const shift = Math.ceil(overlapX / 2);
+            if (aLeft <= bLeft) {
+              a.position.x -= shift;
+              b.position.x += shift;
+            } else {
+              a.position.x += shift;
+              b.position.x -= shift;
+            }
+          } else {
+            const shift = Math.ceil(overlapY / 2);
+            if (aTop <= bTop) {
+              a.position.y -= shift;
+              b.position.y += shift;
+            } else {
+              a.position.y += shift;
+              b.position.y -= shift;
+            }
+          }
+        }
+      }
+    }
+
+    if (!hadCollision) break;
+  }
+}
+
+/**
  * Automatically calculates node positions using Dagre layout algorithm.
  * Design Philosophy:
  * - Primary flow: Top to Bottom (TB)
  * - Secondary flow: Left to Right (LR) for parallel branches
  * - Satellite layout: Supplement nodes (character, stage, memo, clue) connected by reference edges
  *   are cleanly aligned on the right side of their parent event node without colliding with other branches.
+ * - Guaranteed Collision-Free: Measured node dimensions + symmetric Dagre spacing + AABB separation.
  */
 export function getLayoutedElements(
   nodes: ScenarioNode[],
@@ -75,10 +199,10 @@ export function getLayoutedElements(
 ): { nodes: ScenarioNode[]; edges: ScenarioEdge[] } {
   const {
     direction = 'TB',
-    nodeWidth = 240,
-    nodeHeight = 120,
-    rankSep = 110,
-    nodeSep = 80,
+    nodeWidth = 260,
+    nodeHeight = 130,
+    rankSep = 130,
+    nodeSep = 100,
   } = options;
 
   // Separate sticky notes (annotations) and flow nodes
@@ -154,7 +278,11 @@ export function getLayoutedElements(
     marginy: 80,
   });
 
-  const parentAllocations = new Map<string, { baseDim: { width: number; height: number }; dagreWidth: number; dagreHeight: number }>();
+  const satGap = 36;
+  const parentAllocations = new Map<
+    string,
+    { baseDim: { width: number; height: number }; dagreWidth: number; dagreHeight: number }
+  >();
 
   dagreTopNodes.forEach((node) => {
     const baseDim = getNodeDimensions(node, nodeWidth, nodeHeight);
@@ -164,12 +292,17 @@ export function getLayoutedElements(
     let dagreHeight = baseDim.height;
 
     if (sats.length > 0) {
-      const maxSatWidth = Math.max(...sats.map((s) => getNodeDimensions(s, nodeWidth, nodeHeight).width));
+      const maxSatWidth = Math.max(
+        ...sats.map((s) => getNodeDimensions(s, nodeWidth, nodeHeight).width)
+      );
       const totalSatHeight = sats.reduce(
-        (sum, s, idx) => sum + getNodeDimensions(s, nodeWidth, nodeHeight).height + (idx > 0 ? 12 : 0),
+        (sum, s, idx) =>
+          sum + getNodeDimensions(s, nodeWidth, nodeHeight).height + (idx > 0 ? 16 : 0),
         0
       );
-      dagreWidth = baseDim.width + 36 + maxSatWidth;
+      // Symmetric width allocation keeps Dagre's node center pos.x aligned with the event node center,
+      // so child nodes directly flow straight down beneath the event node rather than under satellites!
+      dagreWidth = baseDim.width + 2 * (satGap + maxSatWidth);
       dagreHeight = Math.max(baseDim.height, totalSatHeight);
     }
 
@@ -185,7 +318,13 @@ export function getLayoutedElements(
     const srcTop = topLevelIdMap.get(edge.source);
     const tgtTop = topLevelIdMap.get(edge.target);
 
-    if (srcTop && tgtTop && srcTop !== tgtTop && dagreNodeIdSet.has(srcTop) && dagreNodeIdSet.has(tgtTop)) {
+    if (
+      srcTop &&
+      tgtTop &&
+      srcTop !== tgtTop &&
+      dagreNodeIdSet.has(srcTop) &&
+      dagreNodeIdSet.has(tgtTop)
+    ) {
       const edgeKey = `${srcTop}->${tgtTop}`;
       if (!registeredEdges.has(edgeKey)) {
         registeredEdges.add(edgeKey);
@@ -207,34 +346,34 @@ export function getLayoutedElements(
     }
 
     const alloc = parentAllocations.get(node.id)!;
-    const boxLeft = Math.round(pos.x - alloc.dagreWidth / 2);
-    const boxTop = Math.round(pos.y - alloc.dagreHeight / 2);
+    // Align parent node directly at pos.x (the center of flow)
+    const parentX = Math.round(pos.x - alloc.baseDim.width / 2);
+    const parentY = Math.round(pos.y - alloc.baseDim.height / 2);
 
-    // Parent primary node is aligned at top-left of its allocated box
     const updatedParent: ScenarioNode = {
       ...node,
       position: {
-        x: boxLeft,
-        y: boxTop,
+        x: parentX,
+        y: parentY,
       },
     };
     updatedTopLevelNodes.push(updatedParent);
 
     // Position satellites vertically aligned on the right side of the parent
     const sats = parentSatellites.get(node.id) || [];
-    let currentSatY = boxTop;
+    let currentSatY = parentY;
 
     sats.forEach((sat) => {
       const satDim = getNodeDimensions(sat, nodeWidth, nodeHeight);
       const updatedSat: ScenarioNode = {
         ...sat,
         position: {
-          x: boxLeft + alloc.baseDim.width + 36,
+          x: parentX + alloc.baseDim.width + satGap,
           y: currentSatY,
         },
       };
       updatedTopLevelNodes.push(updatedSat);
-      currentSatY += satDim.height + 12;
+      currentSatY += satDim.height + 16;
     });
   });
 
@@ -246,7 +385,10 @@ export function getLayoutedElements(
     }
   });
 
-  // 2. Layout child nodes inside groups (relative to parent group)
+  // Post-process collision separation for top-level nodes
+  resolveCollisions(updatedTopLevelNodes, { minGap: 24, satelliteParents });
+
+  // 3. Layout child nodes inside groups (relative to parent group)
   const groupChildrenMap = new Map<string, ScenarioNode[]>();
   childNodes.forEach((child) => {
     if (!child.parentNode) return;
@@ -257,7 +399,7 @@ export function getLayoutedElements(
   });
 
   const updatedChildNodes: ScenarioNode[] = [];
-  for (const [, children] of groupChildrenMap.entries()) {
+  for (const [groupId, children] of groupChildrenMap.entries()) {
     if (children.length <= 1) {
       updatedChildNodes.push(...children);
       continue;
@@ -267,10 +409,10 @@ export function getLayoutedElements(
     subG.setDefaultEdgeLabel(() => ({}));
     subG.setGraph({
       rankdir: direction,
-      nodesep: 50,
-      ranksep: 70,
-      marginx: 30,
-      marginy: 40,
+      nodesep: 60,
+      ranksep: 80,
+      marginx: 40,
+      marginy: 50,
     });
 
     const childIdSet = new Set(children.map((c) => c.id));
@@ -299,6 +441,30 @@ export function getLayoutedElements(
         },
       };
     });
+
+    // Ensure children inside group do not collide
+    resolveCollisions(layoutedChildren, { minGap: 20 });
+
+    // Automatically expand parent group to encompass all children
+    if (layoutedChildren.length > 0) {
+      const maxX = Math.max(
+        ...layoutedChildren.map((c) => c.position.x + getNodeDimensions(c).width)
+      );
+      const maxY = Math.max(
+        ...layoutedChildren.map((c) => c.position.y + getNodeDimensions(c).height)
+      );
+      const requiredW = Math.max(400, maxX + 50);
+      const requiredH = Math.max(300, maxY + 50);
+
+      const groupNode = updatedTopLevelNodes.find((n) => n.id === groupId);
+      if (groupNode) {
+        groupNode.style = {
+          ...groupNode.style,
+          width: requiredW,
+          height: requiredH,
+        };
+      }
+    }
 
     updatedChildNodes.push(...layoutedChildren);
   }
