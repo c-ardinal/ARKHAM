@@ -152,6 +152,26 @@ export type TranslationKeys = {
     selectVariable: string;
     jumpTarget: string;
     noNodesAvailable: string;
+    chapter: string;
+    timeCostMinutes: string;
+    location: string;
+    addLocation: string;
+    purpose: string;
+    purposePlaceholder: string;
+    readAloudText: string;
+    readAloudPlaceholder: string;
+    kpNotes: string;
+    kpNotesPlaceholder: string;
+    isEndingNode: string;
+    conditionTypeLabel: string;
+    itemCheck: string;
+    variableCondition: string;
+    requiredItem: string;
+    conditionHelp: string;
+    variableOperator: string;
+    variableOpSet: string;
+    variableOpAdd: string;
+    variableOpSubtract: string;
   };
   gameState: {
     inventory: string;

@@ -5,6 +5,7 @@
  */
 
 import type { CoreGraph, LintIssue, ScenarioNode } from './schema';
+import { validateExpression } from './expression';
 
 /**
  * Forbidden meta-gaming terms for PL read-aloud text
@@ -137,6 +138,7 @@ export function lintGraph(graph: CoreGraph): LintIssue[] {
   const itemMapById = new Map(masterData.items.map((it) => [it.id, it]));
   const itemMapByName = new Map(masterData.items.map((it) => [it.name, it]));
   const masterItemNames = masterData.items.map((it) => it.name);
+  const masterVariables = new Set((masterData.variables || []).map((v) => v.name));
 
   // Set of items ever referenced or acquired
   const acquiredItemIds = new Set<string>();
@@ -147,6 +149,20 @@ export function lintGraph(graph: CoreGraph): LintIssue[] {
 
   // 1. Lint each node
   for (const node of nodes) {
+    // Check variable operations if any
+    if (node.variableOperations && masterVariables.size > 0) {
+      for (const op of node.variableOperations) {
+        if (!masterVariables.has(op.variableName)) {
+          issues.push({
+            code: 'undefined_variable',
+            severity: 'warning',
+            message: `ノード「${node.title}」の変数操作「${op.variableName}」が MasterData に未登録です。`,
+            nodeId: node.id,
+            location: 'variableOperations',
+          });
+        }
+      }
+    }
     // 1.1 Check readAloudText for forbidden terms
     if (node.readAloudText) {
       for (const term of FORBIDDEN_READ_ALOUD_TERMS) {
@@ -296,13 +312,38 @@ export function lintGraph(graph: CoreGraph): LintIssue[] {
     }
   }
 
-  // 2. Check edges for item condition references
+  // 2. Check edges for item condition references & variable expressions
   for (const edge of edges) {
     if (edge.conditionType === 'item_held' && edge.conditionValue) {
       const vals = edge.conditionValue.split(',').map((s) => s.trim());
       for (const v of vals) {
         usedItemIds.add(v);
         usedItemNames.add(v);
+      }
+    } else if (edge.conditionType === 'variable') {
+      const expr = edge.variableCondition || edge.conditionValue;
+      if (expr && expr.trim()) {
+        const valRes = validateExpression(
+          expr,
+          masterVariables.size > 0 ? Array.from(masterVariables) : undefined
+        );
+        if (!valRes.isValid) {
+          if (valRes.undefinedVariables.length > 0) {
+            issues.push({
+              code: 'undefined_variable',
+              severity: 'error',
+              message: `エッジの条件式に未定義の変数「${valRes.undefinedVariables.join(', ')}」が使用されています (式: "${expr}")`,
+              location: 'variableCondition',
+            });
+          } else {
+            issues.push({
+              code: 'expression_syntax_error',
+              severity: 'error',
+              message: `エッジの条件式に構文エラーがあります: ${valRes.error} (式: "${expr}")`,
+              location: 'variableCondition',
+            });
+          }
+        }
       }
     }
   }

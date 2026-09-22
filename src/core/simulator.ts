@@ -5,6 +5,7 @@
  */
 
 import type { CoreGraph, SimulationConfig, SimulationResult, ScenarioNode, ScenarioEdge } from './schema';
+import { evaluateExpression } from './expression';
 
 /**
  * Rolls standard TRPG dice formula (e.g., "1D6", "2D4+1", "1D3", "0", "1")
@@ -100,6 +101,13 @@ export function runSimulation(graph: CoreGraph, config: SimulationConfig = {}): 
     }));
 
     const inventory = new Set<string>();
+    const runtimeVariables: Record<string, any> = {};
+    if (graph.masterData.variables) {
+      for (const v of graph.masterData.variables) {
+        runtimeVariables[v.name] = v.initialValue;
+      }
+    }
+
     let diceStock = diceStockCount;
     let currentNodeId = effectiveStartId;
     let totalTime = 0;
@@ -159,6 +167,22 @@ export function runSimulation(graph: CoreGraph, config: SimulationConfig = {}): 
       for (const it of node.acquiredItems) inventory.add(it);
       for (const it of node.consumedItems) inventory.delete(it);
 
+      // Apply variable operations
+      if (node.variableOperations && node.variableOperations.length > 0) {
+        for (const op of node.variableOperations) {
+          const currentVal = runtimeVariables[op.variableName];
+          if (op.operator === 'set') {
+            runtimeVariables[op.variableName] = op.value;
+          } else if (op.operator === 'add') {
+            const num = Number(currentVal) || 0;
+            runtimeVariables[op.variableName] = num + (Number(op.value) || 0);
+          } else if (op.operator === 'subtract') {
+            const num = Number(currentVal) || 0;
+            runtimeVariables[op.variableName] = num - (Number(op.value) || 0);
+          }
+        }
+      }
+
       // Check if ending node reached
       if (node.type === 'ending') {
         completedRuns++;
@@ -177,6 +201,11 @@ export function runSimulation(graph: CoreGraph, config: SimulationConfig = {}): 
         if (edge.conditionType === 'item_held' && edge.conditionValue) {
           const reqs = edge.conditionValue.split(',').map((s) => s.trim());
           if (reqs.every((r) => inventory.has(r))) {
+            validEdges.push(edge);
+          }
+        } else if (edge.conditionType === 'variable' && (edge.variableCondition || edge.conditionValue)) {
+          const expr = edge.variableCondition || edge.conditionValue || '';
+          if (evaluateExpression(expr, runtimeVariables)) {
             validEdges.push(edge);
           }
         } else if (edge.conditionType === 'check_success' || edge.conditionType === 'check_fail') {

@@ -9,6 +9,7 @@ import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 import { JumpTargetCombobox } from './JumpTargetCombobox';
 import { SearchableSelect } from './SearchableSelect';
 import { FORBIDDEN_READ_ALOUD_TERMS } from '../core/linter';
+import { VisualConditionBuilder } from './VisualConditionBuilder';
 
 const MobileBackdrop = ({ children, isMobile }: { children: React.ReactNode, isMobile: boolean }) => {
     if (!isMobile) return <>{children}</>;
@@ -452,312 +453,37 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                 />
               </div>
     
-              <div>
-                <label className={labelClass}>{t('properties.description')}</label>
-                <VariableSuggestInput
-                  multiline
-                  value={selectedNode.data.description || ''}
-                  onChange={(val) => handleFieldChange('description', val)}
-                  className={`${inputClass} ${selectedNode.type === 'sticky' ? 'min-h-[400px]' : 'min-h-[80px]'}`}
-                />
-              </div>
-    
-              {(selectedNode.type === 'information' || selectedNode.type === 'element') && (
-                <>
-                  <div>
-                    <label className={labelClass}>{t('properties.actionType')}</label>
-                    <select
-                      name="actionType"
-                      value={selectedNode.data.actionType || 'obtain'}
-                      onChange={handleChange}
-                      className={inputClass}
-                    >
-                      <option value="obtain">{t('properties.actionTypeObtain')}</option>
-                      <option value="consume">{t('properties.actionTypeConsume')}</option>
-                    </select>
-                  </div>
-    
-                  <div>
-                    <label className={labelClass}>{t('properties.operationTarget')}</label>
-                    {resources.length === 0 ? (
-                       <div className={ERROR_CLASS}>
-                           {t('resources.noResources') || "Elements not defined"}
-                       </div>
-                    ) : (
-                        <SearchableSelect
-                            items={resources.map((r) => {
-                                const typeLabel = t(`resources.types.${r.type}` as any) || r.type;
-                                return {
-                                    id: r.id,
-                                    label: `${r.name} (${typeLabel})`,
-                                    // Allow searching by raw type key in addition to the localised label.
-                                    searchableText: `${r.name} ${typeLabel} ${r.type}`,
-                                };
-                            })}
-                            value={selectedNode.data.referenceId ?? null}
-                            onChange={(id) => {
-                                if (!id) {
-                                    updateNodeData(selectedNode.id, { referenceId: undefined, infoValue: '' });
-                                    return;
-                                }
-                                const resource = resources.find((r) => r.id === id);
-                                updateNodeData(selectedNode.id, {
-                                    referenceId: id,
-                                    infoValue: resource?.name || '',
-                                });
-                            }}
-                        />
-                    )}
-                  </div>
-    
-                  <div>
-                    <label className={labelClass}>{t('properties.operationQuantity')}</label>
-                    <input
-                      type="number"
-                      name="quantity"
-                      value={selectedNode.data.quantity || 1}
-                      onChange={handleChange}
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label className={labelClass}>章番号 (Chapter)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={20}
-                      value={selectedNode.data.chapter ?? 1}
-                      onChange={(e) =>
-                        updateNodeData(selectedNode.id, { chapter: Number(e.target.value) })
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                </>
-              )}
-    
-              {selectedNode.type === 'variable' && (
-                  <>
-                    <div>
-                        <label className={labelClass}>{t('properties.targetVariable')}</label>
-                        {Object.keys(gameState.variables).length === 0 ? (
-                           <div className={ERROR_CLASS}>
-                               {t('variables.noVariables') || "No variables defined"}
-                           </div>
-                        ) : (
-                            <SearchableSelect
-                                items={Object.keys(gameState.variables).map((name) => ({
-                                    id: name,
-                                    label: name,
-                                }))}
-                                value={selectedNode.data.targetVariable ?? null}
-                                onChange={(id) => handleFieldChange('targetVariable', id ?? '')}
-                            />
-                        )}
-                    </div>
-                    <div>
-                        <label className={labelClass}>{t('properties.assignmentValue')}</label>
-                        {(() => {
-                            const targetVarName = selectedNode.data.targetVariable;
-                            const variables = useScenarioStore.getState().gameState.variables;
-                            
-                            const targetVar = targetVarName ? variables[targetVarName] : (Object.keys(variables).length > 0 ? variables[Object.keys(variables)[0]] : null);
-    
-                            if (targetVar && targetVar.type === 'boolean') {
-                                return (
-                                    <select
-                                        value={selectedNode.data.variableValue || 'true'}
-                                        onChange={(e) => handleFieldChange('variableValue', e.target.value)}
-                                        className={inputClass}
-                                    >
-                                        <option value="true">True</option>
-                                        <option value="false">False</option>
-                                    </select>
-                                );
-                            }
-                            
-                            return (
-                                <>
-                                    <VariableSuggestInput
-                                        value={selectedNode.data.variableValue || ''}
-                                        onChange={(val) => handleFieldChange('variableValue', val)}
-                                        className={inputClass}
-                                        placeholder={targetVar?.type === 'number' ? "Number or ${Var}" : "Value or ${Var}"}
-                                    />
-                                    {targetVar && targetVar.type === 'number' && 
-                                     selectedNode.data.variableValue && 
-                                     isNaN(Number(selectedNode.data.variableValue)) && 
-                                     !selectedNode.data.variableValue.startsWith('${') && (
-                                        <div className="text-xs text-amber-500 mt-1">
-                                            Warning: Value should be a number or variable reference.
-                                        </div>
-                                    )}
-                                </>
-                            );
-                        })()}
-                    </div>
-                  </>
-              )}
-    
-              {selectedNode.type === 'branch' && (
-                <>
-                  <div>
-                    <label className={labelClass}>{t('properties.branchType')}</label>
-                    <select
-                      name="branchType"
-                      value={selectedNode.data.branchType || 'if_else'}
-                      onChange={handleChange}
-                      className={inputClass}
-                    >
-                      <option value="if_else">If / Else (条件分岐)</option>
-                      <option value="switch">Switch (多分岐)</option>
-                    </select>
-                  </div>
-
-                  {selectedNode.data.branchType !== 'switch' ? (
-                    <div className="space-y-3">
-                      <div>
-                        <label className={labelClass}>判定種別 (Condition Type)</label>
-                        <select
-                          value={selectedNode.data.conditionType || 'item_held'}
-                          onChange={(e) => {
-                            const newType = e.target.value;
-                            updateNodeData(selectedNode.id, {
-                              conditionType: newType,
-                              conditionValue: newType === 'item_held'
-                                ? (resources.find(r => r.type === 'Item' || r.type === 'Equipment')?.id || '')
-                                : ''
-                            });
-                          }}
-                          className={inputClass}
-                        >
-                          <option value="item_held">アイテム所持判定 (Item Check)</option>
-                          <option value="variable">変数・条件式 (Variable / Expression)</option>
-                        </select>
-                      </div>
-
-                      {selectedNode.data.conditionType === 'item_held' ? (
-                        <div>
-                          <label className={labelClass}>判定対象アイテム 【Required Item】</label>
-                          {resources.filter(r => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge').length === 0 ? (
-                            <div className={ERROR_CLASS}>アイテムが未登録です</div>
-                          ) : (
-                            <SearchableSelect
-                              items={resources
-                                .filter(r => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge')
-                                .map(r => ({
-                                  id: r.id,
-                                  label: `${r.name} (${t(`resources.types.${r.type}` as any) || r.type})`,
-                                  searchableText: `${r.name} ${r.type}`
-                                }))}
-                              value={selectedNode.data.conditionValue ?? null}
-                              onChange={(id) => updateNodeData(selectedNode.id, { conditionValue: id ?? '' })}
-                            />
-                          )}
-                          <div className="text-[11px] text-muted-foreground mt-1">
-                            所持時（True）と未所持時（False）のルートへ分岐します。
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <label className={labelClass}>{t('properties.checkTarget')}</label>
-                          <VariableSuggestInput
-                            value={selectedNode.data.conditionValue || ''}
-                            onChange={(val) => handleFieldChange('conditionValue', val)}
-                            className={inputClass}
-                            placeholder="例: hp >= 10 または 変数名"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      <label className={labelClass}>{t('properties.checkTarget')}</label>
-                      <VariableSuggestInput
-                        value={selectedNode.data.conditionValue || selectedNode.data.conditionVariable || ''}
-                        onChange={(val) => handleFieldChange('conditionValue', val)}
-                        className={inputClass}
-                        placeholder={t('properties.selectVariable')}
-                      />
-                    </div>
-                  )}
-
-                  {selectedNode.data.branchType === 'switch' && (
-                    <div className="mt-4 border-t pt-4 border-border">
-                      <label className={`block text-sm font-medium mb-2 ${labelClass}`}>Cases (Branches)</label>
-                      <div className="space-y-2">
-                        {(selectedNode.data.branches || []).map((branch: { id: string; label: string }, index: number) => (
-                          <div key={branch.id} className="flex gap-2">
-                            <div className="flex-1">
-                              <VariableSuggestInput
-                                value={branch.label}
-                                onChange={(val) => {
-                                  const newBranches = [...(selectedNode.data.branches || [])];
-                                  newBranches[index] = { ...branch, label: val };
-                                  updateNodeData(selectedNode.id, { branches: newBranches });
-                                }}
-                                className={`w-full border rounded px-2 py-1 text-sm bg-background border-input text-foreground`}
-                                placeholder="Case Value"
-                              />
-                            </div>
-                            <button 
-                              onClick={() => {
-                                const newBranches = (selectedNode.data.branches || []).filter((_: { id: string; label: string }, i: number) => i !== index);
-                                updateNodeData(selectedNode.id, { branches: newBranches });
-                              }}
-                              className="px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                        <button 
-                          onClick={() => {
-                            const newBranches = [...(selectedNode.data.branches || []), { id: `case-${Date.now()}`, label: 'New Case' }];
-                            updateNodeData(selectedNode.id, { branches: newBranches });
-                          }}
-                          className="w-full py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 text-sm"
-                        >
-                          + Add Case
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className={labelClass}>章番号 (Chapter)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={20}
-                      value={selectedNode.data.chapter ?? 1}
-                      onChange={(e) =>
-                        updateNodeData(selectedNode.id, { chapter: Number(e.target.value) })
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                </>
-              )}
-              
+              {/* Event Node */}
               {selectedNode.type === 'event' && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="checkbox"
-                      name="isStart"
-                      checked={!!selectedNode.data.isStart}
-                      onChange={(e) => updateNodeData(selectedNode.id, { isStart: e.target.checked })}
-                      className="w-4 h-4"
-                    />
-                    <label className={labelClass}>{t('properties.isStartNode')}</label>
+                  {/* Scene Progression Flags (Start & Ending) */}
+                  <div className="flex items-center gap-4 pt-1">
+                    <label className="flex items-center gap-1.5 text-xs text-foreground cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        name="isStart"
+                        checked={!!selectedNode.data.isStart}
+                        onChange={(e) => updateNodeData(selectedNode.id, { isStart: e.target.checked })}
+                        className="w-4 h-4 rounded"
+                      />
+                      <span>{t('properties.isStartNode')}</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-foreground cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        name="isEnding"
+                        checked={!!selectedNode.data.isEnding}
+                        onChange={(e) => updateNodeData(selectedNode.id, { isEnding: e.target.checked })}
+                        className="w-4 h-4 rounded"
+                      />
+                      <span>{t('properties.isEndingNode')}</span>
+                    </label>
                   </div>
 
                   {/* Chapter & Time Cost */}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className={labelClass}>章番号 (Chapter)</label>
+                      <label className={labelClass}>{t('properties.chapter')}</label>
                       <input
                         type="number"
                         min={0}
@@ -770,7 +496,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       />
                     </div>
                     <div>
-                      <label className={labelClass}>所要時間 (分)</label>
+                      <label className={labelClass}>{t('properties.timeCostMinutes')}</label>
                       <input
                         type="number"
                         min={1}
@@ -785,10 +511,10 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                     </div>
                   </div>
 
-                  {/* Location ID / Selection */}
+                  {/* Location Selection */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className={labelClass}>場所 ［Location］</label>
+                      <label className={labelClass}>{t('properties.location')}</label>
                       <button
                         type="button"
                         onClick={() => {
@@ -810,7 +536,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                         className="text-xs text-primary hover:underline"
                         title="新しい場所を作成して設定"
                       >
-                        + 場所を追加
+                        {t('properties.addLocation')}
                       </button>
                     </div>
                     {stages.filter((s) => s.type === 'Location').length > 0 ? (
@@ -842,12 +568,12 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                     )}
                   </div>
 
-                  {/* Purpose */}
+                  {/* Scene Purpose */}
                   <div>
-                    <label className={labelClass}>シーンの目的 (Purpose)</label>
+                    <label className={labelClass}>{t('properties.purpose')}</label>
                     <input
                       type="text"
-                      placeholder="例: 警備室への進入路確保"
+                      placeholder={t('properties.purposePlaceholder')}
                       value={selectedNode.data.purpose || ''}
                       onChange={(e) => updateNodeData(selectedNode.id, { purpose: e.target.value })}
                       className={inputClass}
@@ -855,11 +581,11 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                   </div>
 
                   {/* Read Aloud Text with Forbidden Terms Warning */}
-                  <div>
-                    <label className={labelClass}>PL向け読み上げ描写 (&gt; ...)</label>
+                  <div className="border-t border-border/60 pt-3">
+                    <label className={labelClass}>{t('properties.readAloudText')}</label>
                     <textarea
                       rows={3}
-                      placeholder="プレイヤーに読み上げる情景描写（※ボス、エネミー等のメタ用語は禁止）"
+                      placeholder={t('properties.readAloudPlaceholder')}
                       value={selectedNode.data.readAloudText || ''}
                       onChange={(e) => updateNodeData(selectedNode.id, { readAloudText: e.target.value })}
                       className={`${inputClass} min-h-[70px] text-xs`}
@@ -880,6 +606,18 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       }
                       return null;
                     })()}
+                  </div>
+
+                  {/* KP Master Notes / Description */}
+                  <div>
+                    <label className={labelClass}>{t('properties.kpNotes')}</label>
+                    <VariableSuggestInput
+                      multiline
+                      value={selectedNode.data.description || ''}
+                      onChange={(val) => handleFieldChange('description', val)}
+                      className={`${inputClass} min-h-[80px]`}
+                      placeholder={t('properties.kpNotesPlaceholder')}
+                    />
                   </div>
 
                   {/* Resource Check Subform (SAN check / Resource check) */}
@@ -995,20 +733,395 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                   })()}
                 </div>
               )}
-    
-              {selectedNode.type === 'jump' && (
+
+              {/* Element / Information Node */}
+              {(selectedNode.type === 'information' || selectedNode.type === 'element') && (
+                <div className="space-y-4">
+                  {/* Chapter */}
                   <div>
-                      <label className={labelClass}>{t('properties.jumpTarget')}</label>
-                      <JumpTargetCombobox
-                          value={
-                              typeof selectedNode.data.jumpTarget === 'string'
-                                  ? null
-                                  : (selectedNode.data.jumpTarget ?? null)
-                          }
-                          onChange={(target) => updateNodeData(selectedNode.id, { jumpTarget: target })}
-                          excludeNodeId={selectedNode.id}
-                      />
+                    <label className={labelClass}>{t('properties.chapter')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={selectedNode.data.chapter ?? 1}
+                      onChange={(e) =>
+                        updateNodeData(selectedNode.id, { chapter: Number(e.target.value) })
+                      }
+                      className={inputClass}
+                    />
                   </div>
+
+                  {/* Operation Type & Quantity */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelClass}>{t('properties.actionType')}</label>
+                      <select
+                        name="actionType"
+                        value={selectedNode.data.actionType || 'obtain'}
+                        onChange={handleChange}
+                        className={inputClass}
+                      >
+                        <option value="obtain">{t('properties.actionTypeObtain')}</option>
+                        <option value="consume">{t('properties.actionTypeConsume')}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>{t('properties.operationQuantity')}</label>
+                      <input
+                        type="number"
+                        name="quantity"
+                        min={1}
+                        value={selectedNode.data.quantity || 1}
+                        onChange={handleChange}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Operation Target */}
+                  <div>
+                    <label className={labelClass}>{t('properties.operationTarget')}</label>
+                    {resources.length === 0 ? (
+                       <div className={ERROR_CLASS}>
+                           {t('resources.noResources') || "Elements not defined"}
+                       </div>
+                    ) : (
+                        <SearchableSelect
+                            items={resources.map((r) => {
+                                const typeLabel = t(`resources.types.${r.type}` as any) || r.type;
+                                return {
+                                    id: r.id,
+                                    label: `${r.name} (${typeLabel})`,
+                                    searchableText: `${r.name} ${typeLabel} ${r.type}`,
+                                };
+                            })}
+                            value={selectedNode.data.referenceId ?? null}
+                            onChange={(id) => {
+                                if (!id) {
+                                    updateNodeData(selectedNode.id, { referenceId: undefined, infoValue: '' });
+                                    return;
+                                }
+                                const resource = resources.find((r) => r.id === id);
+                                updateNodeData(selectedNode.id, {
+                                    referenceId: id,
+                                    infoValue: resource?.name || '',
+                                });
+                            }}
+                        />
+                    )}
+                  </div>
+
+                  {/* Description / Notes */}
+                  <div>
+                    <label className={labelClass}>{t('properties.description')}</label>
+                    <VariableSuggestInput
+                      multiline
+                      value={selectedNode.data.description || ''}
+                      onChange={(val) => handleFieldChange('description', val)}
+                      className={`${inputClass} min-h-[80px]`}
+                      placeholder="入手時の演出やメモなど"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Branch Node */}
+              {selectedNode.type === 'branch' && (
+                <div className="space-y-4">
+                  {/* Chapter */}
+                  <div>
+                    <label className={labelClass}>{t('properties.chapter')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={selectedNode.data.chapter ?? 1}
+                      onChange={(e) =>
+                        updateNodeData(selectedNode.id, { chapter: Number(e.target.value) })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+
+                  {/* Branch Type */}
+                  <div>
+                    <label className={labelClass}>{t('properties.branchType')}</label>
+                    <select
+                      name="branchType"
+                      value={selectedNode.data.branchType || 'if_else'}
+                      onChange={handleChange}
+                      className={inputClass}
+                    >
+                      <option value="if_else">If / Else (条件分岐)</option>
+                      <option value="switch">Switch (多分岐)</option>
+                    </select>
+                  </div>
+
+                  {/* Condition Details */}
+                  {selectedNode.data.branchType !== 'switch' ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className={labelClass}>{t('properties.conditionTypeLabel')}</label>
+                        <select
+                          value={selectedNode.data.conditionType || 'item_held'}
+                          onChange={(e) => {
+                            const newType = e.target.value;
+                            updateNodeData(selectedNode.id, {
+                              conditionType: newType,
+                              conditionValue: newType === 'item_held'
+                                ? (resources.find(r => r.type === 'Item' || r.type === 'Equipment')?.id || '')
+                                : ''
+                            });
+                          }}
+                          className={inputClass}
+                        >
+                          <option value="item_held">{t('properties.itemCheck')}</option>
+                          <option value="variable">{t('properties.variableCondition')}</option>
+                        </select>
+                      </div>
+
+                      {selectedNode.data.conditionType === 'item_held' ? (
+                        <div>
+                          <label className={labelClass}>{t('properties.requiredItem')}</label>
+                          {resources.filter(r => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge').length === 0 ? (
+                            <div className={ERROR_CLASS}>アイテムが未登録です</div>
+                          ) : (
+                            <SearchableSelect
+                              items={resources
+                                .filter(r => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge')
+                                .map(r => ({
+                                  id: r.id,
+                                  label: `${r.name} (${t(`resources.types.${r.type}` as any) || r.type})`,
+                                  searchableText: `${r.name} ${r.type}`
+                                }))}
+                              value={selectedNode.data.conditionValue ?? null}
+                              onChange={(id) => updateNodeData(selectedNode.id, { conditionValue: id ?? '' })}
+                            />
+                          )}
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            {t('properties.conditionHelp')}
+                          </div>
+                        </div>
+                      ) : (
+                        <VisualConditionBuilder
+                          value={selectedNode.data.conditionValue || ''}
+                          onChange={(val) => handleFieldChange('conditionValue', val)}
+                          variables={gameState.variables}
+                          label={t('properties.checkTarget')}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <label className={labelClass}>{t('properties.checkTarget')}</label>
+                      <VariableSuggestInput
+                        value={selectedNode.data.conditionValue || selectedNode.data.conditionVariable || ''}
+                        onChange={(val) => handleFieldChange('conditionValue', val)}
+                        className={inputClass}
+                        placeholder={t('properties.selectVariable')}
+                      />
+                    </div>
+                  )}
+
+                  {selectedNode.data.branchType === 'switch' && (
+                    <div className="mt-4 border-t pt-4 border-border">
+                      <label className={`block text-sm font-medium mb-2 ${labelClass}`}>Cases (Branches)</label>
+                      <div className="space-y-2">
+                        {(selectedNode.data.branches || []).map((branch: { id: string; label: string }, index: number) => (
+                          <div key={branch.id} className="flex gap-2">
+                            <div className="flex-1">
+                              <VariableSuggestInput
+                                value={branch.label}
+                                onChange={(val) => {
+                                  const newBranches = [...(selectedNode.data.branches || [])];
+                                  newBranches[index] = { ...branch, label: val };
+                                  updateNodeData(selectedNode.id, { branches: newBranches });
+                                }}
+                                className={`w-full border rounded px-2 py-1 text-sm bg-background border-input text-foreground`}
+                                placeholder="Case Value"
+                              />
+                            </div>
+                            <button 
+                              onClick={() => {
+                                const newBranches = (selectedNode.data.branches || []).filter((_: { id: string; label: string }, i: number) => i !== index);
+                                updateNodeData(selectedNode.id, { branches: newBranches });
+                              }}
+                              className="px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <button 
+                          onClick={() => {
+                            const newBranches = [...(selectedNode.data.branches || []), { id: `case-${Date.now()}`, label: 'New Case' }];
+                            updateNodeData(selectedNode.id, { branches: newBranches });
+                          }}
+                          className="w-full py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 text-sm"
+                        >
+                          + Add Case
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Description / Notes */}
+                  <div>
+                    <label className={labelClass}>{t('properties.description')}</label>
+                    <VariableSuggestInput
+                      multiline
+                      value={selectedNode.data.description || ''}
+                      onChange={(val) => handleFieldChange('description', val)}
+                      className={`${inputClass} min-h-[80px]`}
+                      placeholder="判定や分岐に関するメモ・補足"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Variable Node */}
+              {selectedNode.type === 'variable' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelClass}>{t('properties.targetVariable')}</label>
+                    {Object.keys(gameState.variables).length === 0 ? (
+                       <div className={ERROR_CLASS}>
+                           {t('variables.noVariables') || "No variables defined"}
+                       </div>
+                    ) : (
+                        <SearchableSelect
+                            items={Object.keys(gameState.variables).map((name) => ({
+                                id: name,
+                                label: name,
+                            }))}
+                            value={selectedNode.data.targetVariable ?? null}
+                            onChange={(id) => handleFieldChange('targetVariable', id ?? '')}
+                        />
+                    )}
+                  </div>
+                  {/* Operation Type (Set / Add / Subtract) */}
+                  <div>
+                    <label className={labelClass}>{t('properties.variableOperator' as any) || '操作タイプ'}</label>
+                    <select
+                      value={selectedNode.data.variableOperator || 'set'}
+                      onChange={(e) => handleFieldChange('variableOperator', e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="set">{t('properties.variableOpSet' as any) || '代入 (＝)'}</option>
+                      {(!selectedNode.data.targetVariable || gameState.variables[selectedNode.data.targetVariable]?.type === 'number') && (
+                        <>
+                          <option value="add">{t('properties.variableOpAdd' as any) || '加算 (＋)'}</option>
+                          <option value="subtract">{t('properties.variableOpSubtract' as any) || '減算 (－)'}</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>
+                      {selectedNode.data.variableOperator === 'add'
+                        ? (t('properties.variableOpAdd' as any) || '加算値 (＋)')
+                        : selectedNode.data.variableOperator === 'subtract'
+                        ? (t('properties.variableOpSubtract' as any) || '減算値 (－)')
+                        : t('properties.assignmentValue')}
+                    </label>
+                    {(() => {
+                        const targetVarName = selectedNode.data.targetVariable;
+                        const variables = useScenarioStore.getState().gameState.variables;
+                        
+                        const targetVar = targetVarName ? variables[targetVarName] : (Object.keys(variables).length > 0 ? variables[Object.keys(variables)[0]] : null);
+
+                        if (targetVar && targetVar.type === 'boolean') {
+                            return (
+                                <select
+                                    value={selectedNode.data.variableValue || 'true'}
+                                    onChange={(e) => handleFieldChange('variableValue', e.target.value)}
+                                    className={inputClass}
+                                >
+                                    <option value="true">True</option>
+                                    <option value="false">False</option>
+                                </select>
+                            );
+                        }
+                        
+                        return (
+                            <>
+                                <VariableSuggestInput
+                                    value={selectedNode.data.variableValue || ''}
+                                    onChange={(val) => handleFieldChange('variableValue', val)}
+                                    className={inputClass}
+                                    placeholder={targetVar?.type === 'number' ? "Number or ${Var}" : "Value or ${Var}"}
+                                />
+                                {targetVar && targetVar.type === 'number' && 
+                                 selectedNode.data.variableValue && 
+                                 isNaN(Number(selectedNode.data.variableValue)) && 
+                                 !selectedNode.data.variableValue.startsWith('${') && (
+                                    <div className="text-xs text-amber-500 mt-1">
+                                        Warning: Value should be a number or variable reference.
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
+                  </div>
+                  <div>
+                    <label className={labelClass}>{t('properties.description')}</label>
+                    <VariableSuggestInput
+                      multiline
+                      value={selectedNode.data.description || ''}
+                      onChange={(val) => handleFieldChange('description', val)}
+                      className={`${inputClass} min-h-[80px]`}
+                      placeholder="変数操作に関するメモ"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Jump Node */}
+              {selectedNode.type === 'jump' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelClass}>{t('properties.jumpTarget')}</label>
+                    <JumpTargetCombobox
+                        value={
+                            typeof selectedNode.data.jumpTarget === 'string'
+                                ? null
+                                : (selectedNode.data.jumpTarget ?? null)
+                        }
+                        onChange={(target) => updateNodeData(selectedNode.id, { jumpTarget: target })}
+                        excludeNodeId={selectedNode.id}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>{t('properties.description')}</label>
+                    <VariableSuggestInput
+                      multiline
+                      value={selectedNode.data.description || ''}
+                      onChange={(val) => handleFieldChange('description', val)}
+                      className={`${inputClass} min-h-[80px]`}
+                      placeholder="ジャンプ理由やフローメモ"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* General Fallback Nodes: memo, sticky, group */}
+              {selectedNode.type !== 'event' && 
+               selectedNode.type !== 'information' && 
+               selectedNode.type !== 'element' && 
+               selectedNode.type !== 'branch' && 
+               selectedNode.type !== 'variable' && 
+               selectedNode.type !== 'jump' && (
+                <div>
+                  <label className={labelClass}>{t('properties.description')}</label>
+                  <VariableSuggestInput
+                    multiline
+                    value={selectedNode.data.description || ''}
+                    onChange={(val) => handleFieldChange('description', val)}
+                    className={`${inputClass} ${selectedNode.type === 'sticky' ? 'min-h-[400px]' : 'min-h-[80px]'}`}
+                  />
+                </div>
               )}
             </div>
           </div>

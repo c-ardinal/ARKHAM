@@ -35,15 +35,15 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
   const [activeTab, setActiveTab] = useState<TabType>('lint');
 
   // Scenario Store
-  const { tabs, activeTabId, resources, stages, setSelectedNode, systemConfig } = useScenarioStore();
+  const { tabs, activeTabId, resources, stages, setSelectedNode, systemConfig, gameState } = useScenarioStore();
   const currentTab = tabs.find((t) => t.id === activeTabId);
   const nodes = currentTab?.nodes || [];
   const edges = currentTab?.edges || [];
 
   // Build CoreGraph
   const coreGraph = useMemo(() => {
-    return buildCoreGraph(nodes, edges, resources, stages, systemConfig);
-  }, [nodes, edges, resources, stages, systemConfig]);
+    return buildCoreGraph(nodes, edges, resources, stages, systemConfig, gameState?.variables);
+  }, [nodes, edges, resources, stages, systemConfig, gameState?.variables]);
 
   // Linter & Validator Results
   const { lintIssues, validationIssues } = useMemo(() => {

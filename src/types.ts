@@ -61,6 +61,8 @@ export interface ScenarioNodeData {
   sanCheck?: import('./core/schema').SanCheckConfig; // Backward compatibility
   timeCostMinutes?: number;
   isEnding?: boolean;
+  variableOperator?: 'set' | 'add' | 'subtract';
+  variableOperations?: import('./core/schema').VariableOperation[];
 }
 
 export type {

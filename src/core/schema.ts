@@ -139,6 +139,28 @@ export const DEFAULT_SYSTEM_PRESETS: Record<SupportedSystemId, SystemConfig> = {
 
 export const DEFAULT_SYSTEM_CONFIG: SystemConfig = DEFAULT_SYSTEM_PRESETS.generic;
 
+export interface VariableDefinition {
+  name: string;
+  type: 'number' | 'boolean' | 'string';
+  initialValue: number | boolean | string;
+  description?: string;
+}
+
+export type VariableOperator = 'set' | 'add' | 'subtract';
+
+export interface VariableOperation {
+  variableName: string;
+  operator: VariableOperator;
+  value: number | boolean | string;
+}
+
+export interface MasterData {
+  items: ItemDefinition[];
+  locations: LocationDefinition[];
+  skills: SkillDefinition[];
+  variables?: VariableDefinition[];
+}
+
 export type ScenarioNodeType = 'scene' | 'room' | 'event' | 'check' | 'combat' | 'ending';
 
 export interface ScenarioNode {
@@ -163,20 +185,24 @@ export interface ScenarioNode {
   acquiredItems: string[];          // このノードで獲得する itemId
   consumedItems: string[];          // このノードで消費・消失する itemId
 
+  // 変数操作 (シミュレータ・進行用)
+  variableOperations?: VariableOperation[];
+
   // リソース変動 (シミュレータ用)
   resourceCheck?: ResourceCheckConfig;
   sanCheck?: SanCheckConfig;        // 旧形式・CoC用エイリアス
   timeCostMinutes: number;          // 想定所要時間 (分)
 }
 
-export type EdgeConditionType = 'always' | 'item_held' | 'check_success' | 'check_fail' | 'choice';
+export type EdgeConditionType = 'always' | 'item_held' | 'check_success' | 'check_fail' | 'choice' | 'variable';
 
 export interface ScenarioEdge {
   id: string;
   fromNodeId: string;
   toNodeId: string;
   conditionType: EdgeConditionType;
-  conditionValue?: string;          // 必要な itemId や判定名など
+  conditionValue?: string;          // 必要な itemId や判定名、または条件式 (例: "alarm >= 2")
+  variableCondition?: string;       // 条件式エイリアス
   label?: string;                   // フローチャート上に表示するラベル
 }
 
@@ -198,7 +224,9 @@ export type LintIssueCode =
   | 'dead_item'
   | 'isolated_node'
   | 'forbidden_read_aloud_term'
-  | 'bracket_syntax_error';
+  | 'bracket_syntax_error'
+  | 'undefined_variable'
+  | 'expression_syntax_error';
 
 export interface LintIssue {
   code: LintIssueCode;

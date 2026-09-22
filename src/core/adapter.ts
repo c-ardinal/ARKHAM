@@ -19,7 +19,11 @@ import type {
 /**
  * Converts ResourceData[] and optional StageData[] to Core MasterData
  */
-export function resourcesToMasterData(resources: ResourceData[], stages?: StageData[]): MasterData {
+export function resourcesToMasterData(
+  resources: ResourceData[] = [],
+  stages?: StageData[],
+  variablesInput?: any[]
+): MasterData {
   const items: ItemDefinition[] = [];
   const locations: LocationDefinition[] = [];
   const skills: SkillDefinition[] = [];
@@ -36,7 +40,7 @@ export function resourcesToMasterData(resources: ResourceData[], stages?: StageD
     }
   }
 
-  for (const res of resources) {
+  for (const res of resources || []) {
     if (res.type === 'Item' || res.type === 'Equipment' || res.type === 'Knowledge') {
       const resName = res.name || '';
       const resDesc = res.description || '';
@@ -89,7 +93,18 @@ export function resourcesToMasterData(resources: ResourceData[], stages?: StageD
     }
   }
 
-  return { items, locations, skills };
+  const variables: MasterData['variables'] = [];
+  if (variablesInput && Array.isArray(variablesInput)) {
+    for (const v of variablesInput) {
+      variables.push({
+        name: v.name,
+        type: v.type || 'number',
+        initialValue: v.initialValue ?? (v.type === 'boolean' ? false : v.type === 'string' ? '' : 0),
+      });
+    }
+  }
+
+  return { items, locations, skills, variables };
 }
 
 /**
@@ -128,6 +143,24 @@ export function storeNodeToCoreNode(node: StoreNode): CoreNode {
     }
   }
 
+  // Variable operations
+  const variableOperations: import('./schema').VariableOperation[] = [...(d.variableOperations || [])];
+  if (node.type === 'variable' && d.targetVariable) {
+    const rawVal = d.variableValue ?? '';
+    let parsedVal: number | boolean | string = rawVal;
+    if (rawVal === 'true') parsedVal = true;
+    else if (rawVal === 'false') parsedVal = false;
+    else if (!isNaN(Number(rawVal)) && rawVal !== '' && typeof rawVal === 'string') {
+      parsedVal = Number(rawVal);
+    }
+
+    variableOperations.push({
+      variableName: d.targetVariable,
+      operator: d.variableOperator || 'set',
+      value: parsedVal,
+    });
+  }
+
   return {
     id: node.id,
     chapter: d.chapter ?? 1,
@@ -141,6 +174,7 @@ export function storeNodeToCoreNode(node: StoreNode): CoreNode {
     requiredItems: d.requiredItems || [],
     acquiredItems,
     consumedItems,
+    variableOperations: variableOperations.length > 0 ? variableOperations : undefined,
     sanCheck: d.resourceCheck || d.sanCheck,
     resourceCheck: d.resourceCheck || d.sanCheck,
     timeCostMinutes: d.timeCostMinutes ?? 10,
@@ -169,12 +203,22 @@ export function storeEdgeToCoreEdge(edge: StoreEdge, nodeMap?: Map<string, Store
     }
   } else if (nodeMap) {
     const srcNode = nodeMap.get(edge.source);
-    if (srcNode?.type === 'branch' && srcNode.data?.conditionType === 'item_held' && srcNode.data?.conditionValue) {
-      if (edge.sourceHandle === 'true' || edge.sourceHandle === 'case_true' || !edge.sourceHandle) {
-        conditionType = 'item_held';
-        conditionValue = srcNode.data.conditionValue;
-      } else if (edge.sourceHandle === 'false' || edge.sourceHandle === 'case_false') {
-        conditionType = 'check_fail';
+    if (srcNode?.type === 'branch') {
+      if (srcNode.data?.conditionType === 'item_held' && srcNode.data?.conditionValue) {
+        if (edge.sourceHandle === 'true' || edge.sourceHandle === 'case_true' || !edge.sourceHandle) {
+          conditionType = 'item_held';
+          conditionValue = srcNode.data.conditionValue;
+        } else if (edge.sourceHandle === 'false' || edge.sourceHandle === 'case_false') {
+          conditionType = 'check_fail';
+        }
+      } else if (srcNode.data?.conditionType === 'variable' && srcNode.data?.conditionValue) {
+        if (edge.sourceHandle === 'true' || edge.sourceHandle === 'case_true' || !edge.sourceHandle) {
+          conditionType = 'variable';
+          conditionValue = srcNode.data.conditionValue;
+        } else if (edge.sourceHandle === 'false' || edge.sourceHandle === 'case_false') {
+          conditionType = 'variable';
+          conditionValue = `!(${srcNode.data.conditionValue})`;
+        }
       }
     }
   }
@@ -185,6 +229,7 @@ export function storeEdgeToCoreEdge(edge: StoreEdge, nodeMap?: Map<string, Store
     toNodeId: edge.target,
     conditionType,
     conditionValue,
+    variableCondition: conditionType === 'variable' ? conditionValue : undefined,
     label: typeof edge.label === 'string' ? edge.label : undefined,
   };
 }
@@ -199,7 +244,8 @@ export function buildCoreGraph(
   edges: StoreEdge[],
   resources: ResourceData[],
   stagesOrSystemConfig?: StageData[] | import('./schema').SystemConfig,
-  maybeSystemConfig?: import('./schema').SystemConfig
+  maybeSystemConfig?: import('./schema').SystemConfig,
+  variablesInput?: Record<string, any>
 ): CoreGraph {
   let stages: StageData[] | undefined;
   let systemConfig: import('./schema').SystemConfig | undefined;
@@ -212,6 +258,15 @@ export function buildCoreGraph(
   }
 
   const masterData = resourcesToMasterData(resources, stages);
+  if (variablesInput) {
+    masterData.variables = Object.values(variablesInput).map((v: any) => ({
+      name: v.name,
+      type: v.type || 'string',
+      initialValue: v.value !== undefined ? v.value : (v.type === 'number' ? 0 : v.type === 'boolean' ? false : ''),
+      description: v.description,
+    }));
+  }
+
   const flowNodes = nodes.filter((n) => Boolean(n.type && FLOW_NODE_TYPES.has(n.type)));
   const nodeMap = new Map(flowNodes.map((n) => [n.id, n]));
   const coreNodes = flowNodes.map(storeNodeToCoreNode);
