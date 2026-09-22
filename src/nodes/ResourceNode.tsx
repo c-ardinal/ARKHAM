@@ -93,6 +93,26 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
 
       {data.hasSticky && <StickyIndicator />}
 
+      {/* Reference Handle (Square ■ on Left: connect from Event) */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="ref-target"
+        className="!rounded-[2px] !w-3.5 !h-3.5 !bg-teal-500 dark:!bg-teal-400 border-2 border-background shadow-sm hover:scale-125 transition-transform"
+        style={{ top: '50%', transform: 'translateY(-50%)' }}
+        title="イベントからの参照を接続 (四角ピン)"
+      />
+
+      {/* Reference Handle (Square ■ on Right: connect to further references) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="ref-source"
+        className="!rounded-[2px] !w-3.5 !h-3.5 !bg-teal-500 dark:!bg-teal-400 border-2 border-background shadow-sm hover:scale-125 transition-transform"
+        style={{ top: '50%', transform: 'translateY(-50%)' }}
+        title="関連ノードへ接続 (四角ピン)"
+      />
+
       {/* Sticky Note Connection Handle */}
       <Handle 
           type="source" 

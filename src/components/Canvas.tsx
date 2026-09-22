@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
-import { Plus, Minus, Maximize, Sparkles, X, GitBranch, Flag, FileText, Flame, Package, User, MapPin } from 'lucide-react';
+import { Plus, Minus, Maximize, Sparkles, X, GitBranch, Flag, FileText, Flame, Package, User, MapPin, ChevronRight, ArrowLeft, Search } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -98,6 +98,12 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   const simulationOverlay = useScenarioStore((s) => s.simulationOverlay);
   const clearSimulationOverlay = useScenarioStore((s) => s.clearSimulationOverlay);
   const applyAutoLayout = useScenarioStore((s) => s.applyAutoLayout);
+  const characters = useScenarioStore((s) => s.characters);
+  const stages = useScenarioStore((s) => s.stages);
+  const resources = useScenarioStore((s) => s.resources);
+  const addCharacter = useScenarioStore((s) => s.addCharacter);
+  const addStage = useScenarioStore((s) => s.addStage);
+  const addResource = useScenarioStore((s) => s.addResource);
   const { 
       setEdges, 
       getNodes,
@@ -1517,7 +1523,9 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     sourceHandle: string | null;
     handleType: 'source' | 'target';
     isReference?: boolean;
+    submenu?: 'character' | 'stage' | 'resource' | null;
   } | null>(null);
+  const [referenceSearchQuery, setReferenceSearchQuery] = useState('');
 
   const isValidConnection = useCallback((connection: Connection) => {
     // Normal pins vs Reference pins:
@@ -1568,6 +1576,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
       const flowPosition = screenToFlowPosition({ x: clientX, y: clientY });
       const isRef = Boolean(connectingRef.current.handleId?.startsWith('ref-'));
+      setReferenceSearchQuery('');
       setQuickConnectMenu({
         x: clientX,
         y: clientY,
@@ -1576,11 +1585,82 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         sourceHandle: connectingRef.current.handleId,
         handleType: connectingRef.current.handleType || 'source',
         isReference: isRef,
+        submenu: null,
       });
     }
 
     connectingRef.current = null;
   }, [mode, screenToFlowPosition]);
+
+  const handleConnectReference = useCallback((type: 'character' | 'stage' | 'resource', referenceId: string) => {
+    if (!quickConnectMenu) return;
+    const { flowPosition, sourceNodeId, sourceHandle, handleType } = quickConnectMenu;
+    const newNodeId = `${type}-${Date.now()}`;
+
+    const newNode: ScenarioNode = {
+      id: newNodeId,
+      type,
+      position: flowPosition,
+      data: {
+        label: '',
+        referenceId,
+      },
+    };
+
+    addNode(newNode);
+
+    if (handleType === 'target') {
+      onConnect({
+        source: newNodeId,
+        sourceHandle: 'ref-source',
+        target: sourceNodeId,
+        targetHandle: sourceHandle || 'ref-target',
+      });
+    } else {
+      onConnect({
+        source: sourceNodeId,
+        sourceHandle: sourceHandle || 'ref-source',
+        target: newNodeId,
+        targetHandle: 'ref-target',
+      });
+    }
+
+    setQuickConnectMenu(null);
+    setReferenceSearchQuery('');
+  }, [quickConnectMenu, addNode, onConnect]);
+
+  const handleCreateAndConnectReference = useCallback((type: 'character' | 'stage' | 'resource') => {
+    if (!quickConnectMenu) return;
+
+    if (type === 'character') {
+      const newCharId = `char-${Date.now()}`;
+      addCharacter({
+        id: newCharId,
+        type: 'Person',
+        name: '新規登場人物',
+        description: '',
+      });
+      handleConnectReference('character', newCharId);
+    } else if (type === 'stage') {
+      const newStageId = `stage-${Date.now()}`;
+      addStage({
+        id: newStageId,
+        type: 'Location',
+        name: '新規舞台',
+        description: '',
+      });
+      handleConnectReference('stage', newStageId);
+    } else if (type === 'resource') {
+      const newResId = `res-${Date.now()}`;
+      addResource({
+        id: newResId,
+        type: 'Knowledge',
+        name: '新規要素',
+        description: '',
+      });
+      handleConnectReference('resource', newResId);
+    }
+  }, [quickConnectMenu, addCharacter, addStage, addResource, handleConnectReference]);
 
   const handleQuickCreate = useCallback((type: NodeType, isEnding = false) => {
     if (!quickConnectMenu) return;
@@ -1592,8 +1672,6 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     else if (type === 'branch') label = '条件分岐';
     else if (type === 'event') label = '新規イベント';
     else if (type === 'element') label = '手がかり・情報';
-    else if (type === 'character') label = '新規登場人物';
-    else if (type === 'stage') label = '新規舞台・場所';
     else if (type === 'memo') label = 'メモ・補足';
 
     const newNode: ScenarioNode = {
@@ -2021,59 +2099,279 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       {/* Quick Connect / Smart Create Menu */}
       {quickConnectMenu && (
         <div
-          className="quick-connect-menu fixed z-50 bg-popover/95 backdrop-blur-md border border-border shadow-2xl rounded-xl p-1.5 flex flex-col gap-1 w-52 animate-in fade-in zoom-in-95"
+          className={`quick-connect-menu fixed z-50 bg-popover/95 backdrop-blur-md border border-border shadow-2xl rounded-xl p-1.5 flex flex-col gap-1 ${quickConnectMenu.submenu ? 'w-64' : 'w-56'} animate-in fade-in zoom-in-95`}
           style={{
-            left: Math.min(window.innerWidth - 220, quickConnectMenu.x),
-            top: Math.min(window.innerHeight - 220, quickConnectMenu.y),
+            left: Math.min(window.innerWidth - (quickConnectMenu.submenu ? 280 : 240), quickConnectMenu.x),
+            top: Math.min(window.innerHeight - 300, quickConnectMenu.y),
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 flex items-center justify-between">
-            <span>{quickConnectMenu.isReference ? '参照補足ノードの作成' : 'クイック作成＆接続'}</span>
-            <button
-              onClick={() => setQuickConnectMenu(null)}
-              className="text-muted-foreground hover:text-foreground rounded p-0.5"
-            >
-              <X size={12} />
-            </button>
-          </div>
           {quickConnectMenu.isReference ? (
             <>
-              <button
-                type="button"
-                onClick={() => handleQuickCreate('character')}
-                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
-              >
-                <User size={14} className="text-pink-500" />
-                <span>登場人物 (キャラ)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickCreate('stage')}
-                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
-              >
-                <MapPin size={14} className="text-emerald-500" />
-                <span>舞台・場所</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickCreate('element')}
-                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
-              >
-                <Package size={14} className="text-blue-500" />
-                <span>手がかり・情報</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickCreate('memo')}
-                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
-              >
-                <FileText size={14} className="text-amber-500" />
-                <span>メモ・注記</span>
-              </button>
+              {!quickConnectMenu.submenu ? (
+                <>
+                  <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 flex items-center justify-between">
+                    <span>参照補足ノードの追加</span>
+                    <button
+                      onClick={() => setQuickConnectMenu(null)}
+                      className="text-muted-foreground hover:text-foreground rounded p-0.5"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickConnectMenu(prev => prev ? { ...prev, submenu: 'character' } : null);
+                      setReferenceSearchQuery('');
+                    }}
+                    className="flex items-center justify-between px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <User size={14} className="text-pink-500" />
+                      <span>登場人物 (キャラ)</span>
+                    </div>
+                    <ChevronRight size={14} className="text-muted-foreground" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickConnectMenu(prev => prev ? { ...prev, submenu: 'stage' } : null);
+                      setReferenceSearchQuery('');
+                    }}
+                    className="flex items-center justify-between px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <MapPin size={14} className="text-emerald-500" />
+                      <span>舞台・場所</span>
+                    </div>
+                    <ChevronRight size={14} className="text-muted-foreground" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickConnectMenu(prev => prev ? { ...prev, submenu: 'resource' } : null);
+                      setReferenceSearchQuery('');
+                    }}
+                    className="flex items-center justify-between px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Package size={14} className="text-blue-500" />
+                      <span>要素 (アイテム・情報)</span>
+                    </div>
+                    <ChevronRight size={14} className="text-muted-foreground" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCreate('memo')}
+                    className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
+                  >
+                    <FileText size={14} className="text-amber-500" />
+                    <span>メモ・注記</span>
+                  </button>
+                </>
+              ) : quickConnectMenu.submenu === 'character' ? (
+                <>
+                  <div className="text-[11px] font-semibold text-muted-foreground px-1 py-1 border-b border-border/50 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setQuickConnectMenu(prev => prev ? { ...prev, submenu: null } : null)}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-foreground rounded px-1 py-0.5"
+                    >
+                      <ArrowLeft size={12} />
+                      <span>登場人物を選択</span>
+                    </button>
+                    <button
+                      onClick={() => setQuickConnectMenu(null)}
+                      className="text-muted-foreground hover:text-foreground rounded p-0.5"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateAndConnectReference('character')}
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-primary font-semibold hover:bg-primary/10 rounded-lg transition-colors text-left"
+                  >
+                    <Plus size={14} />
+                    <span>新規登場人物を作成して接続</span>
+                  </button>
+                  {characters.length > 2 && (
+                    <div className="relative flex items-center px-1">
+                      <Search size={12} className="absolute left-3 text-muted-foreground pointer-events-none" />
+                      <input
+                        type="text"
+                        value={referenceSearchQuery}
+                        onChange={(e) => setReferenceSearchQuery(e.target.value)}
+                        placeholder="名前で検索..."
+                        className="w-full pl-6 pr-2 py-1 text-xs bg-muted/40 border border-border/60 rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                  <div className="max-h-48 overflow-y-auto space-y-0.5 pr-0.5">
+                    {characters
+                      .filter(c => !referenceSearchQuery || c.name.toLowerCase().includes(referenceSearchQuery.toLowerCase()))
+                      .map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => handleConnectReference('character', c.id)}
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2 truncate min-w-0">
+                            <User size={13} className="text-pink-500 shrink-0" />
+                            <span className="truncate font-medium">{c.name || '名称未設定'}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/60 shrink-0 ml-1.5">{c.type || 'Person'}</span>
+                        </button>
+                      ))}
+                    {characters.filter(c => !referenceSearchQuery || c.name.toLowerCase().includes(referenceSearchQuery.toLowerCase())).length === 0 && (
+                      <div className="text-[11px] text-muted-foreground py-2 text-center">
+                        {characters.length === 0 ? '登録済みの登場人物がありません' : '該当する登場人物がありません'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : quickConnectMenu.submenu === 'stage' ? (
+                <>
+                  <div className="text-[11px] font-semibold text-muted-foreground px-1 py-1 border-b border-border/50 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setQuickConnectMenu(prev => prev ? { ...prev, submenu: null } : null)}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-foreground rounded px-1 py-0.5"
+                    >
+                      <ArrowLeft size={12} />
+                      <span>舞台・場所を選択</span>
+                    </button>
+                    <button
+                      onClick={() => setQuickConnectMenu(null)}
+                      className="text-muted-foreground hover:text-foreground rounded p-0.5"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateAndConnectReference('stage')}
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-primary font-semibold hover:bg-primary/10 rounded-lg transition-colors text-left"
+                  >
+                    <Plus size={14} />
+                    <span>新規舞台を作成して接続</span>
+                  </button>
+                  {stages.length > 2 && (
+                    <div className="relative flex items-center px-1">
+                      <Search size={12} className="absolute left-3 text-muted-foreground pointer-events-none" />
+                      <input
+                        type="text"
+                        value={referenceSearchQuery}
+                        onChange={(e) => setReferenceSearchQuery(e.target.value)}
+                        placeholder="名前で検索..."
+                        className="w-full pl-6 pr-2 py-1 text-xs bg-muted/40 border border-border/60 rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                  <div className="max-h-48 overflow-y-auto space-y-0.5 pr-0.5">
+                    {stages
+                      .filter(s => !referenceSearchQuery || s.name.toLowerCase().includes(referenceSearchQuery.toLowerCase()))
+                      .map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleConnectReference('stage', s.id)}
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2 truncate min-w-0">
+                            <MapPin size={13} className="text-emerald-500 shrink-0" />
+                            <span className="truncate font-medium">{s.name || '名称未設定'}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/60 shrink-0 ml-1.5">{s.type || 'Location'}</span>
+                        </button>
+                      ))}
+                    {stages.filter(s => !referenceSearchQuery || s.name.toLowerCase().includes(referenceSearchQuery.toLowerCase())).length === 0 && (
+                      <div className="text-[11px] text-muted-foreground py-2 text-center">
+                        {stages.length === 0 ? '登録済みの舞台がありません' : '該当する舞台がありません'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-[11px] font-semibold text-muted-foreground px-1 py-1 border-b border-border/50 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setQuickConnectMenu(prev => prev ? { ...prev, submenu: null } : null)}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-foreground rounded px-1 py-0.5"
+                    >
+                      <ArrowLeft size={12} />
+                      <span>参照要素を選択</span>
+                    </button>
+                    <button
+                      onClick={() => setQuickConnectMenu(null)}
+                      className="text-muted-foreground hover:text-foreground rounded p-0.5"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateAndConnectReference('resource')}
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-primary font-semibold hover:bg-primary/10 rounded-lg transition-colors text-left"
+                  >
+                    <Plus size={14} />
+                    <span>新規要素を作成して接続</span>
+                  </button>
+                  {resources.length > 2 && (
+                    <div className="relative flex items-center px-1">
+                      <Search size={12} className="absolute left-3 text-muted-foreground pointer-events-none" />
+                      <input
+                        type="text"
+                        value={referenceSearchQuery}
+                        onChange={(e) => setReferenceSearchQuery(e.target.value)}
+                        placeholder="名前で検索..."
+                        className="w-full pl-6 pr-2 py-1 text-xs bg-muted/40 border border-border/60 rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                  <div className="max-h-48 overflow-y-auto space-y-0.5 pr-0.5">
+                    {resources
+                      .filter(r => !referenceSearchQuery || r.name.toLowerCase().includes(referenceSearchQuery.toLowerCase()))
+                      .map(r => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => handleConnectReference('resource', r.id)}
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2 truncate min-w-0">
+                            <Package size={13} className="text-blue-500 shrink-0" />
+                            <span className="truncate font-medium">{r.name || '名称未設定'}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/60 shrink-0 ml-1.5">{r.type || 'Knowledge'}</span>
+                        </button>
+                      ))}
+                    {resources.filter(r => !referenceSearchQuery || r.name.toLowerCase().includes(referenceSearchQuery.toLowerCase())).length === 0 && (
+                      <div className="text-[11px] text-muted-foreground py-2 text-center">
+                        {resources.length === 0 ? '登録済みの要素がありません' : '該当する要素がありません'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <>
+              <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 flex items-center justify-between">
+                <span>クイック作成＆接続</span>
+                <button
+                  onClick={() => setQuickConnectMenu(null)}
+                  className="text-muted-foreground hover:text-foreground rounded p-0.5"
+                >
+                  <X size={12} />
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => handleQuickCreate('event')}
