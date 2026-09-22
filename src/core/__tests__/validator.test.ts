@@ -356,4 +356,67 @@ describe('ARKHAM Graph Validator Module', () => {
     expect(dangling).toBeDefined();
     expect(dangling?.nodeId).toBe('branch_choice');
   });
+
+  it('detects multiple outgoing flow edges on event node', () => {
+    const graph: CoreGraph = {
+      masterData: { items: [], locations: [], skills: [] },
+      nodes: [
+        {
+          id: 'start',
+          chapter: 1,
+          title: '開始イベント',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '開始',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'event_a',
+          chapter: 1,
+          title: 'イベントA',
+          type: 'event',
+          locationId: 'loc_a',
+          purpose: '進行A',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'event_b',
+          chapter: 1,
+          title: 'イベントB',
+          type: 'event',
+          locationId: 'loc_b',
+          purpose: '進行B',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+      ],
+      edges: [
+        { id: 'e1', fromNodeId: 'start', toNodeId: 'event_a', conditionType: 'always' },
+        { id: 'e2', fromNodeId: 'start', toNodeId: 'event_b', conditionType: 'always' },
+      ],
+      startNodeId: 'start',
+    };
+
+    const issues = validateGraph(graph);
+    const multiOut = issues.find((i) => i.code === 'multiple_event_outgoing_edges');
+    expect(multiOut).toBeDefined();
+    expect(multiOut?.nodeId).toBe('start');
+  });
 });

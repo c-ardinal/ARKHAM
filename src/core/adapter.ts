@@ -204,50 +204,39 @@ export function storeEdgeToCoreEdge(edge: StoreEdge, nodeMap?: Map<string, Store
   } else if (nodeMap) {
     const srcNode = nodeMap.get(edge.source);
     if (srcNode?.type === 'branch') {
-      if (srcNode.data?.branchType === 'multi') {
-        const branches = srcNode.data.branches || [];
-        const matchedCase = branches.find((b: any) => b.id === edge.sourceHandle);
-        if (matchedCase) {
-          if (matchedCase.conditionType === 'item_held' && matchedCase.conditionValue) {
-            conditionType = 'item_held';
-            conditionValue = matchedCase.conditionValue;
-          } else if (matchedCase.conditionValue) {
-            conditionType = 'variable';
-            conditionValue = matchedCase.conditionValue;
-          }
-        } else if (edge.sourceHandle === 'else') {
-          const varConditions = branches
-            .filter((b: any) => (b.conditionType === 'variable' || !b.conditionType) && b.conditionValue)
-            .map((b: any) => `!(${b.conditionValue})`);
-          if (varConditions.length > 0) {
-            conditionType = 'variable';
-            conditionValue = varConditions.join(' && ');
-          } else {
-            conditionType = 'always';
-          }
+      const branches: any[] = srcNode.data?.branches || [];
+      const hasLegacy = Boolean(srcNode.data?.conditionValue);
+      const effectiveBranches = branches.length > 0
+        ? branches
+        : (hasLegacy ? [{
+            id: 'true',
+            label: 'True',
+            conditionType: srcNode.data?.conditionType || 'variable',
+            conditionValue: srcNode.data?.conditionValue,
+          }] : []);
+
+      const matchedCase = effectiveBranches.find(
+        (b) => b.id === edge.sourceHandle || (edge.sourceHandle === 'true' && (b.id === 'true' || effectiveBranches.length === 1))
+      );
+
+      if (matchedCase) {
+        conditionType = (matchedCase.conditionType as EdgeConditionType) || 'variable';
+        conditionValue = matchedCase.conditionValue || matchedCase.targetId || '';
+      } else if (edge.sourceHandle === 'else' || edge.sourceHandle === 'false') {
+        const varConditions = effectiveBranches
+          .filter((b) => (b.conditionType === 'variable' || !b.conditionType) && b.conditionValue)
+          .map((b) => `!(${b.conditionValue})`);
+        if (varConditions.length > 0) {
+          conditionType = 'variable';
+          conditionValue = varConditions.join(' && ');
+        } else {
+          conditionType = 'always';
         }
       } else if (srcNode.data?.branchType === 'switch') {
         const targetVar = srcNode.data.conditionValue || srcNode.data.conditionVariable;
-        const branches = srcNode.data.branches || [];
-        const matchedCase = branches.find((b: any) => b.id === edge.sourceHandle);
-        if (targetVar && matchedCase) {
+        if (targetVar) {
           conditionType = 'variable';
-          conditionValue = `${targetVar} == "${matchedCase.label}"`;
-        }
-      } else if (srcNode.data?.conditionType === 'item_held' && srcNode.data?.conditionValue) {
-        if (edge.sourceHandle === 'true' || edge.sourceHandle === 'case_true' || !edge.sourceHandle) {
-          conditionType = 'item_held';
-          conditionValue = srcNode.data.conditionValue;
-        } else if (edge.sourceHandle === 'false' || edge.sourceHandle === 'case_false') {
-          conditionType = 'check_fail';
-        }
-      } else if (srcNode.data?.conditionType === 'variable' && srcNode.data?.conditionValue) {
-        if (edge.sourceHandle === 'true' || edge.sourceHandle === 'case_true' || !edge.sourceHandle) {
-          conditionType = 'variable';
-          conditionValue = srcNode.data.conditionValue;
-        } else if (edge.sourceHandle === 'false' || edge.sourceHandle === 'case_false') {
-          conditionType = 'variable';
-          conditionValue = `!(${srcNode.data.conditionValue})`;
+          conditionValue = `${targetVar} == "${edge.label || ''}"`;
         }
       }
     }
@@ -297,8 +286,54 @@ export function buildCoreGraph(
     }));
   }
 
+  // Inspect reference edges and attach supplement IDs to primary flow nodes
+  const allNodeMap = new Map(nodes.map((n) => [n.id, n]));
+  const refStagesMap = new Map<string, Set<string>>();
+  const refCharsMap = new Map<string, Set<string>>();
+  const refCluesMap = new Map<string, Set<string>>();
+
+  edges.forEach((edge) => {
+    const isRef = edge.type === 'reference' || edge.sourceHandle?.startsWith('ref-') || edge.targetHandle?.startsWith('ref-');
+    if (!isRef) return;
+
+    const src = allNodeMap.get(edge.source);
+    const tgt = allNodeMap.get(edge.target);
+    if (!src || !tgt) return;
+
+    // Identify primary flow node vs supplement node
+    const isSrcFlow = FLOW_NODE_TYPES.has(src.type || '');
+    const isTgtFlow = FLOW_NODE_TYPES.has(tgt.type || '');
+    const [primary, supplement] = isSrcFlow && !isTgtFlow ? [src, tgt] : (isTgtFlow && !isSrcFlow ? [tgt, src] : [null, null]);
+
+    if (!primary || !supplement) return;
+
+    const suppRefId = supplement.data?.referenceId || supplement.id;
+    if (supplement.type === 'stage') {
+      if (!refStagesMap.has(primary.id)) refStagesMap.set(primary.id, new Set());
+      refStagesMap.get(primary.id)!.add(suppRefId);
+    } else if (supplement.type === 'character') {
+      if (!refCharsMap.has(primary.id)) refCharsMap.set(primary.id, new Set());
+      refCharsMap.get(primary.id)!.add(suppRefId);
+    } else if (supplement.type === 'resource' || supplement.type === 'element') {
+      if (!refCluesMap.has(primary.id)) refCluesMap.set(primary.id, new Set());
+      refCluesMap.get(primary.id)!.add(suppRefId);
+    }
+  });
+
   const flowNodes = nodes.filter((n) => Boolean(n.type && FLOW_NODE_TYPES.has(n.type)));
-  const coreNodes = flowNodes.map(storeNodeToCoreNode);
+  const coreNodes = flowNodes.map((n) => {
+    const core = storeNodeToCoreNode(n);
+    if (refStagesMap.has(n.id)) {
+      core.associatedStageIds = Array.from(refStagesMap.get(n.id)!);
+    }
+    if (refCharsMap.has(n.id)) {
+      core.associatedCharacterIds = Array.from(refCharsMap.get(n.id)!);
+    }
+    if (refCluesMap.has(n.id)) {
+      core.associatedClueIds = Array.from(refCluesMap.get(n.id)!);
+    }
+    return core;
+  });
   const nodeMap = new Map(flowNodes.map((n) => [n.id, n]));
   const narrativeEdges = edges.filter(
     (e) => e.type !== 'reference' && !e.sourceHandle?.startsWith('ref-') && !e.targetHandle?.startsWith('ref-')

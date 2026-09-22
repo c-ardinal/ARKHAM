@@ -1528,6 +1528,11 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   const [referenceSearchQuery, setReferenceSearchQuery] = useState('');
 
   const isValidConnection = useCallback((connection: Connection) => {
+    // Disallow connecting to self
+    if (connection.source === connection.target) {
+      return false;
+    }
+
     // Normal pins vs Reference pins:
     // Flow handles: flow-source, flow-target, or default (not starting with ref-)
     // Reference handles: ref-source, ref-target (starting with ref-)
@@ -1536,8 +1541,29 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     if (isSourceRef !== isTargetRef) {
       return false;
     }
+
+    // 1:1 constraint for Event Node outgoing flow edge:
+    // If the source node is an event node and the handle is a flow handle (not ref),
+    // prevent connecting if an outgoing flow edge already exists.
+    if (!isSourceRef && connection.source) {
+      const srcNode = nodes.find((n) => n.id === connection.source);
+      if (srcNode?.type === 'event') {
+        const hasExistingFlowOut = edges.some(
+          (e) =>
+            e.source === connection.source &&
+            !e.sourceHandle?.startsWith('ref-') &&
+            e.type !== 'reference' &&
+            // Allow reconnecting to same target
+            e.target !== connection.target
+        );
+        if (hasExistingFlowOut) {
+          return false;
+        }
+      }
+    }
+
     return true;
-  }, []);
+  }, [nodes, edges]);
 
   const handleConnect = useCallback((connection: Connection) => {
     connectSuccessRef.current = true;

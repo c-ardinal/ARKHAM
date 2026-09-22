@@ -2,11 +2,22 @@ import type { Node, Edge } from 'reactflow';
 
 export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable' | 'jump' | 'sticky' | 'character' | 'resource' | 'stage';
 
+export type ConditionCategory =
+  | 'variable'       // 変数・計算式
+  | 'item_held'      // アイテム所持
+  | 'stage_visited'  // 舞台・場所の通過
+  | 'character_met'  // 登場人物との遭遇
+  | 'clue_found'     // 手がかり・情報の発見
+  | 'check'          // 技能・ダイス判定
+  | 'always';
+
 export interface BranchCase {
   id: string;
   label: string;
-  conditionType?: 'variable' | 'item_held' | 'always';
+  conditionType?: ConditionCategory | string;
   conditionValue?: string;
+  targetId?: string;
+  operator?: string;
 }
 
 export interface ScenarioNodeData {

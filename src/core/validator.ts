@@ -306,5 +306,20 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
     }
   }
 
+  // --- 6. Event Node 1:1 Flow Edge Enforcement ---
+  for (const node of nodes) {
+    if (node.type === 'event' || node.type === 'scene') {
+      const outs = outgoingEdges.get(node.id) || [];
+      if (outs.length > 1) {
+        issues.push({
+          code: 'multiple_event_outgoing_edges',
+          severity: 'error',
+          message: `イベントノード「${node.title}」から出力フローエッジが複数接続されています（${outs.length}本）。イベントノードの出力は1本のみ許可されています。進路の枝分かれには「分岐ノード」を使用してください。`,
+          nodeId: node.id,
+        });
+      }
+    }
+  }
+
   return issues;
 }

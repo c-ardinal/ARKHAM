@@ -85,15 +85,6 @@ export function getNodeDimensions(
   }
 }
 
-const SUPPLEMENT_TYPES = new Set([
-  'character',
-  'stage',
-  'element',
-  'information',
-  'memo',
-  'resource',
-  'variable',
-]);
 
 export function isReferenceEdge(edge: ScenarioEdge): boolean {
   return (
@@ -240,19 +231,9 @@ export function getLayoutedElements(
     const tgtNode = topLevelNodeMap.get(tgtId);
     if (!srcNode || !tgtNode) continue;
 
-    let parent: ScenarioNode;
-    let sat: ScenarioNode;
-
-    if (SUPPLEMENT_TYPES.has(tgtNode.type || '') && !SUPPLEMENT_TYPES.has(srcNode.type || '')) {
-      parent = srcNode;
-      sat = tgtNode;
-    } else if (SUPPLEMENT_TYPES.has(srcNode.type || '') && !SUPPLEMENT_TYPES.has(tgtNode.type || '')) {
-      parent = tgtNode;
-      sat = srcNode;
-    } else {
-      parent = srcNode;
-      sat = tgtNode;
-    }
+    // In reference edges, the originating node is parent and referenced node is satellite
+    const parent = srcNode;
+    const sat = tgtNode;
 
     // Ensure sat is not already assigned and parent is not a satellite
     if (!satelliteParents.has(sat.id) && !satelliteParents.has(parent.id) && sat.id !== parent.id) {

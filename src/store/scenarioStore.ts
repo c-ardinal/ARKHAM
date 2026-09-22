@@ -852,9 +852,26 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           markerEnd: { type: MarkerType.ArrowClosed },
         };
 
+    // Event Node 1:1 enforcement: if source is an event node and this is a flow edge,
+    // replace any existing outgoing flow edge.
+    let targetEdges = currentEdges;
+    if (!isReference && connection.source) {
+      const srcNode = (activeTab?.nodes ?? []).find((n) => n.id === connection.source);
+      if (srcNode?.type === 'event') {
+        targetEdges = currentEdges.filter(
+          (e) =>
+            !(
+              e.source === connection.source &&
+              !e.sourceHandle?.startsWith('ref-') &&
+              e.type !== 'reference'
+            )
+        );
+      }
+    }
+
     set({
       tabs: withActiveTab(state, () => ({
-        edges: addEdge(edgeToAdd, currentEdges),
+        edges: addEdge(edgeToAdd, targetEdges),
       })),
     });
   },

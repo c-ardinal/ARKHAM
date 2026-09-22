@@ -192,9 +192,23 @@ export interface ScenarioNode {
   resourceCheck?: ResourceCheckConfig;
   sanCheck?: SanCheckConfig;        // 旧形式・CoC用エイリアス
   timeCostMinutes: number;          // 想定所要時間 (分)
+
+  // 参照ノード関連 (舞台通過・人物遭遇・手がかり発見)
+  associatedStageIds?: string[];
+  associatedCharacterIds?: string[];
+  associatedClueIds?: string[];
 }
 
-export type EdgeConditionType = 'always' | 'item_held' | 'check_success' | 'check_fail' | 'choice' | 'variable';
+export type EdgeConditionType =
+  | 'always'
+  | 'item_held'
+  | 'check_success'
+  | 'check_fail'
+  | 'choice'
+  | 'variable'
+  | 'stage_visited'
+  | 'character_met'
+  | 'clue_found';
 
 export interface ScenarioEdge {
   id: string;
@@ -203,6 +217,8 @@ export interface ScenarioEdge {
   conditionType: EdgeConditionType;
   conditionValue?: string;          // 必要な itemId や判定名、または条件式 (例: "alarm >= 2")
   variableCondition?: string;       // 条件式エイリアス
+  targetId?: string;                // 対象ID (アイテム・舞台・人物・情報)
+  operator?: string;                // '==' | '!=' | 'held' | 'not_held' など
   label?: string;                   // フローチャート上に表示するラベル
 }
 
@@ -247,7 +263,8 @@ export type ValidationIssueCode =
   | 'unreachable_ending'
   | 'unreachable_node'
   | 'dead_end'
-  | 'dangling_branch';
+  | 'dangling_branch'
+  | 'multiple_event_outgoing_edges';
 
 export interface ValidationIssue {
   code: ValidationIssueCode;

@@ -102,6 +102,10 @@ export function runSimulation(graph: CoreGraph, config: SimulationConfig = {}): 
     }));
 
     const inventory = new Set<string>();
+    const visitedNodes = new Set<string>();
+    const visitedStages = new Set<string>();
+    const metCharacters = new Set<string>();
+    const discoveredClues = new Set<string>();
     const runtimeVariables: Record<string, any> = {};
     if (graph.masterData.variables) {
       for (const v of graph.masterData.variables) {
@@ -123,6 +127,22 @@ export function runSimulation(graph: CoreGraph, config: SimulationConfig = {}): 
       if (!node) break;
 
       nodeVisitCounts[node.id] = (nodeVisitCounts[node.id] || 0) + 1;
+
+      // Track visited references
+      visitedNodes.add(node.id);
+      if (node.locationId) visitedStages.add(node.locationId);
+      if (node.associatedStageIds) {
+        for (const s of node.associatedStageIds) visitedStages.add(s);
+      }
+      if (node.associatedCharacterIds) {
+        for (const c of node.associatedCharacterIds) metCharacters.add(c);
+      }
+      if (node.associatedClueIds) {
+        for (const cl of node.associatedClueIds) {
+          discoveredClues.add(cl);
+          inventory.add(cl);
+        }
+      }
 
       totalTime += node.timeCostMinutes || 0;
 
@@ -204,6 +224,21 @@ export function runSimulation(graph: CoreGraph, config: SimulationConfig = {}): 
         if (edge.conditionType === 'item_held' && edge.conditionValue) {
           const reqs = edge.conditionValue.split(',').map((s) => s.trim());
           if (reqs.every((r) => inventory.has(r))) {
+            validEdges.push(edge);
+          }
+        } else if (edge.conditionType === 'stage_visited' && edge.conditionValue) {
+          const reqs = edge.conditionValue.split(',').map((s) => s.trim());
+          if (reqs.every((r) => visitedStages.has(r) || visitedNodes.has(r))) {
+            validEdges.push(edge);
+          }
+        } else if (edge.conditionType === 'character_met' && edge.conditionValue) {
+          const reqs = edge.conditionValue.split(',').map((s) => s.trim());
+          if (reqs.every((r) => metCharacters.has(r))) {
+            validEdges.push(edge);
+          }
+        } else if (edge.conditionType === 'clue_found' && edge.conditionValue) {
+          const reqs = edge.conditionValue.split(',').map((s) => s.trim());
+          if (reqs.every((r) => discoveredClues.has(r) || inventory.has(r))) {
             validEdges.push(edge);
           }
         } else if (edge.conditionType === 'variable' && (edge.variableCondition || edge.conditionValue)) {

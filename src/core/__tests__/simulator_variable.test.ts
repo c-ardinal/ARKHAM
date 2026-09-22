@@ -295,4 +295,84 @@ describe('ARKHAM Variable Simulation & Analysis', () => {
     expect(falseEdge?.conditionType).toBe('variable');
     expect(falseEdge?.variableCondition).toBe('!(sanity_score <= 30)');
   });
+
+  it('correctly evaluates abstract conditions (stage_visited, character_met, clue_found) in simulation', () => {
+    const graph: CoreGraph = {
+      masterData: { items: [], locations: [{ id: 'stage_basement', name: '地下室', chapter: 1 }], skills: [] },
+      nodes: [
+        {
+          id: 'start',
+          chapter: 1,
+          title: '探索開始',
+          type: 'scene',
+          locationId: 'stage_basement',
+          associatedCharacterIds: ['char_professor'],
+          associatedClueIds: ['clue_diary'],
+          purpose: '開始',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'branch_eval',
+          chapter: 1,
+          title: '到達判定',
+          type: 'check',
+          locationId: '',
+          purpose: '分岐',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'target_met',
+          chapter: 1,
+          title: '条件達成ルート',
+          type: 'ending',
+          locationId: '',
+          purpose: '成功',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 10,
+        },
+        {
+          id: 'target_unmet',
+          chapter: 1,
+          title: '条件未達ルート',
+          type: 'ending',
+          locationId: '',
+          purpose: '失敗',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 10,
+        },
+      ],
+      edges: [
+        { id: 'e1', fromNodeId: 'start', toNodeId: 'branch_eval', conditionType: 'always' },
+        { id: 'e2', fromNodeId: 'branch_eval', toNodeId: 'target_met', conditionType: 'stage_visited', conditionValue: 'stage_basement' },
+        { id: 'e3', fromNodeId: 'branch_eval', toNodeId: 'target_unmet', conditionType: 'stage_visited', conditionValue: 'non_existent_stage' },
+      ],
+      startNodeId: 'start',
+    };
+
+    const result = runSimulation(graph, { runs: 50, partySize: 1, initialSan: 50 });
+    expect(result.nodeVisitCounts?.['target_met']).toBe(50);
+    expect(result.nodeVisitCounts?.['target_unmet'] || 0).toBe(0);
+  });
 });

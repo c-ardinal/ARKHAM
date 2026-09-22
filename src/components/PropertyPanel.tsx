@@ -1033,213 +1033,313 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                     />
                   </div>
 
-                  {/* Branch Type */}
-                  <div>
-                    <label className={labelClass}>{t('properties.branchType')}</label>
-                    <select
-                      name="branchType"
-                      value={selectedNode.data.branchType || 'if_else'}
-                      onChange={handleChange}
-                      className={inputClass}
-                    >
-                      <option value="if_else">If / Else (2分岐・True/False)</option>
-                      <option value="multi">多分岐 (Multi-exit / 複数ルート)</option>
-                      <option value="switch">Switch (特定変数の値で分岐)</option>
-                    </select>
-                  </div>
-
-                  {/* Condition Details for If/Else */}
-                  {selectedNode.data.branchType === 'if_else' && (
-                    <div className="space-y-3">
+                  {/* Unified Progressive Branch Routes Manager */}
+                  <div className="space-y-4 pt-1">
+                    <div className="flex items-center justify-between pb-1 border-b border-border">
                       <div>
-                        <label className={labelClass}>{t('properties.conditionTypeLabel')}</label>
-                        <select
-                          value={selectedNode.data.conditionType || 'item_held'}
-                          onChange={(e) => {
-                            const newType = e.target.value;
-                            updateNodeData(selectedNode.id, {
-                              conditionType: newType,
-                              conditionValue: newType === 'item_held'
-                                ? (resources.find(r => r.type === 'Item' || r.type === 'Equipment')?.id || '')
-                                : ''
-                            });
-                          }}
-                          className={inputClass}
-                        >
-                          <option value="item_held">{t('properties.itemCheck')}</option>
-                          <option value="variable">{t('properties.variableCondition')}</option>
-                        </select>
-                      </div>
-
-                      {selectedNode.data.conditionType === 'item_held' ? (
-                        <div>
-                          <label className={labelClass}>{t('properties.requiredItem')}</label>
-                          {resources.filter(r => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge').length === 0 ? (
-                            <div className={ERROR_CLASS}>アイテムが未登録です</div>
-                          ) : (
-                            <SearchableSelect
-                              items={resources
-                                .filter(r => r.type === 'Item' || r.type === 'Equipment' || r.type === 'Knowledge')
-                                .map(r => ({
-                                  id: r.id,
-                                  label: `${r.name} (${t(`resources.types.${r.type}` as any) || r.type})`,
-                                  searchableText: `${r.name} ${r.type}`
-                                }))}
-                              value={selectedNode.data.conditionValue ?? null}
-                              onChange={(id) => updateNodeData(selectedNode.id, { conditionValue: id ?? '' })}
-                            />
-                          )}
-                          <div className="text-[11px] text-muted-foreground mt-1">
-                            {t('properties.conditionHelp')}
-                          </div>
-                        </div>
-                      ) : (
-                        <VisualConditionBuilder
-                          value={selectedNode.data.conditionValue || ''}
-                          onChange={(val) => handleFieldChange('conditionValue', val)}
-                          variables={gameState.variables}
-                          label={t('properties.checkTarget')}
-                        />
-                      )}
-                    </div>
-                  )}
-
-                  {/* Condition Details for Switch */}
-                  {selectedNode.data.branchType === 'switch' && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className={labelClass}>{t('properties.checkTarget')}</label>
-                        <VariableSuggestInput
-                          value={selectedNode.data.conditionValue || selectedNode.data.conditionVariable || ''}
-                          onChange={(val) => handleFieldChange('conditionValue', val)}
-                          className={inputClass}
-                          placeholder={t('properties.selectVariable')}
-                        />
-                      </div>
-
-                      <div className="mt-4 border-t pt-4 border-border">
-                        <label className={`block text-sm font-medium mb-2 ${labelClass}`}>Cases (Branches)</label>
-                        <div className="space-y-2">
-                          {(selectedNode.data.branches || []).map((branch: any, index: number) => (
-                            <div key={branch.id} className="flex gap-2">
-                              <div className="flex-1">
-                                <VariableSuggestInput
-                                  value={branch.label}
-                                  onChange={(val) => {
-                                    const newBranches = [...(selectedNode.data.branches || [])];
-                                    newBranches[index] = { ...branch, label: val };
-                                    updateNodeData(selectedNode.id, { branches: newBranches });
-                                  }}
-                                  className={`w-full border rounded px-2 py-1 text-sm bg-background border-input text-foreground`}
-                                  placeholder="Case Value"
-                                />
-                              </div>
-                              <button 
-                                onClick={() => {
-                                  const newBranches = (selectedNode.data.branches || []).filter((_: any, i: number) => i !== index);
-                                  updateNodeData(selectedNode.id, { branches: newBranches });
-                                }}
-                                className="px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                          <button 
-                            onClick={() => {
-                              const newBranches = [...(selectedNode.data.branches || []), { id: `case-${Date.now()}`, label: 'New Case' }];
-                              updateNodeData(selectedNode.id, { branches: newBranches });
-                            }}
-                            className="w-full py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 text-sm"
-                          >
-                            + Add Case
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Multi-Exit Branch Cases */}
-                  {selectedNode.data.branchType === 'multi' && (
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between">
-                        <label className={labelClass}>分岐ルート一覧 (Cases)</label>
-                        <span className="text-[10px] text-muted-foreground">上から順に判定</span>
-                      </div>
-
-                      <div className="space-y-3">
-                        {(selectedNode.data.branches || []).map((branch: any, index: number) => (
-                          <div key={branch.id} className="p-2.5 rounded border border-purple-200/80 dark:border-purple-800/80 bg-purple-50/40 dark:bg-purple-950/20 space-y-2 relative">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-purple-900 dark:text-purple-200">
-                                ルート {index + 1}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newBranches = (selectedNode.data.branches || []).filter((_: any, i: number) => i !== index);
-                                  updateNodeData(selectedNode.id, { branches: newBranches });
-                                }}
-                                className="text-muted-foreground hover:text-destructive text-xs px-1"
-                                title="このルートを削除"
-                              >
-                                ×
-                              </button>
-                            </div>
-
-                            <div>
-                              <label className="text-[10px] text-muted-foreground block mb-0.5">ルート名 (ピン表示)</label>
-                              <input
-                                type="text"
-                                value={branch.label || ''}
-                                onChange={(e) => {
-                                  const newBranches = [...(selectedNode.data.branches || [])];
-                                  newBranches[index] = { ...branch, label: e.target.value };
-                                  updateNodeData(selectedNode.id, { branches: newBranches });
-                                }}
-                                className={inputClass}
-                                placeholder={`例: ルート${index + 1} または 潜入成功`}
-                              />
-                            </div>
-
-                            <VisualConditionBuilder
-                              value={branch.conditionValue || ''}
-                              onChange={(val) => {
-                                const newBranches = [...(selectedNode.data.branches || [])];
-                                newBranches[index] = { ...branch, conditionType: 'variable', conditionValue: val };
-                                updateNodeData(selectedNode.id, { branches: newBranches });
-                              }}
-                              variables={gameState.variables}
-                              label="進出条件"
-                            />
-                          </div>
-                        ))}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newBranches = [
-                              ...(selectedNode.data.branches || []),
-                              {
-                                id: `case_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-                                label: `ルート ${(selectedNode.data.branches?.length || 0) + 1}`,
-                                conditionType: 'variable',
-                                conditionValue: '',
-                              },
-                            ];
-                            updateNodeData(selectedNode.id, { branches: newBranches });
-                          }}
-                          className="w-full py-1.5 bg-primary/15 hover:bg-primary/25 text-primary rounded font-medium text-xs flex items-center justify-center gap-1 transition-colors"
-                        >
-                          <span>+ 新しい分岐ルートを追加</span>
-                        </button>
-
-                        <p className="text-[11px] text-muted-foreground p-1.5 rounded bg-muted/30">
-                          ※どのルートの条件も満たさなかった場合は「その他 (Else)」ピンへ自動的に進みます。
+                        <label className={`${labelClass} mb-0`}>
+                          {((selectedNode.data.branches?.length ?? (selectedNode.data.conditionValue ? 1 : 0)) >= 2)
+                            ? `多分岐ルート一覧 (${selectedNode.data.branches?.length} ルート)`
+                            : '条件判定 (True / False)'}
+                        </label>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {((selectedNode.data.branches?.length ?? (selectedNode.data.conditionValue ? 1 : 0)) >= 2)
+                            ? '上から順に判定し、最初に合致したルートへ進みます'
+                            : '「+ 分岐ルートを追加」で多分岐（複数ルート）に拡張できます'}
                         </p>
                       </div>
                     </div>
-                  )}
+
+                    <div className="space-y-3">
+                      {(() => {
+                        const rawBranches = selectedNode.data.branches;
+                        const hasLegacy = Boolean(selectedNode.data.conditionValue);
+                        const branches: any[] = (rawBranches && rawBranches.length > 0)
+                          ? rawBranches
+                          : (hasLegacy ? [{
+                              id: 'case-1',
+                              label: 'True (条件成立)',
+                              conditionType: selectedNode.data.conditionType || 'variable',
+                              conditionValue: selectedNode.data.conditionValue,
+                            }] : [{
+                              id: 'case-1',
+                              label: 'True (条件成立)',
+                              conditionType: 'variable',
+                              conditionValue: '',
+                            }]);
+
+                        const isMulti = branches.length >= 2;
+
+                        return (
+                          <>
+                            {branches.map((branch: any, index: number) => {
+                              const condType = branch.conditionType || 'variable';
+
+                              return (
+                                <div
+                                  key={branch.id || index}
+                                  className="p-3 rounded-md border border-purple-200/90 dark:border-purple-800/80 bg-purple-50/40 dark:bg-purple-950/20 space-y-2.5 relative"
+                                >
+                                  {/* Route Header */}
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-purple-900 dark:text-purple-200">
+                                      {isMulti ? `ルート ${index + 1}` : '【True】成立時の進出条件'}
+                                    </span>
+                                    {isMulti && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newBranches = branches.filter((_: any, i: number) => i !== index);
+                                          updateNodeData(selectedNode.id, { branches: newBranches });
+                                        }}
+                                        className="text-muted-foreground hover:text-destructive text-xs px-1.5 py-0.5 rounded hover:bg-destructive/10 transition-colors"
+                                        title="このルートを削除"
+                                      >
+                                        ×
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {/* Route Label */}
+                                  {isMulti && (
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground block mb-1">
+                                        ルート名 (ピン表示ラベル)
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={branch.label || ''}
+                                        onChange={(e) => {
+                                          const newBranches = [...branches];
+                                          newBranches[index] = { ...branch, label: e.target.value };
+                                          updateNodeData(selectedNode.id, { branches: newBranches });
+                                        }}
+                                        className={inputClass}
+                                        placeholder={`例: ルート ${index + 1} または 潜入成功`}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Condition Category Picker */}
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground block mb-1">
+                                      判定対象 (カテゴリ)
+                                    </label>
+                                    <select
+                                      value={condType}
+                                      onChange={(e) => {
+                                        const newType = e.target.value;
+                                        const newBranches = [...branches];
+                                        newBranches[index] = {
+                                          ...branch,
+                                          conditionType: newType,
+                                          conditionValue: '',
+                                        };
+                                        updateNodeData(selectedNode.id, {
+                                          branches: newBranches,
+                                          conditionType: newType,
+                                          conditionValue: '',
+                                        });
+                                      }}
+                                      className={inputClass}
+                                    >
+                                      <option value="variable">変数・ステータス計算式 (SAN, HP, フラグ等)</option>
+                                      <option value="item_held">アイテム所持判定</option>
+                                      <option value="stage_visited">舞台・場所の通過/到達</option>
+                                      <option value="character_met">登場人物との会話/遭遇</option>
+                                      <option value="clue_found">手がかり・情報の入手</option>
+                                      <option value="check">技能・ダイス判定</option>
+                                    </select>
+                                  </div>
+
+                                  {/* Category-Specific Value Selectors */}
+                                  {condType === 'item_held' && (
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground block mb-1">
+                                        対象アイテム
+                                      </label>
+                                      {resources.filter((r) => r.type === 'Item' || r.type === 'Equipment').length === 0 ? (
+                                        <div className={ERROR_CLASS}>アイテムが未登録です</div>
+                                      ) : (
+                                        <SearchableSelect
+                                          items={resources
+                                            .filter((r) => r.type === 'Item' || r.type === 'Equipment')
+                                            .map((r) => ({
+                                              id: r.id,
+                                              label: `${r.name} (${r.type})`,
+                                              searchableText: `${r.name} ${r.type}`,
+                                            }))}
+                                          value={branch.conditionValue ?? null}
+                                          onChange={(id) => {
+                                            const newBranches = [...branches];
+                                            newBranches[index] = { ...branch, conditionValue: id ?? '' };
+                                            updateNodeData(selectedNode.id, {
+                                              branches: newBranches,
+                                              conditionValue: id ?? '',
+                                            });
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {condType === 'stage_visited' && (
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground block mb-1">
+                                        対象の舞台・場所
+                                      </label>
+                                      {stages.length === 0 ? (
+                                        <div className={ERROR_CLASS}>舞台・場所が未登録です</div>
+                                      ) : (
+                                        <SearchableSelect
+                                          items={stages.map((s) => ({
+                                            id: s.id,
+                                            label: s.name,
+                                            searchableText: `${s.name} ${s.reading || ''}`,
+                                          }))}
+                                          value={branch.conditionValue ?? null}
+                                          onChange={(id) => {
+                                            const newBranches = [...branches];
+                                            newBranches[index] = { ...branch, conditionValue: id ?? '' };
+                                            updateNodeData(selectedNode.id, {
+                                              branches: newBranches,
+                                              conditionValue: id ?? '',
+                                            });
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {condType === 'character_met' && (
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground block mb-1">
+                                        対象の登場人物
+                                      </label>
+                                      {characters.length === 0 ? (
+                                        <div className={ERROR_CLASS}>登場人物が未登録です</div>
+                                      ) : (
+                                        <SearchableSelect
+                                          items={characters.map((c) => ({
+                                            id: c.id,
+                                            label: `${c.name} (${c.type})`,
+                                            searchableText: `${c.name} ${c.reading || ''}`,
+                                          }))}
+                                          value={branch.conditionValue ?? null}
+                                          onChange={(id) => {
+                                            const newBranches = [...branches];
+                                            newBranches[index] = { ...branch, conditionValue: id ?? '' };
+                                            updateNodeData(selectedNode.id, {
+                                              branches: newBranches,
+                                              conditionValue: id ?? '',
+                                            });
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {condType === 'clue_found' && (
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground block mb-1">
+                                        対象の手がかり・情報
+                                      </label>
+                                      {resources.filter((r) => r.type === 'Knowledge' || r.type === 'Item').length === 0 ? (
+                                        <div className={ERROR_CLASS}>手がかり・情報が未登録です</div>
+                                      ) : (
+                                        <SearchableSelect
+                                          items={resources
+                                            .filter((r) => r.type === 'Knowledge' || r.type === 'Item')
+                                            .map((r) => ({
+                                              id: r.id,
+                                              label: `${r.name} (${r.type})`,
+                                              searchableText: `${r.name} ${r.type}`,
+                                            }))}
+                                          value={branch.conditionValue ?? null}
+                                          onChange={(id) => {
+                                            const newBranches = [...branches];
+                                            newBranches[index] = { ...branch, conditionValue: id ?? '' };
+                                            updateNodeData(selectedNode.id, {
+                                              branches: newBranches,
+                                              conditionValue: id ?? '',
+                                            });
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {condType === 'check' && (
+                                    <div className="space-y-2">
+                                      <div>
+                                        <label className="text-[10px] text-muted-foreground block mb-1">
+                                          判定技能名 / 判定対象
+                                        </label>
+                                        <VariableSuggestInput
+                                          value={branch.conditionValue || ''}
+                                          onChange={(val) => {
+                                            const newBranches = [...branches];
+                                            newBranches[index] = { ...branch, conditionValue: val };
+                                            updateNodeData(selectedNode.id, {
+                                              branches: newBranches,
+                                              conditionValue: val,
+                                            });
+                                          }}
+                                          className={inputClass}
+                                          placeholder="例: 目星 または アイデア"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {condType === 'variable' && (
+                                    <VisualConditionBuilder
+                                      value={branch.conditionValue || ''}
+                                      onChange={(val) => {
+                                        const newBranches = [...branches];
+                                        newBranches[index] = { ...branch, conditionValue: val };
+                                        updateNodeData(selectedNode.id, {
+                                          branches: newBranches,
+                                          conditionValue: val,
+                                        });
+                                      }}
+                                      variables={gameState.variables}
+                                      label="進出条件式"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newBranches = [
+                                  ...branches,
+                                  {
+                                    id: `case_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                                    label: `ルート ${branches.length + 1}`,
+                                    conditionType: 'variable',
+                                    conditionValue: '',
+                                  },
+                                ];
+                                updateNodeData(selectedNode.id, { branches: newBranches });
+                              }}
+                              className="w-full py-1.5 bg-primary/15 hover:bg-primary/25 text-primary rounded font-medium text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <span>+ 新しい分岐ルートを追加</span>
+                            </button>
+
+                            <p className="text-[11px] text-muted-foreground p-2 rounded bg-muted/40 border border-border/50">
+                              {isMulti
+                                ? '※どのルートの条件も満たさなかった場合は「その他 (Else)」ピンへ自動的に進みます。'
+                                : '※条件を満たさない場合は「False (その他)」ピンへ自動的に進みます。'}
+                            </p>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
 
                   {/* Description / Notes */}
                   <div>
