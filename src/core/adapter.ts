@@ -204,7 +204,37 @@ export function storeEdgeToCoreEdge(edge: StoreEdge, nodeMap?: Map<string, Store
   } else if (nodeMap) {
     const srcNode = nodeMap.get(edge.source);
     if (srcNode?.type === 'branch') {
-      if (srcNode.data?.conditionType === 'item_held' && srcNode.data?.conditionValue) {
+      if (srcNode.data?.branchType === 'multi') {
+        const branches = srcNode.data.branches || [];
+        const matchedCase = branches.find((b: any) => b.id === edge.sourceHandle);
+        if (matchedCase) {
+          if (matchedCase.conditionType === 'item_held' && matchedCase.conditionValue) {
+            conditionType = 'item_held';
+            conditionValue = matchedCase.conditionValue;
+          } else if (matchedCase.conditionValue) {
+            conditionType = 'variable';
+            conditionValue = matchedCase.conditionValue;
+          }
+        } else if (edge.sourceHandle === 'else') {
+          const varConditions = branches
+            .filter((b: any) => (b.conditionType === 'variable' || !b.conditionType) && b.conditionValue)
+            .map((b: any) => `!(${b.conditionValue})`);
+          if (varConditions.length > 0) {
+            conditionType = 'variable';
+            conditionValue = varConditions.join(' && ');
+          } else {
+            conditionType = 'always';
+          }
+        }
+      } else if (srcNode.data?.branchType === 'switch') {
+        const targetVar = srcNode.data.conditionValue || srcNode.data.conditionVariable;
+        const branches = srcNode.data.branches || [];
+        const matchedCase = branches.find((b: any) => b.id === edge.sourceHandle);
+        if (targetVar && matchedCase) {
+          conditionType = 'variable';
+          conditionValue = `${targetVar} == "${matchedCase.label}"`;
+        }
+      } else if (srcNode.data?.conditionType === 'item_held' && srcNode.data?.conditionValue) {
         if (edge.sourceHandle === 'true' || edge.sourceHandle === 'case_true' || !edge.sourceHandle) {
           conditionType = 'item_held';
           conditionValue = srcNode.data.conditionValue;

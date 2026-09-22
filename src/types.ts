@@ -2,6 +2,13 @@ import type { Node, Edge } from 'reactflow';
 
 export type NodeType = 'event' | 'element' | 'branch' | 'group' | 'memo' | 'variable' | 'jump' | 'sticky' | 'character' | 'resource' | 'stage';
 
+export interface BranchCase {
+  id: string;
+  label: string;
+  conditionType?: 'variable' | 'item_held' | 'always';
+  conditionValue?: string;
+}
+
 export interface ScenarioNodeData {
   label: string;
   description?: string;
@@ -12,8 +19,8 @@ export interface ScenarioNodeData {
   actionType?: 'obtain' | 'consume';
   
   // For Branch nodes
-  branchType?: 'if_else' | 'switch';
-  branches?: { id: string; label: string }[]; // For switch cases or if/else
+  branchType?: 'if_else' | 'switch' | 'multi';
+  branches?: BranchCase[]; // For switch cases, multi-branches or if/else
   conditionType?: 'variable' | 'item_held' | 'check' | string;
   conditionVariable?: string;
   conditionValue?: string; // Used for branch condition/variable

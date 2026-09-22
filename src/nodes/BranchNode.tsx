@@ -83,6 +83,35 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
               ))}
           </div>
       )}
+
+      {data.branchType === 'multi' && (
+          <div className="flex flex-col mt-2 gap-1.5 pt-2 border-t border-purple-200 dark:border-purple-800">
+              {(data.branches || []).map((branch, index) => (
+                  <div key={branch.id} className="relative flex items-center justify-between h-5 pl-2 pr-4 bg-purple-100/70 dark:bg-purple-800/50 rounded text-xs">
+                      <span className="text-purple-950 dark:text-purple-100 font-bold truncate max-w-[140px]">
+                        {branch.label || `Case ${index + 1}`}
+                      </span>
+                      <Handle 
+                        type="source" 
+                        position={Position.Right} 
+                        id={branch.id} 
+                        className="!bg-purple-600 dark:!bg-purple-400 !w-2.5 !h-2.5 !right-[-5px]"
+                        style={{ top: '50%', transform: 'translateY(-50%)' }}
+                      />
+                  </div>
+              ))}
+              <div className="relative flex items-center justify-between h-5 pl-2 pr-4 bg-slate-200/70 dark:bg-slate-800/50 rounded text-xs">
+                  <span className="text-muted-foreground font-semibold">その他 (Else)</span>
+                  <Handle 
+                    type="source" 
+                    position={Position.Right} 
+                    id="else" 
+                    className="!bg-slate-400 dark:!bg-slate-500 !w-2.5 !h-2.5 !right-[-5px]"
+                    style={{ top: '50%', transform: 'translateY(-50%)' }}
+                  />
+              </div>
+          </div>
+      )}
       
       <Handle 
           type="source" 

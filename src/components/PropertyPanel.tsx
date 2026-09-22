@@ -853,13 +853,14 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       onChange={handleChange}
                       className={inputClass}
                     >
-                      <option value="if_else">If / Else (条件分岐)</option>
-                      <option value="switch">Switch (多分岐)</option>
+                      <option value="if_else">If / Else (2分岐・True/False)</option>
+                      <option value="multi">多分岐 (Multi-exit / 複数ルート)</option>
+                      <option value="switch">Switch (特定変数の値で分岐)</option>
                     </select>
                   </div>
 
-                  {/* Condition Details */}
-                  {selectedNode.data.branchType !== 'switch' ? (
+                  {/* Condition Details for If/Else */}
+                  {selectedNode.data.branchType === 'if_else' && (
                     <div className="space-y-3">
                       <div>
                         <label className={labelClass}>{t('properties.conditionTypeLabel')}</label>
@@ -912,56 +913,141 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                         />
                       )}
                     </div>
-                  ) : (
-                    <div>
-                      <label className={labelClass}>{t('properties.checkTarget')}</label>
-                      <VariableSuggestInput
-                        value={selectedNode.data.conditionValue || selectedNode.data.conditionVariable || ''}
-                        onChange={(val) => handleFieldChange('conditionValue', val)}
-                        className={inputClass}
-                        placeholder={t('properties.selectVariable')}
-                      />
+                  )}
+
+                  {/* Condition Details for Switch */}
+                  {selectedNode.data.branchType === 'switch' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className={labelClass}>{t('properties.checkTarget')}</label>
+                        <VariableSuggestInput
+                          value={selectedNode.data.conditionValue || selectedNode.data.conditionVariable || ''}
+                          onChange={(val) => handleFieldChange('conditionValue', val)}
+                          className={inputClass}
+                          placeholder={t('properties.selectVariable')}
+                        />
+                      </div>
+
+                      <div className="mt-4 border-t pt-4 border-border">
+                        <label className={`block text-sm font-medium mb-2 ${labelClass}`}>Cases (Branches)</label>
+                        <div className="space-y-2">
+                          {(selectedNode.data.branches || []).map((branch: any, index: number) => (
+                            <div key={branch.id} className="flex gap-2">
+                              <div className="flex-1">
+                                <VariableSuggestInput
+                                  value={branch.label}
+                                  onChange={(val) => {
+                                    const newBranches = [...(selectedNode.data.branches || [])];
+                                    newBranches[index] = { ...branch, label: val };
+                                    updateNodeData(selectedNode.id, { branches: newBranches });
+                                  }}
+                                  className={`w-full border rounded px-2 py-1 text-sm bg-background border-input text-foreground`}
+                                  placeholder="Case Value"
+                                />
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  const newBranches = (selectedNode.data.branches || []).filter((_: any, i: number) => i !== index);
+                                  updateNodeData(selectedNode.id, { branches: newBranches });
+                                }}
+                                className="px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          <button 
+                            onClick={() => {
+                              const newBranches = [...(selectedNode.data.branches || []), { id: `case-${Date.now()}`, label: 'New Case' }];
+                              updateNodeData(selectedNode.id, { branches: newBranches });
+                            }}
+                            className="w-full py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 text-sm"
+                          >
+                            + Add Case
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  {selectedNode.data.branchType === 'switch' && (
-                    <div className="mt-4 border-t pt-4 border-border">
-                      <label className={`block text-sm font-medium mb-2 ${labelClass}`}>Cases (Branches)</label>
-                      <div className="space-y-2">
-                        {(selectedNode.data.branches || []).map((branch: { id: string; label: string }, index: number) => (
-                          <div key={branch.id} className="flex gap-2">
-                            <div className="flex-1">
-                              <VariableSuggestInput
-                                value={branch.label}
-                                onChange={(val) => {
-                                  const newBranches = [...(selectedNode.data.branches || [])];
-                                  newBranches[index] = { ...branch, label: val };
+                  {/* Multi-Exit Branch Cases */}
+                  {selectedNode.data.branchType === 'multi' && (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <label className={labelClass}>分岐ルート一覧 (Cases)</label>
+                        <span className="text-[10px] text-muted-foreground">上から順に判定</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {(selectedNode.data.branches || []).map((branch: any, index: number) => (
+                          <div key={branch.id} className="p-2.5 rounded border border-purple-200/80 dark:border-purple-800/80 bg-purple-50/40 dark:bg-purple-950/20 space-y-2 relative">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-purple-900 dark:text-purple-200">
+                                ルート {index + 1}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newBranches = (selectedNode.data.branches || []).filter((_: any, i: number) => i !== index);
                                   updateNodeData(selectedNode.id, { branches: newBranches });
                                 }}
-                                className={`w-full border rounded px-2 py-1 text-sm bg-background border-input text-foreground`}
-                                placeholder="Case Value"
+                                className="text-muted-foreground hover:text-destructive text-xs px-1"
+                                title="このルートを削除"
+                              >
+                                ×
+                              </button>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] text-muted-foreground block mb-0.5">ルート名 (ピン表示)</label>
+                              <input
+                                type="text"
+                                value={branch.label || ''}
+                                onChange={(e) => {
+                                  const newBranches = [...(selectedNode.data.branches || [])];
+                                  newBranches[index] = { ...branch, label: e.target.value };
+                                  updateNodeData(selectedNode.id, { branches: newBranches });
+                                }}
+                                className={inputClass}
+                                placeholder={`例: ルート${index + 1} または 潜入成功`}
                               />
                             </div>
-                            <button 
-                              onClick={() => {
-                                const newBranches = (selectedNode.data.branches || []).filter((_: { id: string; label: string }, i: number) => i !== index);
+
+                            <VisualConditionBuilder
+                              value={branch.conditionValue || ''}
+                              onChange={(val) => {
+                                const newBranches = [...(selectedNode.data.branches || [])];
+                                newBranches[index] = { ...branch, conditionType: 'variable', conditionValue: val };
                                 updateNodeData(selectedNode.id, { branches: newBranches });
                               }}
-                              className="px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
-                            >
-                              ×
-                            </button>
+                              variables={gameState.variables}
+                              label="進出条件"
+                            />
                           </div>
                         ))}
-                        <button 
+
+                        <button
+                          type="button"
                           onClick={() => {
-                            const newBranches = [...(selectedNode.data.branches || []), { id: `case-${Date.now()}`, label: 'New Case' }];
+                            const newBranches = [
+                              ...(selectedNode.data.branches || []),
+                              {
+                                id: `case_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                                label: `ルート ${(selectedNode.data.branches?.length || 0) + 1}`,
+                                conditionType: 'variable',
+                                conditionValue: '',
+                              },
+                            ];
                             updateNodeData(selectedNode.id, { branches: newBranches });
                           }}
-                          className="w-full py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 text-sm"
+                          className="w-full py-1.5 bg-primary/15 hover:bg-primary/25 text-primary rounded font-medium text-xs flex items-center justify-center gap-1 transition-colors"
                         >
-                          + Add Case
+                          <span>+ 新しい分岐ルートを追加</span>
                         </button>
+
+                        <p className="text-[11px] text-muted-foreground p-1.5 rounded bg-muted/30">
+                          ※どのルートの条件も満たさなかった場合は「その他 (Else)」ピンへ自動的に進みます。
+                        </p>
                       </div>
                     </div>
                   )}
