@@ -48,14 +48,14 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           <div className="rounded-full p-2 mr-2 bg-blue-100 text-blue-600 dark:bg-blue-800 dark:text-blue-300 shrink-0">
             {getIcon()}
           </div>
-          <div className="text-base font-bold flex items-center gap-1 text-blue-900 dark:text-blue-100">
+          <div className="text-base font-bold flex items-center gap-1 text-blue-900 dark:text-blue-100 break-words">
               {substituteVariables(data.infoValue || 'None', variables)}
           </div>
         </div>
 
         {description && (
             <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
-                <div className="text-sm opacity-80 whitespace-pre-wrap text-blue-900 dark:text-blue-100">
+                <div className="text-sm opacity-80 whitespace-pre-wrap break-words text-blue-900 dark:text-blue-100">
                     {substituteVariables(data.description || '', variables)}
                 </div>
             </div>
@@ -67,7 +67,7 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
                     ? 'bg-red-100 text-red-950 dark:bg-red-900 dark:text-red-50' 
                     : 'bg-green-100 text-green-950 dark:bg-green-900 dark:text-green-50'
             }`} title={data.infoValue}>
-              <span className="truncate max-w-[100px]">
+              <span className="break-words max-w-[240px]">
                   {substituteVariables(data.infoValue || 'None', variables)}
               </span>
               <span className="font-bold ml-1 shrink-0 opacity-80">

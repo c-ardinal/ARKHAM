@@ -28,7 +28,7 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   );
 
   return (
-    <div className={`relative px-4 py-2 shadow-sm hover:shadow-md rounded-md border-2 min-w-[150px] w-max transition-shadow duration-200 ${
+    <div className={`relative px-4 py-2 shadow-sm hover:shadow-md rounded-md border-2 min-w-[150px] max-w-[420px] w-max transition-shadow duration-200 ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
     } border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20`}>
       {data.hasSticky && <StickyIndicator />}
@@ -60,43 +60,43 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
                 第{data.chapter}章
               </span>
             )}
-            <div className="text-lg font-bold text-orange-900 dark:text-orange-100">{label}</div>
+            <div className="text-lg font-bold text-orange-900 dark:text-orange-100 break-words">{label}</div>
           </div>
         </div>
 
         {/* Encapsulated Event Badges */}
         {hasBadges && (
-          <div className="flex flex-wrap items-center gap-1 mt-1.5 pt-1.5 border-t border-orange-200/60 dark:border-orange-800/60 max-w-[280px]">
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pt-1.5 border-t border-orange-200/60 dark:border-orange-800/60 max-w-full">
             {typeof data.timeCostMinutes === 'number' && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 border border-orange-200/60 dark:border-orange-800/60 font-medium">
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 border border-orange-200/60 dark:border-orange-800/60 font-medium shrink-0">
                 <Clock size={10} className="shrink-0" />
                 <span>{data.timeCostMinutes}分</span>
               </span>
             )}
 
             {data.requiredItems && data.requiredItems.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/80 font-medium truncate max-w-[140px]" title={data.requiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/80 font-medium max-w-[280px] break-words" title={data.requiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
                 <KeyRound size={10} className="shrink-0" />
                 <span>要: {data.requiredItems.map((id) => itemMap.get(id) || id).join(', ')}</span>
               </span>
             )}
 
             {data.acquiredItems && data.acquiredItems.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/80 font-medium truncate max-w-[140px]" title={data.acquiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/80 font-medium max-w-[280px] break-words" title={data.acquiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
                 <Gift size={10} className="shrink-0" />
                 <span>獲: {data.acquiredItems.map((id) => itemMap.get(id) || id).join(', ')}</span>
               </span>
             )}
 
             {data.variableOperations && data.variableOperations.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 border border-indigo-200/80 dark:border-indigo-800/80 font-medium truncate max-w-[140px]" title={data.variableOperations.map((op) => `${op.variableName} ${op.operator === 'add' ? '+=' : op.operator === 'subtract' ? '-=' : '='} ${op.value}`).join('\n')}>
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 border border-indigo-200/80 dark:border-indigo-800/80 font-medium max-w-[280px] break-words" title={data.variableOperations.map((op) => `${op.variableName} ${op.operator === 'add' ? '+=' : op.operator === 'subtract' ? '-=' : '='} ${op.value}`).join('\n')}>
                 <Zap size={10} className="shrink-0" />
                 <span>{data.variableOperations.map((op) => `${op.variableName} ${op.operator === 'add' ? '+' : op.operator === 'subtract' ? '-' : '='}${op.value}`).join(', ')}</span>
               </span>
             )}
 
             {(data.resourceCheck || data.sanCheck) && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 border border-purple-200/80 dark:border-purple-800/80 font-medium">
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 border border-purple-200/80 dark:border-purple-800/80 font-medium max-w-[280px] break-words">
                 <Dices size={10} className="shrink-0" />
                 <span>{(data.resourceCheck || data.sanCheck)?.trigger || '判定あり'}</span>
               </span>
@@ -106,7 +106,7 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
         
         {description && (
             <div className="mt-2 pt-2 border-t border-orange-200 dark:border-orange-800">
-                <div className="text-sm opacity-80 text-orange-800 dark:text-orange-200/70 whitespace-pre-wrap">
+                <div className="text-sm opacity-80 text-orange-800 dark:text-orange-200/70 whitespace-pre-wrap break-words">
                     {description}
                 </div>
             </div>

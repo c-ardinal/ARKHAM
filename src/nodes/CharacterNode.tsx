@@ -50,7 +50,7 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
             {character.reading && (
                <div className="text-xs text-muted-foreground leading-none mb-0.5">{character.reading}</div>
             )}
-            <div className="text-sm font-bold truncate">
+            <div className="text-sm font-bold break-words">
                 {character.name || '(No Name)'}
             </div>
         </div>

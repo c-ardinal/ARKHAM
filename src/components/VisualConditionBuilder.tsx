@@ -403,7 +403,7 @@ export const VisualConditionBuilder: React.FC<VisualConditionBuilderProps> = ({
               {value && (
                 <div className="pt-1 flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>生成された条件式:</span>
-                  <code className="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono font-medium max-w-[200px] truncate" title={value}>
+                  <code className="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono font-medium max-w-[340px] break-all" title={value}>
                     {value}
                   </code>
                 </div>

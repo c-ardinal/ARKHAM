@@ -23,7 +23,7 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
   const isMulti = effectiveBranches.length >= 2;
 
   return (
-    <div className={`relative px-4 py-2.5 shadow-sm hover:shadow-md rounded-md border-2 min-w-[180px] w-max transition-shadow duration-200 ${
+    <div className={`relative px-4 py-2.5 shadow-sm hover:shadow-md rounded-md border-2 min-w-[180px] max-w-[420px] w-max transition-shadow duration-200 ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
     } border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/40`}>
 
@@ -41,21 +41,21 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
               第{data.chapter}章
             </span>
           )}
-          <div className="text-base font-bold text-purple-900 dark:text-purple-100">
+          <div className="text-base font-bold text-purple-900 dark:text-purple-100 break-words">
             {label}
           </div>
         </div>
 
         {description && (
           <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-800">
-            <div className="text-sm opacity-80 text-purple-900 dark:text-purple-300/70 whitespace-pre-wrap">
+            <div className="text-sm opacity-80 text-purple-900 dark:text-purple-300/70 whitespace-pre-wrap break-words">
               {description}
             </div>
           </div>
         )}
 
         <div className="mt-2 pt-1.5 border-t border-purple-200 dark:border-purple-800 text-center">
-          <span className="text-[11px] text-purple-900/80 dark:text-purple-200/80 bg-purple-200/50 dark:bg-purple-800/50 rounded px-2 py-0.5 font-medium">
+          <span className="text-[11px] text-purple-900/80 dark:text-purple-200/80 bg-purple-200/50 dark:bg-purple-800/50 rounded px-2 py-0.5 font-medium break-words inline-block max-w-full">
             {isMulti 
               ? `条件分岐 (${effectiveBranches.length} ルート)` 
               : (effectiveBranches[0]?.conditionValue ? `条件: ${effectiveBranches[0].conditionValue}` : (conditionValue ? `条件: ${conditionValue}` : '条件分岐'))}
@@ -66,8 +66,8 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
       {/* When 1 route (or default): Progressive True / False Bottom Pin layout */}
       {!isMulti && (
         <div className="flex justify-between items-center mt-3 pt-2 border-t border-purple-200/60 dark:border-purple-800/60 gap-6">
-          <div className="relative flex flex-col items-center">
-            <span className="text-xs text-green-700 dark:text-green-400 font-bold mb-1">
+          <div className="relative flex flex-col items-center max-w-[220px] text-center">
+            <span className="text-xs text-green-700 dark:text-green-400 font-bold mb-1 break-words">
               {effectiveBranches[0]?.label ? effectiveBranches[0].label : 'True (一致)'}
             </span>
             <Handle 
@@ -87,8 +87,8 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
             )}
           </div>
 
-          <div className="relative flex flex-col items-center">
-            <span className="text-xs text-red-700 dark:text-red-400 font-bold mb-1">
+          <div className="relative flex flex-col items-center max-w-[220px] text-center">
+            <span className="text-xs text-red-700 dark:text-red-400 font-bold mb-1 break-words">
               False (不一致 / その他)
             </span>
             <Handle 
@@ -112,8 +112,8 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
       {isMulti && (
         <div className="flex flex-col mt-2 gap-1.5 pt-2 border-t border-purple-200 dark:border-purple-800">
           {effectiveBranches.map((branch, index) => (
-            <div key={branch.id} className="relative flex items-center justify-between h-6 pl-2 pr-5 bg-purple-100/70 dark:bg-purple-800/50 rounded text-xs gap-2">
-              <span className="text-purple-950 dark:text-purple-100 font-bold truncate max-w-[150px]" title={branch.label}>
+            <div key={branch.id} className="relative flex items-center justify-between min-h-[26px] py-1 pl-2.5 pr-6 bg-purple-100/70 dark:bg-purple-800/50 rounded text-xs gap-3">
+              <span className="text-purple-950 dark:text-purple-100 font-bold break-words leading-tight max-w-[340px]" title={branch.label}>
                 {branch.label || `ルート ${index + 1}`}
               </span>
               <Handle 
@@ -125,7 +125,7 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
               />
             </div>
           ))}
-          <div className="relative flex items-center justify-between h-6 pl-2 pr-5 bg-slate-200/70 dark:bg-slate-800/50 rounded text-xs">
+          <div className="relative flex items-center justify-between min-h-[26px] py-1 pl-2.5 pr-6 bg-slate-200/70 dark:bg-slate-800/50 rounded text-xs gap-3">
             <span className="text-muted-foreground font-semibold">その他 (Else)</span>
             <Handle 
               type="source" 
@@ -139,7 +139,7 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
               type="source" 
               position={Position.Right} 
               id="false" 
-              className="!opacity-0 !pointer-events-none !w-0 !h-0 !right-[-5px]"
+              className="!opacity-0 !pointer-events-none" 
               style={{ top: '50%', transform: 'translateY(-50%)' }}
             />
           </div>

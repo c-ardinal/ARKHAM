@@ -29,12 +29,11 @@ const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
     (Object.keys(variables).length > 0 ? Object.keys(variables)[0] : 'None');
 
   return (
-    <div className={`px-4 py-2 shadow-sm rounded-md border-2 min-w-[150px] w-max relative transition-shadow duration-200
+    <div className={`px-4 py-2 shadow-sm rounded-md border-2 min-w-[160px] max-w-[380px] w-max relative transition-shadow duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       border-red-200 dark:border-red-800
       bg-red-50 dark:bg-red-900/40 text-red-900 dark:text-red-100
       hover:shadow-md
-      ${data.revealed ? '' : ''}
     `}>
 
       {data.hasSticky && <StickyIndicator />}
@@ -46,25 +45,25 @@ const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
           <div className="rounded-full p-2 mr-2 bg-red-100 text-red-600 dark:bg-red-800 dark:text-red-300 shrink-0">
             <Variable size={16} />
           </div>
-          <div className="text-base font-bold text-red-900 dark:text-red-100">
+          <div className="text-base font-bold text-red-900 dark:text-red-100 break-words">
               {displayVariable}
           </div>
         </div>
 
         {description && (
             <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
-                <div className="text-sm opacity-80 whitespace-pre-wrap text-red-900 dark:text-red-100">
+                <div className="text-sm opacity-80 whitespace-pre-wrap break-words text-red-900 dark:text-red-100">
                     {substituteVariables(data.description || '', variables)}
                 </div>
             </div>
         )}
 
         <div className="mt-2 pt-2 border-t flex items-center justify-between gap-2 border-red-200 dark:border-red-800">
-           <div className="text-sm font-mono bg-black/10 dark:bg-black/30 px-1 rounded truncate max-w-[80px]" title={displayVariable}>
+           <div className="text-sm font-mono bg-black/10 dark:bg-black/30 px-1.5 py-0.5 rounded break-all max-w-[160px]" title={displayVariable}>
                {displayVariable}
            </div>
-           <ArrowLeft size={12} className="opacity-50" />
-           <div className="text-sm font-mono bg-black/10 dark:bg-black/30 px-1 rounded truncate max-w-[80px]" title={data.variableValue}>
+           <ArrowLeft size={12} className="opacity-50 shrink-0" />
+           <div className="text-sm font-mono bg-black/10 dark:bg-black/30 px-1.5 py-0.5 rounded break-all max-w-[160px]" title={data.variableValue}>
                {substituteVariables(data.variableValue || 'Value', variables)}
            </div>
         </div>

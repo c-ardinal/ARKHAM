@@ -66,7 +66,7 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
             {resource.reading && (
                <div className="text-xs text-muted-foreground leading-none mb-0.5">{resource.reading}</div>
             )}
-            <div className="text-sm font-bold truncate">
+            <div className="text-sm font-bold break-words">
                 {resource.name || '(No Name)'}
             </div>
         </div>
