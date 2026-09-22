@@ -1,9 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings2, Check, RefreshCw } from 'lucide-react';
+import { X, Settings2, Check, RefreshCw, Skull, Sparkles, Flame, Shield, Settings } from 'lucide-react';
 import type { SystemConfig } from '../types';
 import { DEFAULT_SYSTEM_PRESETS } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { toast } from './common/toast';
+
+function getSystemPresetIcon(id: string, size = 15) {
+  switch (id) {
+    case 'coc':
+      return <Skull size={size} className="text-red-500 shrink-0" />;
+    case 'emoklore':
+      return <Sparkles size={size} className="text-purple-500 shrink-0" />;
+    case 'insane':
+      return <Flame size={size} className="text-amber-500 shrink-0" />;
+    case 'generic':
+      return <Shield size={size} className="text-blue-500 shrink-0" />;
+    default:
+      return <Settings size={size} className="text-muted-foreground shrink-0" />;
+  }
+}
 
 interface SystemConfigModalProps {
   isOpen: boolean;
@@ -100,7 +115,7 @@ export const SystemConfigModal: React.FC<SystemConfigModalProps> = ({ isOpen, on
                     }`}
                   >
                     <div className="flex items-center gap-1.5 truncate">
-                      <span>{preset.icon}</span>
+                      {getSystemPresetIcon(preset.id)}
                       <span className="truncate">{preset.name.split(' ')[0]}</span>
                     </div>
                     {isActive && <Check size={14} className="shrink-0 text-primary" />}

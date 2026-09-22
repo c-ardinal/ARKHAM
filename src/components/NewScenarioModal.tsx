@@ -1,9 +1,24 @@
 import React, { useState } from 'react';
-import { X, Sparkles, AlertCircle, HelpCircle } from 'lucide-react';
+import { X, Sparkles, AlertCircle, HelpCircle, Skull, Flame, Shield, Settings } from 'lucide-react';
 import type { SystemConfig, SupportedSystemId } from '../types';
 import { DEFAULT_SYSTEM_PRESETS } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { toast } from './common/toast';
+
+function getSystemPresetIcon(id: string, size = 18) {
+  switch (id) {
+    case 'coc':
+      return <Skull size={size} className="text-red-500 shrink-0" />;
+    case 'emoklore':
+      return <Sparkles size={size} className="text-purple-500 shrink-0" />;
+    case 'insane':
+      return <Flame size={size} className="text-amber-500 shrink-0" />;
+    case 'generic':
+      return <Shield size={size} className="text-blue-500 shrink-0" />;
+    default:
+      return <Settings size={size} className="text-muted-foreground shrink-0" />;
+  }
+}
 
 interface NewScenarioModalProps {
   isOpen: boolean;
@@ -110,7 +125,7 @@ export const NewScenarioModal: React.FC<NewScenarioModalProps> = ({ isOpen, onCl
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xl shrink-0">{preset.icon}</span>
+                        {getSystemPresetIcon(preset.id, 20)}
                         <div className="font-semibold text-sm text-foreground">{preset.name}</div>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
@@ -132,7 +147,7 @@ export const NewScenarioModal: React.FC<NewScenarioModalProps> = ({ isOpen, onCl
           {selectedSystemId === 'custom' && (
             <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3 animate-fade-in">
               <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <span>⚙️</span>
+                <Settings size={14} className="text-muted-foreground shrink-0" />
                 <span>カスタム用語・リソース設定</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

@@ -13,6 +13,7 @@ import {
   Activity,
   Sliders,
   ExternalLink,
+  Flame,
 } from 'lucide-react';
 import { useScenarioStore } from '../store/scenarioStore';
 import { buildCoreGraph } from '../core/adapter';
@@ -438,7 +439,7 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
                   {/* Heatmap Overlay Action Banner */}
                   <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                     <div className="flex items-center gap-2.5 text-xs text-emerald-950 dark:text-emerald-200">
-                      <span className="text-xl">🔥</span>
+                      <Flame size={20} className="text-amber-500 shrink-0" />
                       <div>
                         <div className="font-bold text-sm">キャンバス・ヒートマップ重畳表示</div>
                         <div className="text-[11px] opacity-85">エッジ通過率・ボトルネック・ロスト集中度をフローチャート上にカラー表示します。</div>

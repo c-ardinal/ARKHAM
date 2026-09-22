@@ -139,7 +139,7 @@ export function exportToScenarioMarkdown(graph: CoreGraph): string {
       if (node.investigationPoints && node.investigationPoints.length > 0) {
         for (const ip of node.investigationPoints) {
           const pointName = ip.name.startsWith('《') ? ip.name : `《${ip.name}》`;
-          outputLines.push(`##### 🔍 ${pointName}`);
+          outputLines.push(`##### 【調査】${pointName}`);
 
           if (ip.checks && ip.checks.length > 0) {
             for (const chk of ip.checks) {

@@ -370,7 +370,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   setSimulationOverlay: (overlay) => set({ simulationOverlay: overlay }),
   clearSimulationOverlay: () => set({ simulationOverlay: { active: false, result: null } }),
 
-  applyAutoLayout: (direction = 'LR') => {
+  applyAutoLayout: (direction = 'TB') => {
     get().pushHistory();
     const state = get();
     const activeTab = getActiveTabFrom(state);

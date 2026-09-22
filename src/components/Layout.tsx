@@ -18,7 +18,7 @@ import { useScenarioStore } from '../store/scenarioStore';
 import { useDebugStore } from '../store/debugStore';
 import { validateScenarioData } from '../utils/scenarioValidator';
 import { countJumpReferencesToTab } from '../utils/jumpReferences';
-import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Activity } from 'lucide-react';
+import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Activity, Dices } from 'lucide-react';
 
 import { useTranslation } from '../hooks/useTranslation';
 import { TabBar } from './TabBar';
@@ -833,7 +833,7 @@ const menuActions = {
                 title={`TRPGシステム設定: ${systemConfig?.name || '未設定'}`}
                 aria-label="TRPGシステム設定"
             >
-                <span className="text-sm">{systemConfig?.icon || '🎲'}</span>
+                <Dices size={16} className="text-primary shrink-0" />
                 <span className="hidden md:inline font-semibold max-w-[130px] truncate">{systemConfig?.name ? systemConfig.name.split(' ')[0] : 'TRPG'}</span>
             </button>
 
@@ -942,7 +942,7 @@ const menuActions = {
           t('tab.deleteConfirmBodyNodes').replace('{n}', String(tab.nodes.length)),
         ];
         if (jumpRefs > 0) {
-          messageParts.push(`⚠ ${t('tab.deleteConfirmBodyJumps').replace('{n}', String(jumpRefs))}`);
+          messageParts.push(t('tab.deleteConfirmBodyJumps').replace('{n}', String(jumpRefs)));
         }
         const message = messageParts.join('\n');
         return (

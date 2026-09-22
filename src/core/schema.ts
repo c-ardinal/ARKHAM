@@ -84,7 +84,7 @@ export const DEFAULT_SYSTEM_PRESETS: Record<SupportedSystemId, SystemConfig> = {
     failLossLabel: '失敗時減少',
     crisisLabel: '一時的狂気',
     defaultInitialResource: 50,
-    icon: '🐙',
+    icon: '',
     description: '1D100ロール、正気度(SAN)喪失、一時的狂気、不定の狂気',
   },
   emoklore: {
@@ -96,7 +96,7 @@ export const DEFAULT_SYSTEM_PRESETS: Record<SupportedSystemId, SystemConfig> = {
     failLossLabel: '失敗時消耗',
     crisisLabel: '共鳴崩壊',
     defaultInitialResource: 15,
-    icon: '🔮',
+    icon: '',
     description: '共鳴感情、精神力(MP)消耗、共鳴変異・崩壊',
   },
   insane: {
@@ -108,7 +108,7 @@ export const DEFAULT_SYSTEM_PRESETS: Record<SupportedSystemId, SystemConfig> = {
     failLossLabel: '失敗時減少',
     crisisLabel: '狂気顕現 / 錯乱',
     defaultInitialResource: 6,
-    icon: '🕯️',
+    icon: '',
     description: '恐怖判定、狂気カード、秘密・居所の調査',
   },
   generic: {
@@ -120,7 +120,7 @@ export const DEFAULT_SYSTEM_PRESETS: Record<SupportedSystemId, SystemConfig> = {
     failLossLabel: '失敗時減少',
     crisisLabel: 'リソース枯渇 / 行動不能',
     defaultInitialResource: 50,
-    icon: '⚔️',
+    icon: '',
     description: 'HP/MP等のリソース消費、トラップ・ハザード判定、精神セーヴ',
   },
   custom: {
@@ -132,7 +132,7 @@ export const DEFAULT_SYSTEM_PRESETS: Record<SupportedSystemId, SystemConfig> = {
     failLossLabel: '失敗時減少',
     crisisLabel: '限界状態',
     defaultInitialResource: 50,
-    icon: '⚙️',
+    icon: '',
     description: '独自の用語体系・リソース名を自由にカスタマイズ',
   },
 };

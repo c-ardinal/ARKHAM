@@ -7,7 +7,7 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { useTranslation } from '../hooks/useTranslation';
 
-import { Flag, Star } from 'lucide-react';
+import { Flag, Star, Clock, KeyRound, Gift, Zap, Dices } from 'lucide-react';
 
 const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
@@ -57,36 +57,41 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           </div>
         </div>
 
-        {/* Encapsulated Scene Badges */}
+        {/* Encapsulated Event Badges */}
         {hasBadges && (
           <div className="flex flex-wrap items-center gap-1 mt-1.5 pt-1.5 border-t border-orange-200/60 dark:border-orange-800/60 max-w-[280px]">
             {typeof data.timeCostMinutes === 'number' && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 border border-orange-200/60 dark:border-orange-800/60 font-medium">
-                ⏱ {data.timeCostMinutes}分
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 border border-orange-200/60 dark:border-orange-800/60 font-medium">
+                <Clock size={10} className="shrink-0" />
+                <span>{data.timeCostMinutes}分</span>
               </span>
             )}
 
             {data.requiredItems && data.requiredItems.length > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/80 font-medium truncate max-w-[140px]" title={data.requiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
-                🔑 要: {data.requiredItems.map((id) => itemMap.get(id) || id).join(', ')}
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/80 font-medium truncate max-w-[140px]" title={data.requiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
+                <KeyRound size={10} className="shrink-0" />
+                <span>要: {data.requiredItems.map((id) => itemMap.get(id) || id).join(', ')}</span>
               </span>
             )}
 
             {data.acquiredItems && data.acquiredItems.length > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/80 font-medium truncate max-w-[140px]" title={data.acquiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
-                🎁 獲: {data.acquiredItems.map((id) => itemMap.get(id) || id).join(', ')}
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/80 font-medium truncate max-w-[140px]" title={data.acquiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
+                <Gift size={10} className="shrink-0" />
+                <span>獲: {data.acquiredItems.map((id) => itemMap.get(id) || id).join(', ')}</span>
               </span>
             )}
 
             {data.variableOperations && data.variableOperations.length > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 border border-indigo-200/80 dark:border-indigo-800/80 font-medium truncate max-w-[140px]" title={data.variableOperations.map((op) => `${op.variableName} ${op.operator === 'add' ? '+=' : op.operator === 'subtract' ? '-=' : '='} ${op.value}`).join('\n')}>
-                ⚡ {data.variableOperations.map((op) => `${op.variableName} ${op.operator === 'add' ? '+' : op.operator === 'subtract' ? '-' : '='}${op.value}`).join(', ')}
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 border border-indigo-200/80 dark:border-indigo-800/80 font-medium truncate max-w-[140px]" title={data.variableOperations.map((op) => `${op.variableName} ${op.operator === 'add' ? '+=' : op.operator === 'subtract' ? '-=' : '='} ${op.value}`).join('\n')}>
+                <Zap size={10} className="shrink-0" />
+                <span>{data.variableOperations.map((op) => `${op.variableName} ${op.operator === 'add' ? '+' : op.operator === 'subtract' ? '-' : '='}${op.value}`).join(', ')}</span>
               </span>
             )}
 
             {(data.resourceCheck || data.sanCheck) && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 border border-purple-200/80 dark:border-purple-800/80 font-medium">
-                🎲 {(data.resourceCheck || data.sanCheck)?.trigger || '判定あり'}
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 border border-purple-200/80 dark:border-purple-800/80 font-medium">
+                <Dices size={10} className="shrink-0" />
+                <span>{(data.resourceCheck || data.sanCheck)?.trigger || '判定あり'}</span>
               </span>
             )}
           </div>

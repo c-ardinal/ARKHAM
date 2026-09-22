@@ -3,7 +3,7 @@ import { getLayoutedElements } from '../autoLayout';
 import type { ScenarioNode, ScenarioEdge } from '../../types';
 
 describe('autoLayout', () => {
-  it('arranges sequential nodes from left to right (LR)', () => {
+  it('arranges sequential nodes from top to bottom (TB)', () => {
     const nodes: ScenarioNode[] = [
       { id: 'node-1', type: 'event', position: { x: 500, y: 500 }, data: { label: 'Node 1' } },
       { id: 'node-2', type: 'event', position: { x: 100, y: 100 }, data: { label: 'Node 2' } },
@@ -15,15 +15,42 @@ describe('autoLayout', () => {
       { id: 'e2-3', source: 'node-2', target: 'node-3' },
     ];
 
-    const { nodes: layouted } = getLayoutedElements(nodes, edges, { direction: 'LR' });
+    const { nodes: layouted } = getLayoutedElements(nodes, edges, { direction: 'TB' });
 
     const n1 = layouted.find((n) => n.id === 'node-1')!;
     const n2 = layouted.find((n) => n.id === 'node-2')!;
     const n3 = layouted.find((n) => n.id === 'node-3')!;
 
-    // In LR direction, x coordinates must increase sequentially
-    expect(n1.position.x).toBeLessThan(n2.position.x);
-    expect(n2.position.x).toBeLessThan(n3.position.x);
+    // In TB direction, y coordinates must increase sequentially (top to bottom)
+    expect(n1.position.y).toBeLessThan(n2.position.y);
+    expect(n2.position.y).toBeLessThan(n3.position.y);
+  });
+
+  it('arranges branch sibling nodes horizontally (left to right)', () => {
+    const nodes: ScenarioNode[] = [
+      { id: 'root', type: 'event', position: { x: 0, y: 0 }, data: { label: 'Root' } },
+      { id: 'branch-a', type: 'event', position: { x: 0, y: 0 }, data: { label: 'Branch A' } },
+      { id: 'branch-b', type: 'event', position: { x: 0, y: 0 }, data: { label: 'Branch B' } },
+    ];
+
+    const edges: ScenarioEdge[] = [
+      { id: 'e-ra', source: 'root', target: 'branch-a' },
+      { id: 'e-rb', source: 'root', target: 'branch-b' },
+    ];
+
+    const { nodes: layouted } = getLayoutedElements(nodes, edges, { direction: 'TB' });
+
+    const root = layouted.find((n) => n.id === 'root')!;
+    const bA = layouted.find((n) => n.id === 'branch-a')!;
+    const bB = layouted.find((n) => n.id === 'branch-b')!;
+
+    // Both branch nodes are below root
+    expect(root.position.y).toBeLessThan(bA.position.y);
+    expect(root.position.y).toBeLessThan(bB.position.y);
+
+    // Branch nodes are on approximately the same rank, separated horizontally
+    expect(bA.position.y).toEqual(bB.position.y);
+    expect(bA.position.x).not.toEqual(bB.position.x);
   });
 
   it('keeps sticky nodes unmutated', () => {

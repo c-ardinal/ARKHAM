@@ -4,7 +4,7 @@ import type { ScenarioNode } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { INPUT_CLASS, LABEL_CLASS, ERROR_MSG_CLASS as ERROR_CLASS } from '../styles/common';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, Dices } from 'lucide-react';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 import { JumpTargetCombobox } from './JumpTargetCombobox';
 import { SearchableSelect } from './SearchableSelect';
@@ -549,7 +549,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                           onChange={(id) => updateNodeData(selectedNode.id, { locationId: id ?? '' })}
                         />
                         <p className="text-[11px] text-muted-foreground">
-                          ※場所の一覧編集・詳細・削除は、左サイドバーの「🎭 舞台」タブから行えます。
+                          ※場所の一覧編集・詳細・削除は、左サイドバーの「舞台」タブから行えます。
                         </p>
                       </div>
                     ) : (
@@ -562,7 +562,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                           className={inputClass}
                         />
                         <p className="text-[11px] text-muted-foreground">
-                          ※上の「+ 場所を追加」または左サイドバーの「🎭 舞台」タブ（種別: 場所）で登録・管理できます。
+                          ※上の「+ 場所を追加」または左サイドバーの「舞台」タブ（種別: 場所）で登録・管理できます。
                         </p>
                       </div>
                     )}
@@ -627,7 +627,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       <div className="p-2.5 rounded border border-border bg-muted/20 space-y-2.5">
                         <div className="flex items-center justify-between">
                           <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                            <span>{systemConfig.icon || '🎲'}</span>
+                            <Dices size={14} className="text-purple-500 shrink-0" />
                             <span>{systemConfig.checkLabel}</span>
                           </div>
                           <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground">
@@ -737,7 +737,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                     {/* Required Items */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className={labelClass}>🔑 必要アイテム (Required)</label>
+                        <label className={labelClass}>必要アイテム (Required)</label>
                         <span className="text-[10px] text-muted-foreground">入場・達成に必要</span>
                       </div>
                       <div className="space-y-1.5">
@@ -787,7 +787,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                     {/* Acquired Items */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className={labelClass}>🎁 獲得アイテム (Acquired)</label>
+                        <label className={labelClass}>獲得アイテム (Acquired)</label>
                         <span className="text-[10px] text-muted-foreground">ノード通過時に入手</span>
                       </div>
                       <div className="space-y-1.5">
@@ -838,7 +838,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                   {/* Encapsulated Variable Operations */}
                   <div className="border-t border-border/60 pt-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className={labelClass}>⚡ 変数操作 (Variable Operations)</label>
+                      <label className={labelClass}>変数操作 (Variable Operations)</label>
                       <span className="text-[10px] text-muted-foreground">通過時に変数を更新</span>
                     </div>
 

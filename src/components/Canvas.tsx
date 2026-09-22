@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
-import { Plus, Minus, Maximize, Sparkles, X, ArrowRight, GitBranch, Flag, FileText } from 'lucide-react';
+import { Plus, Minus, Maximize, Sparkles, X, GitBranch, Flag, FileText, Flame, Package } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -1462,15 +1462,15 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         if (rate >= 0.7) {
           strokeColor = '#10b981';
           strokeWidth = 5;
-          label = `🟩 ${Math.round(rate * 100)}% (${count.toLocaleString()}回)`;
+          label = `${Math.round(rate * 100)}% (${count.toLocaleString()}回)`;
         } else if (rate >= 0.3) {
           strokeColor = '#3b82f6';
           strokeWidth = 3.5;
-          label = `🟦 ${Math.round(rate * 100)}% (${count.toLocaleString()}回)`;
+          label = `${Math.round(rate * 100)}% (${count.toLocaleString()}回)`;
         } else {
           strokeColor = '#f59e0b';
           strokeWidth = 2.5;
-          label = `🟨 ${Math.round(rate * 100)}% (${count.toLocaleString()}回)`;
+          label = `${Math.round(rate * 100)}% (${count.toLocaleString()}回)`;
         }
       }
 
@@ -1573,7 +1573,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     let label = `${t('nodes.new')} ${type}`;
     if (isEnding) label = 'エンディング';
     else if (type === 'branch') label = '条件分岐';
-    else if (type === 'event') label = '新規シーン';
+    else if (type === 'event') label = '新規イベント';
     else if (type === 'element') label = '手がかり・情報';
 
     const newNode: ScenarioNode = {
@@ -1710,7 +1710,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
             </span>
-            <span className="font-bold text-foreground">🔥 ヒートマップ重畳表示中</span>
+            <Flame size={15} className="text-amber-500 shrink-0" />
+            <span className="font-bold text-foreground">ヒートマップ重畳表示中</span>
             <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-mono">
               試行: {simulationOverlay.result.totalRuns.toLocaleString()}回 / 全滅率: {(simulationOverlay.result.lostRate * 100).toFixed(1)}%
             </span>
@@ -1917,12 +1918,12 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
                 <ControlButton 
                     onClick={() => {
-                      applyAutoLayout('LR');
+                      applyAutoLayout('TB');
                       setTimeout(() => {
                         fitView({ padding: 0.2, duration: 400 });
                       }, 50);
                     }} 
-                    title="ノードを自動整列 (LRフロー)" 
+                    title="ノードを自動整列 (上から下へのフロー)" 
                     aria-label="ノードを自動整列" 
                     className="!bg-transparent !border-none hover:!bg-accent hover:text-accent-foreground !text-foreground flex items-center justify-center rounded-full w-11 h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                 >
@@ -2002,8 +2003,8 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
             onClick={() => handleQuickCreate('event')}
             className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
           >
-            <ArrowRight size={14} className="text-orange-500" />
-            <span>🎬 シーンノード</span>
+            <FileText size={14} className="text-orange-500" />
+            <span>イベントノード</span>
           </button>
           <button
             type="button"
@@ -2011,7 +2012,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
             className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
           >
             <GitBranch size={14} className="text-purple-500" />
-            <span>🔀 条件分岐</span>
+            <span>条件分岐</span>
           </button>
           <button
             type="button"
@@ -2019,15 +2020,15 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
             className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
           >
             <Flag size={14} className="text-emerald-500" />
-            <span>🏆 エンディング</span>
+            <span>エンディング</span>
           </button>
           <button
             type="button"
             onClick={() => handleQuickCreate('element')}
             className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors text-left font-medium"
           >
-            <FileText size={14} className="text-blue-500" />
-            <span>🔍 手がかり・情報</span>
+            <Package size={14} className="text-blue-500" />
+            <span>手がかり・情報</span>
           </button>
         </div>
       )}

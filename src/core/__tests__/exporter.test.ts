@@ -86,7 +86,7 @@ describe('ARKHAM Exporter Module', () => {
     expect(md).toContain('〔KP描写テキスト〕');
     expect(md).toContain('> 冷たい空気が肌を刺し、奥の扉からは微かな機械音が聞こえる。');
     // Investigation details & bracketed item
-    expect(md).toContain('##### 🔍 《丸い案内デスク》');
+    expect(md).toContain('##### 【調査】《丸い案内デスク》');
     expect(md).toContain('- **判定**: 〈目星〉');
     expect(md).toContain('  - **成功時**: 【警備室のカードキー】 を獲得。');
   });

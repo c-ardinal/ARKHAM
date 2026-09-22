@@ -119,7 +119,7 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
     if (problematicPath) {
       const pathTitles = (problematicPath as { nodeIds: string[]; edgeIds: string[] }).nodeIds
         .map((id: string) => `「${nodeMap.get(id)?.title || id}」`)
-        .join(' ➔ ');
+        .join(' -> ');
 
       issues.push({
         code: 'soft_lock_missing_item',
