@@ -419,4 +419,186 @@ describe('ARKHAM Graph Validator Module', () => {
     expect(multiOut).toBeDefined();
     expect(multiOut?.nodeId).toBe('start');
   });
+
+  it('detects unconnected branch route when only some routes are connected', () => {
+    const graph: CoreGraph = {
+      masterData: { items: [], locations: [], skills: [] },
+      nodes: [
+        {
+          id: 'start',
+          chapter: 1,
+          title: '開始イベント',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '開始',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'branch_3',
+          chapter: 1,
+          title: '3択の分岐',
+          type: 'check',
+          locationId: 'loc_start',
+          purpose: '分岐',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+          branches: [
+            { id: 'route_1', label: 'ルート1' },
+            { id: 'route_2', label: 'ルート2' },
+            { id: 'route_3', label: 'ルート3' },
+          ],
+        },
+        {
+          id: 'event_1',
+          chapter: 1,
+          title: 'イベント1',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: 'イベント1',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+      ],
+      edges: [
+        { id: 'e_start', fromNodeId: 'start', toNodeId: 'branch_3', conditionType: 'always' },
+        // Only route_1 is connected; route_2 and route_3 are unconnected!
+        { id: 'e_r1', fromNodeId: 'branch_3', toNodeId: 'event_1', sourceHandle: 'route_1-left', conditionType: 'choice' },
+      ],
+      startNodeId: 'start',
+    };
+
+    const issues = validateGraph(graph);
+    const unconnected = issues.filter((i) => i.code === 'unconnected_branch_route');
+    expect(unconnected).toHaveLength(2);
+    expect(unconnected.map((u) => (u.details as any)?.branchId)).toEqual(expect.arrayContaining(['route_2', 'route_3']));
+  });
+
+  it('detects invalid jump target when jumpTarget is missing or points to non-existent node', () => {
+    const graph: CoreGraph = {
+      masterData: { items: [], locations: [], skills: [] },
+      nodes: [
+        {
+          id: 'start',
+          chapter: 1,
+          title: '開始イベント',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '開始',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'jump_empty',
+          chapter: 1,
+          title: '空ジャンプ',
+          type: 'jump',
+          locationId: 'loc_start',
+          purpose: 'ジャンプ',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+          jumpTarget: null,
+        },
+        {
+          id: 'jump_broken',
+          chapter: 1,
+          title: 'リンク切れジャンプ',
+          type: 'jump',
+          locationId: 'loc_start',
+          purpose: 'ジャンプ',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+          jumpTarget: { tabId: 'tab_1', nodeId: 'non_existent_node' },
+        },
+      ],
+      edges: [
+        { id: 'e1', fromNodeId: 'start', toNodeId: 'jump_empty', conditionType: 'always' },
+        { id: 'e2', fromNodeId: 'start', toNodeId: 'jump_broken', conditionType: 'always' },
+      ],
+      startNodeId: 'start',
+    };
+
+    const issues = validateGraph(graph);
+    const jumpIssues = issues.filter((i) => i.code === 'invalid_jump_target');
+    expect(jumpIssues).toHaveLength(2);
+    expect(jumpIssues.map((j) => j.nodeId)).toContain('jump_empty');
+    expect(jumpIssues.map((j) => j.nodeId)).toContain('jump_broken');
+  });
+
+  it('detects dead-end unconnected node when no ending nodes exist in scenario', () => {
+    const graph: CoreGraph = {
+      masterData: { items: [], locations: [], skills: [] },
+      nodes: [
+        {
+          id: 'start',
+          chapter: 1,
+          title: '開始イベント',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '開始',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'hanging_event',
+          chapter: 1,
+          title: '途切れイベント',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '途切れ',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+      ],
+      edges: [
+        { id: 'e1', fromNodeId: 'start', toNodeId: 'hanging_event', conditionType: 'always' },
+      ],
+      startNodeId: 'start',
+    };
+
+    const issues = validateGraph(graph);
+    const deadEnd = issues.find((i) => i.code === 'dead_end_unconnected');
+    expect(deadEnd).toBeDefined();
+    expect(deadEnd?.nodeId).toBe('hanging_event');
+  });
 });

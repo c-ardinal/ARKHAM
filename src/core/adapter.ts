@@ -120,6 +120,8 @@ function mapNodeType(node: StoreNode): ScenarioNodeType {
     }
     case 'branch':
       return 'check';
+    case 'jump':
+      return 'jump';
     default:
       return 'scene';
   }
@@ -161,6 +163,36 @@ export function storeNodeToCoreNode(node: StoreNode): CoreNode {
     });
   }
 
+  // Extract branch routes for branch nodes
+  let branches: { id: string; label: string; conditionType?: string; conditionValue?: string }[] | undefined = undefined;
+  if (node.type === 'branch') {
+    const rawBranches = d.branches || [];
+    if (rawBranches.length > 0) {
+      branches = rawBranches.map((b) => ({
+        id: b.id,
+        label: b.label || b.id,
+        conditionType: b.conditionType,
+        conditionValue: b.conditionValue,
+      }));
+    } else {
+      // Legacy 2-route condition (true / false)
+      branches = [
+        { id: 'true', label: 'True (一致)', conditionType: d.conditionType, conditionValue: d.conditionValue },
+        { id: 'false', label: 'False (不一致 / その他)', conditionType: 'always' },
+      ];
+    }
+  }
+
+  // Jump target
+  let jumpTarget: { tabId: string; nodeId: string } | null | undefined = undefined;
+  if (node.type === 'jump') {
+    if (typeof d.jumpTarget === 'string') {
+      jumpTarget = { tabId: '', nodeId: d.jumpTarget };
+    } else {
+      jumpTarget = d.jumpTarget ?? null;
+    }
+  }
+
   return {
     id: node.id,
     chapter: d.chapter ?? 1,
@@ -178,6 +210,8 @@ export function storeNodeToCoreNode(node: StoreNode): CoreNode {
     sanCheck: d.resourceCheck || d.sanCheck,
     resourceCheck: d.resourceCheck || d.sanCheck,
     timeCostMinutes: d.timeCostMinutes ?? 10,
+    branches,
+    jumpTarget,
   };
 }
 
@@ -253,6 +287,8 @@ export function storeEdgeToCoreEdge(edge: StoreEdge, nodeMap?: Map<string, Store
     conditionValue,
     variableCondition: conditionType === 'variable' ? conditionValue : undefined,
     label: typeof edge.label === 'string' ? edge.label : undefined,
+    sourceHandle: edge.sourceHandle || undefined,
+    targetHandle: edge.targetHandle || undefined,
   };
 }
 

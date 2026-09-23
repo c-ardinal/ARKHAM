@@ -36,15 +36,30 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
   const [activeTab, setActiveTab] = useState<TabType>('lint');
 
   // Scenario Store
-  const { tabs, activeTabId, resources, stages, setSelectedNode, systemConfig, gameState, setSimulationOverlay } = useScenarioStore();
+  const { tabs, activeTabId, resources, stages, setSelectedNode, setActiveTab: setStoreActiveTab, systemConfig, gameState, setSimulationOverlay } = useScenarioStore();
   const currentTab = tabs.find((t) => t.id === activeTabId);
-  const nodes = currentTab?.nodes || [];
-  const edges = currentTab?.edges || [];
+
+  // Validation Scope
+  const [validationScope, setValidationScope] = useState<'all' | 'current'>('all');
 
   // Build CoreGraph
+  const { targetNodes, targetEdges } = useMemo(() => {
+    if (validationScope === 'all') {
+      return {
+        targetNodes: tabs.flatMap((t) => t.nodes),
+        targetEdges: tabs.flatMap((t) => t.edges),
+      };
+    }
+    const currentTab = tabs.find((t) => t.id === activeTabId);
+    return {
+      targetNodes: currentTab?.nodes || [],
+      targetEdges: currentTab?.edges || [],
+    };
+  }, [tabs, activeTabId, validationScope]);
+
   const coreGraph = useMemo(() => {
-    return buildCoreGraph(nodes, edges, resources, stages, systemConfig, gameState?.variables);
-  }, [nodes, edges, resources, stages, systemConfig, gameState?.variables]);
+    return buildCoreGraph(targetNodes, targetEdges, resources, stages, systemConfig, gameState?.variables);
+  }, [targetNodes, targetEdges, resources, stages, systemConfig, gameState?.variables]);
 
   // Linter & Validator Results
   const { lintIssues, validationIssues } = useMemo(() => {
@@ -115,11 +130,64 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
   }, [exportedMarkdown]);
 
   const handleJumpToNode = (nodeId: string) => {
+    const ownerTab = tabs.find((t) => t.nodes.some((n) => n.id === nodeId));
+    if (ownerTab && ownerTab.id !== activeTabId) {
+      setStoreActiveTab(ownerTab.id);
+    }
     setSelectedNode(nodeId);
     if (onFocusNode) {
       onFocusNode(nodeId);
     }
     onClose();
+  };
+
+  const getValidationCodeLabel = (code: string) => {
+    switch (code) {
+      case 'unconnected_branch_route':
+        return '分岐未接続ルート';
+      case 'invalid_jump_target':
+        return '無効なジャンプ先';
+      case 'dangling_branch':
+        return '分岐出力エッジなし';
+      case 'dead_end':
+      case 'dead_end_unconnected':
+        return '行き止まり';
+      case 'soft_lock_missing_item':
+        return 'デッドロック・詰みルート';
+      case 'infinite_loop':
+        return '無限ループ閉路';
+      case 'unreachable_node':
+        return '到達不能ノード';
+      case 'unreachable_ending':
+        return 'エンディング到達不能';
+      case 'multiple_event_outgoing_edges':
+        return 'イベント複数出力';
+      default:
+        return 'グラフ検証';
+    }
+  };
+
+  const getLintCodeLabel = (code: string) => {
+    switch (code) {
+      case 'undefined_item':
+        return '未定義アイテム参照';
+      case 'fuzzy_item_match':
+        return '表記揺れの可能性';
+      case 'dead_item':
+        return '未使用（死にアイテム）';
+      case 'isolated_node':
+        return '孤立ノード';
+      case 'forbidden_read_aloud_term':
+        return 'PL描写テキストの禁則事項';
+      case 'bracket_syntax_error':
+        return '括弧文法エラー';
+      case 'undefined_variable':
+        return '未定義変数';
+      case 'expression_syntax_error':
+        return '条件式構文エラー';
+      default:
+        return '静的チェック';
+    }
   };
 
   if (!isOpen) return null;
@@ -202,14 +270,38 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
           {activeTab === 'lint' && (
             <div className="space-y-6">
               {/* Summary Banner */}
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/40 border border-border">
-                <div>
-                  <div className="text-sm font-medium">現在の検査ステータス</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    ノード数: {nodes.length} | エッジ数: {edges.length} | マスターアイテム数: {resources.filter((r) => r.type === 'Item').length}
+              <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-lg bg-muted/40 border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="text-sm font-medium">
+                    検証対象: {validationScope === 'all' ? 'シナリオ全タブ' : currentTab?.name || '現在のタブ'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    ノード数: {targetNodes.length} | エッジ数: {targetEdges.length} | マスターアイテム数: {resources.filter((r) => r.type === 'Item').length}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center text-xs bg-muted rounded-md p-0.5 border">
+                    <button
+                      onClick={() => setValidationScope('all')}
+                      className={`px-2 py-1 rounded transition-colors ${
+                        validationScope === 'all'
+                          ? 'bg-background shadow-xs font-semibold text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      全タブ (シナリオ全体)
+                    </button>
+                    <button
+                      onClick={() => setValidationScope('current')}
+                      className={`px-2 py-1 rounded transition-colors ${
+                        validationScope === 'current'
+                          ? 'bg-background shadow-xs font-semibold text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      現在のタブのみ
+                    </button>
+                  </div>
                   <div className="flex items-center gap-1.5 text-sm">
                     <AlertCircle size={16} className="text-destructive" />
                     <span className="font-semibold text-destructive">{totalErrors}</span> エラー
@@ -227,7 +319,7 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
                   <ShieldCheck size={48} className="mx-auto text-emerald-500 mb-3" />
                   <h3 className="text-base font-semibold text-foreground">問題は検出されませんでした</h3>
                   <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-                    アイテムの未定義参照、表記揺れ、前提アイテム未所持の詰みルート（ソフトロック）、無限ループは一切存在しません。
+                    アイテムの未定義参照、表記揺れ、前提アイテム未所持の詰みルート（ソフトロック）、分岐の未接続、無限ループは一切存在しません。
                   </p>
                 </div>
               )}
@@ -253,7 +345,7 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
                         )}
                         <div>
                           <div className="text-sm font-semibold flex items-center gap-2">
-                            <span>{v.code === 'soft_lock_missing_item' ? 'デッドロック・詰みルート' : '無限ループ閉路'}</span>
+                            <span>{getValidationCodeLabel(v.code)}</span>
                             <span className="text-[10px] px-2 py-0.5 rounded bg-muted font-normal text-muted-foreground">
                               グラフ検証
                             </span>
@@ -291,14 +383,7 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
                         )}
                         <div>
                           <div className="text-sm font-semibold flex items-center gap-2">
-                            <span>
-                              {issue.code === 'undefined_item' && '未定義アイテム参照'}
-                              {issue.code === 'fuzzy_item_match' && '表記揺れの可能性'}
-                              {issue.code === 'dead_item' && '未使用（死にアイテム）'}
-                              {issue.code === 'isolated_node' && '孤立ノード'}
-                              {issue.code === 'forbidden_read_aloud_term' && 'PL描写テキストの禁則事項'}
-                              {issue.code === 'bracket_syntax_error' && '括弧文法エラー'}
-                            </span>
+                            <span>{getLintCodeLabel(issue.code)}</span>
                             {issue.location && (
                               <span className="text-[10px] px-2 py-0.5 rounded bg-muted font-mono text-muted-foreground">
                                 {issue.location}
@@ -526,7 +611,7 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
                       <h4 className="text-xs font-semibold text-muted-foreground mb-2">全滅・脱落発生ノード</h4>
                       <div className="space-y-1.5 text-xs">
                         {Object.entries(simResult.nodeLostCounts).map(([nodeId, count]) => {
-                          const n = nodes.find((x) => x.id === nodeId);
+                          const n = targetNodes.find((x) => x.id === nodeId);
                           return (
                             <div key={nodeId} className="flex items-center justify-between p-2 rounded bg-muted/30">
                               <span>{n?.data.label || nodeId}</span>

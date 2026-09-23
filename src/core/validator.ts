@@ -289,9 +289,24 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
         });
       }
     }
+  } else {
+    // When no ending nodes are defined, check for non-jump nodes with no outgoing edges
+    for (const node of nodes) {
+      if (reachableFromStart.has(node.id) && node.type !== 'jump') {
+        const outs = outgoingEdges.get(node.id) || [];
+        if (outs.length === 0) {
+          issues.push({
+            code: 'dead_end_unconnected',
+            severity: 'warning',
+            message: `ノード「${node.title}」から後続へ進むエッジが接続されておらず、途中で行き止まりになっています。`,
+            nodeId: node.id,
+          });
+        }
+      }
+    }
   }
 
-  // --- 5. Dangling Branch Detection ---
+  // --- 5. Branch Route Validation (Dangling Branch & Unconnected Routes) ---
   for (const node of nodes) {
     if (node.type === 'check' && reachableFromStart.has(node.id)) {
       const outs = outgoingEdges.get(node.id) || [];
@@ -302,6 +317,26 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
           message: `分岐ノード「${node.title}」に出力エッジが接続されていません。`,
           nodeId: node.id,
         });
+      } else if (node.branches && node.branches.length > 0) {
+        for (const branch of node.branches) {
+          const hasConnectedEdge = outs.some((e) => {
+            const h = (e.sourceHandle || '').replace(/-(left|right)$/, '');
+            if (h === branch.id) return true;
+            if (branch.id === 'true' && (h === 'true' || (!h && outs.length === 1))) return true;
+            if ((branch.id === 'false' || branch.id === 'else') && (h === 'false' || h === 'else')) return true;
+            return false;
+          });
+
+          if (!hasConnectedEdge) {
+            issues.push({
+              code: 'unconnected_branch_route',
+              severity: 'error',
+              message: `分岐ノード「${node.title}」のルート「${branch.label || branch.id}」に出力エッジが接続されていません。`,
+              nodeId: node.id,
+              details: { branchId: branch.id, branchLabel: branch.label },
+            });
+          }
+        }
       }
     }
   }
@@ -315,6 +350,24 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
           code: 'multiple_event_outgoing_edges',
           severity: 'error',
           message: `イベントノード「${node.title}」から出力フローエッジが複数接続されています（${outs.length}本）。イベントノードの出力は1本のみ許可されています。進路の枝分かれには「分岐ノード」を使用してください。`,
+          nodeId: node.id,
+        });
+      }
+    }
+  }
+
+  // --- 7. Jump Node Target Validation ---
+  for (const node of nodes) {
+    if (node.type === 'jump') {
+      const target = node.jumpTarget;
+      const targetNodeId = typeof target === 'string' ? target : target?.nodeId;
+      if (!targetNodeId || !nodeMap.has(targetNodeId)) {
+        issues.push({
+          code: 'invalid_jump_target',
+          severity: 'error',
+          message: !targetNodeId
+            ? `ジャンプノード「${node.title}」のジャンプ先が設定されていません。`
+            : `ジャンプノード「${node.title}」のジャンプ先ノード（ID: ${targetNodeId}）が見つかりません（リンク切れ）。`,
           nodeId: node.id,
         });
       }

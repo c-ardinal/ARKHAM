@@ -161,7 +161,7 @@ export interface MasterData {
   variables?: VariableDefinition[];
 }
 
-export type ScenarioNodeType = 'scene' | 'room' | 'event' | 'check' | 'combat' | 'ending';
+export type ScenarioNodeType = 'scene' | 'room' | 'event' | 'check' | 'combat' | 'ending' | 'jump';
 
 export interface ScenarioNode {
   id: string;                       // 一意なノードID
@@ -197,6 +197,17 @@ export interface ScenarioNode {
   associatedStageIds?: string[];
   associatedCharacterIds?: string[];
   associatedClueIds?: string[];
+
+  // 分岐ルート情報（各ルートのID・ラベル等）
+  branches?: {
+    id: string;
+    label: string;
+    conditionType?: string;
+    conditionValue?: string;
+  }[];
+
+  // ジャンプノード情報
+  jumpTarget?: { tabId: string; nodeId: string } | null;
 }
 
 export type EdgeConditionType =
@@ -220,6 +231,8 @@ export interface ScenarioEdge {
   targetId?: string;                // 対象ID (アイテム・舞台・人物・情報)
   operator?: string;                // '==' | '!=' | 'held' | 'not_held' など
   label?: string;                   // フローチャート上に表示するラベル
+  sourceHandle?: string;            // 出力ピンハンドルID (例: "true", "false", "true-left")
+  targetHandle?: string;
 }
 
 export interface CoreGraph {
@@ -264,6 +277,9 @@ export type ValidationIssueCode =
   | 'unreachable_node'
   | 'dead_end'
   | 'dangling_branch'
+  | 'unconnected_branch_route'
+  | 'invalid_jump_target'
+  | 'dead_end_unconnected'
   | 'multiple_event_outgoing_edges';
 
 export interface ValidationIssue {

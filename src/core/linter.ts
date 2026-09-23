@@ -163,6 +163,21 @@ export function lintGraph(graph: CoreGraph): LintIssue[] {
         }
       }
     }
+
+    // Check branch node route conditions (empty condition on variable check)
+    if (node.type === 'check' && node.branches) {
+      for (const branch of node.branches) {
+        if (branch.conditionType === 'variable' && (!branch.conditionValue || !branch.conditionValue.trim())) {
+          issues.push({
+            code: 'expression_syntax_error',
+            severity: 'warning',
+            message: `分岐ノード「${node.title}」のルート「${branch.label || branch.id}」は変数判定ですが、条件式が未設定です。`,
+            nodeId: node.id,
+            location: 'branches',
+          });
+        }
+      }
+    }
     // 1.1 Check readAloudText for forbidden terms
     if (node.readAloudText) {
       for (const term of FORBIDDEN_READ_ALOUD_TERMS) {
