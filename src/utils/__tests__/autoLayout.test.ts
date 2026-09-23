@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
 import { getLayoutedElements } from '../autoLayout';
 import type { ScenarioNode, ScenarioEdge } from '../../types';
 
@@ -343,5 +344,30 @@ describe('autoLayout', () => {
     // Level 2 downstream order: a2 < else2 < b2 (NO crossing!)
     expect(a2.position.x).toBeLessThan(else2.position.x);
     expect(else2.position.x).toBeLessThan(b2.position.x);
+  });
+
+  it('aligns upstream nodes with downstream skip-edge target on the exterior lane', () => {
+    const raw = fs.readFileSync('sample/scenario_indeterminate_organ.json', 'utf-8');
+    const scenarioData = JSON.parse(raw);
+    const tab = scenarioData.tabs[0];
+
+    const result = getLayoutedElements(tab.nodes, tab.edges, { direction: 'TB' });
+
+    const battle = result.nodes.find((n) => n.id === 'node_2_5_battle')!;
+    const defect = result.nodes.find((n) => n.id === 'node_2_5_defect')!;
+    const bulkhead = result.nodes.find((n) => n.id === 'node_3_1_bulkhead')!;
+    const badEnd1 = result.nodes.find((n) => n.id === 'node_4_2')!;
+    const badEnd2 = result.nodes.find((n) => n.id === 'node_4_3')!;
+
+    console.log('Battle X:', battle.position.x, 'Defect X:', defect.position.x);
+    console.log('Bulkhead X:', bulkhead.position.x);
+    console.log('BadEnd1 X:', badEnd1.position.x, 'BadEnd2 X:', badEnd2.position.x);
+
+    // Bad End 1 is on the right outer perimeter
+    expect(badEnd1.position.x).toBeGreaterThan(badEnd2.position.x);
+
+    // Battle and Defect should be aligned with Bad End 1 on the right side, not centered over Bulkhead
+    expect(battle.position.x).toBeGreaterThan(bulkhead.position.x);
+    expect(defect.position.x).toBeGreaterThan(bulkhead.position.x);
   });
 });

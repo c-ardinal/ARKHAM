@@ -358,6 +358,242 @@ export function orderNodesAndEdgesByFlow(
 }
 
 /**
+ * Aligns upstream nodes along the exterior lane of a long skip edge.
+ * When a node U has a skip edge to a far downstream node V (e.g. crossing an intermediate
+ * subgraph T), and V is located on the outer perimeter (right or left of T),
+ * this aligns U and its immediate pre-entry chain with V's column.
+ * This turns a diagonal cross-cutting skip edge into a clean, straight vertical drop along
+ * the outer edge of the graph, avoiding all intermediate node and edge crossings.
+ */
+function alignUpstreamForSkipEdges(
+  nodes: ScenarioNode[],
+  edges: ScenarioEdge[],
+  options: {
+    topLevelIdMap: Map<string, string>;
+    parentSatellites: Map<string, ScenarioNode[]>;
+    rankSep: number;
+    nodeWidth: number;
+    nodeHeight: number;
+  }
+): void {
+  const { topLevelIdMap, parentSatellites, rankSep, nodeWidth, nodeHeight } = options;
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+  // In-degree & out-degree for non-reference top-level edges
+  const inEdgesMap = new Map<string, ScenarioEdge[]>();
+  const outEdgesMap = new Map<string, ScenarioEdge[]>();
+  for (const edge of edges) {
+    if (isReferenceEdge(edge)) continue;
+    const srcId = topLevelIdMap.get(edge.source);
+    const tgtId = topLevelIdMap.get(edge.target);
+    if (!srcId || !tgtId || srcId === tgtId) continue;
+
+    if (!outEdgesMap.has(srcId)) outEdgesMap.set(srcId, []);
+    outEdgesMap.get(srcId)!.push(edge);
+
+    if (!inEdgesMap.has(tgtId)) inEdgesMap.set(tgtId, []);
+    inEdgesMap.get(tgtId)!.push(edge);
+  }
+
+  interface SkipCandidate {
+    edge: ScenarioEdge;
+    sourceNode: ScenarioNode;
+    targetNode: ScenarioNode;
+  }
+
+  const skipCandidates: SkipCandidate[] = [];
+
+  for (const [srcId, outList] of outEdgesMap.entries()) {
+    const u = nodeMap.get(srcId);
+    if (!u) continue;
+
+    for (const edge of outList) {
+      const tgtId = topLevelIdMap.get(edge.target)!;
+      const v = nodeMap.get(tgtId);
+      if (!v) continue;
+
+      const yDiff = v.position.y - u.position.y;
+      if (yDiff > rankSep * 2.0) {
+        const otherInEdges = (inEdgesMap.get(tgtId) || []).filter(
+          (e) => topLevelIdMap.get(e.source) !== srcId
+        );
+        const hasLowerIncoming = otherInEdges.some((e) => {
+          const s = nodeMap.get(topLevelIdMap.get(e.source) || '');
+          return s && s.position.y > u.position.y + rankSep * 0.5;
+        });
+
+        const otherOutEdges = outList.filter(
+          (e) => topLevelIdMap.get(e.target) !== tgtId
+        );
+
+        if (hasLowerIncoming && otherOutEdges.length > 0) {
+          skipCandidates.push({ edge, sourceNode: u, targetNode: v });
+        }
+      }
+    }
+  }
+
+  if (skipCandidates.length === 0) return;
+
+  for (const { sourceNode: u, targetNode: v } of skipCandidates) {
+    // Trace the upstream chain C starting from U that feeds into the intermediate graph.
+    const otherOutTargets = (outEdgesMap.get(u.id) || [])
+      .map((e) => topLevelIdMap.get(e.target)!)
+      .filter((tgtId) => tgtId !== v.id);
+
+    const chainIds: string[] = [u.id];
+
+    // Follow linear single-path nodes
+    for (const nextId of otherOutTargets) {
+      let currId: string | null = nextId;
+      while (currId) {
+        const currNode = nodeMap.get(currId);
+        if (!currNode) break;
+
+        const currIn: ScenarioEdge[] = inEdgesMap.get(currId) || [];
+        const currOut: ScenarioEdge[] = outEdgesMap.get(currId) || [];
+
+        if (currIn.length === 1 && currNode.position.y < v.position.y - rankSep) {
+          chainIds.push(currId);
+          if (currOut.length === 1) {
+            const nextTgt: string = topLevelIdMap.get(currOut[0].target)!;
+            const nextNode = nodeMap.get(nextTgt);
+            const nextIn: ScenarioEdge[] = inEdgesMap.get(nextTgt) || [];
+            const nextOut: ScenarioEdge[] = outEdgesMap.get(nextTgt) || [];
+            const isDifferentChapter =
+              typeof u.data?.chapter === 'number' &&
+              typeof nextNode?.data?.chapter === 'number' &&
+              nextNode.data.chapter !== u.data.chapter;
+            const leadsToBranch = nextOut.some(
+              (e) => nodeMap.get(topLevelIdMap.get(e.target) || '')?.type === 'branch'
+            );
+
+            if (
+              nextIn.length > 1 ||
+              nextOut.length > 1 ||
+              nextNode?.type === 'branch' ||
+              isDifferentChapter ||
+              leadsToBranch
+            ) {
+              currId = null;
+            } else {
+              currId = nextTgt;
+            }
+          } else {
+            currId = null;
+          }
+
+        } else {
+          currId = null;
+        }
+      }
+    }
+
+    const chainIdSet = new Set(chainIds);
+
+    // Identify intermediate nodes (nodes between U.y and V.y that are NOT in chainIds)
+    const intermediateNodes = nodes.filter((n) => {
+      if (chainIdSet.has(n.id) || n.id === v.id) return false;
+      return n.position.y > u.position.y + 40 && n.position.y < v.position.y - 40;
+    });
+
+    if (intermediateNodes.length === 0) continue;
+
+    const minX_T = Math.min(...intermediateNodes.map((n) => n.position.x));
+    const maxX_T = Math.max(
+      ...intermediateNodes.map((n) => n.position.x + getNodeDimensions(n, nodeWidth, nodeHeight).width)
+    );
+    const midX_T = (minX_T + maxX_T) / 2;
+
+    const vDim = getNodeDimensions(v, nodeWidth, nodeHeight);
+    const vCenterX = v.position.x + vDim.width / 2;
+    const isTargetOnRight = vCenterX > midX_T;
+
+    if (isTargetOnRight) {
+      const desiredX = Math.round(v.position.x);
+      const currentAnchorX = u.position.x;
+      const shiftX = desiredX - currentAnchorX;
+
+      if (shiftX > 50) {
+        let maxAllowedShift = shiftX;
+        for (const cId of chainIds) {
+          const cNode = nodeMap.get(cId)!;
+          const cDim = getNodeDimensions(cNode, nodeWidth, nodeHeight);
+          const cY = cNode.position.y;
+          const cHeight = cDim.height;
+
+          const rightNeighbors = nodes.filter((n) => {
+            if (chainIdSet.has(n.id) || n.id === v.id) return false;
+            const yOverlap = Math.abs(n.position.y - cY) < Math.max(cHeight, getNodeDimensions(n).height);
+            return yOverlap && n.position.x > cNode.position.x;
+          });
+
+          for (const rn of rightNeighbors) {
+            const maxShiftBeforeCollision = rn.position.x - (cNode.position.x + cDim.width + 40);
+            if (maxShiftBeforeCollision > 0) {
+              maxAllowedShift = Math.min(maxAllowedShift, maxShiftBeforeCollision);
+            }
+          }
+        }
+
+        if (maxAllowedShift > 50) {
+          for (const cId of chainIds) {
+            const cNode = nodeMap.get(cId)!;
+            cNode.position.x += maxAllowedShift;
+
+            const sats = parentSatellites.get(cId) || [];
+            sats.forEach((s) => {
+              s.position.x += maxAllowedShift;
+            });
+          }
+        }
+      }
+    } else {
+      const desiredX = Math.round(v.position.x);
+      const currentAnchorX = u.position.x;
+      const shiftX = desiredX - currentAnchorX;
+
+      if (shiftX < -50) {
+        let minAllowedShift = shiftX;
+        for (const cId of chainIds) {
+          const cNode = nodeMap.get(cId)!;
+          const cDim = getNodeDimensions(cNode, nodeWidth, nodeHeight);
+          const cY = cNode.position.y;
+          const cHeight = cDim.height;
+
+          const leftNeighbors = nodes.filter((n) => {
+            if (chainIdSet.has(n.id) || n.id === v.id) return false;
+            const yOverlap = Math.abs(n.position.y - cY) < Math.max(cHeight, getNodeDimensions(n).height);
+            return yOverlap && n.position.x < cNode.position.x;
+          });
+
+          for (const ln of leftNeighbors) {
+            const lnDim = getNodeDimensions(ln, nodeWidth, nodeHeight);
+            const minShiftBeforeCollision = (ln.position.x + lnDim.width + 40) - cNode.position.x;
+            if (minShiftBeforeCollision < 0) {
+              minAllowedShift = Math.max(minAllowedShift, minShiftBeforeCollision);
+            }
+          }
+        }
+
+        if (minAllowedShift < -50) {
+          for (const cId of chainIds) {
+            const cNode = nodeMap.get(cId)!;
+            cNode.position.x += minAllowedShift;
+
+            const sats = parentSatellites.get(cId) || [];
+            sats.forEach((s) => {
+              s.position.x += minAllowedShift;
+            });
+          }
+        }
+      }
+    }
+  }
+}
+
+
+/**
  * Automatically calculates node positions using Dagre layout algorithm.
  * Design Philosophy:
  * - Primary flow: Top to Bottom (TB)
@@ -579,6 +815,15 @@ export function getLayoutedElements(
     if (!processedTopIds.has(n.id)) {
       updatedTopLevelNodes.push(n);
     }
+  });
+
+  // Align upstream nodes for long-range skip edges to avoid crossing intermediate subgraphs
+  alignUpstreamForSkipEdges(updatedTopLevelNodes, edges, {
+    topLevelIdMap,
+    parentSatellites,
+    rankSep,
+    nodeWidth,
+    nodeHeight,
   });
 
   // Post-process collision separation for top-level nodes
