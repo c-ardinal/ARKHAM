@@ -7,13 +7,19 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { useTranslation } from '../hooks/useTranslation';
 
-import { Flag, Star, Clock, KeyRound, Gift, Zap, Dices } from 'lucide-react';
+import { Flag, Star, Clock, KeyRound, Gift, Zap, Dices, AlertTriangle } from 'lucide-react';
 
-const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
+const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
   const variables = useScenarioStore((s) => s.gameState.variables);
   const resources = useScenarioStore((s) => s.resources);
+  const edges = useScenarioStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.edges || []);
   const itemMap = useMemo(() => new Map(resources.map((r) => [r.id, r.name])), [resources]);
+
+  const narrativeOuts = edges.filter(
+    (e) => e.source === id && e.type !== 'reference' && !e.sourceHandle?.startsWith('ref-') && !e.targetHandle?.startsWith('ref-')
+  );
+  const hasMultipleOutputs = narrativeOuts.length > 1;
 
   const label = substituteVariables(data.label, variables);
   const description = substituteVariables(data.description || '', variables);
@@ -30,7 +36,11 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   return (
     <div className={`relative px-4 py-2 shadow-sm hover:shadow-md rounded-md border-2 min-w-[150px] max-w-[420px] w-max transition-shadow duration-200 ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
-    } border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20`}>
+    } ${
+      hasMultipleOutputs
+        ? 'border-amber-500 dark:border-amber-600 bg-amber-50/30 dark:bg-amber-950/30'
+        : 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20'
+    }`}>
       {data.hasSticky && <StickyIndicator />}
       {data.revealed && <RevealedBadge />}
       {!data.isStart && (
@@ -58,6 +68,15 @@ const EventNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
             {typeof data.chapter === 'number' && (
               <span className="text-xs px-1.5 py-0.5 rounded bg-orange-200/80 dark:bg-orange-800/80 text-orange-800 dark:text-orange-200 font-medium shrink-0">
                 第{data.chapter}章
+              </span>
+            )}
+            {hasMultipleOutputs && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 font-medium shrink-0 border border-amber-300 dark:border-amber-700"
+                title="イベントノードの出力は1本のみです。複数分岐する場合は「分岐ノード」を使用してください。"
+              >
+                <AlertTriangle size={12} className="text-amber-600 dark:text-amber-400" />
+                複数出力不可 ({narrativeOuts.length}本)
               </span>
             )}
             <div className="text-lg font-bold text-orange-900 dark:text-orange-100 break-words">{label}</div>

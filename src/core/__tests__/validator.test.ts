@@ -601,4 +601,129 @@ describe('ARKHAM Graph Validator Module', () => {
     expect(deadEnd).toBeDefined();
     expect(deadEnd?.nodeId).toBe('hanging_event');
   });
+
+  it('detects unconnected branch route even if branch node is unreachable from start', () => {
+    const graph: CoreGraph = {
+      masterData: { items: [], locations: [], skills: [] },
+      nodes: [
+        {
+          id: 'start',
+          chapter: 1,
+          title: '開始イベント',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '開始',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'floating_branch',
+          chapter: 1,
+          title: '浮いている分岐ノード',
+          type: 'check',
+          locationId: 'loc_start',
+          purpose: '分岐',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+          branches: [
+            { id: 'opt_a', label: '選択肢A' },
+            { id: 'opt_b', label: '選択肢B' },
+          ],
+        },
+      ],
+      edges: [],
+      startNodeId: 'start',
+    };
+
+    const issues = validateGraph(graph);
+    const unconnected = issues.filter((i) => i.code === 'unconnected_branch_route');
+    expect(unconnected).toHaveLength(2);
+    expect(unconnected.map((u) => (u.details as any)?.branchId)).toEqual(expect.arrayContaining(['opt_a', 'opt_b']));
+    expect(issues.some((i) => i.code === 'dangling_branch')).toBe(true);
+  });
+
+  it('detects missing start node when startNodeId is omitted or not in nodeMap', () => {
+    const graph: CoreGraph = {
+      masterData: { items: [], locations: [], skills: [] },
+      nodes: [
+        {
+          id: 'event_1',
+          chapter: 1,
+          title: 'イベント1',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: 'イベント1',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+      ],
+      edges: [],
+      startNodeId: undefined,
+    };
+
+    const issues = validateGraph(graph);
+    expect(issues.some((i) => i.code === 'missing_start_node')).toBe(true);
+  });
+
+  it('does not flag cross-tab jump target as invalid when it exists in allNodeIds', () => {
+    const graph: CoreGraph = {
+      masterData: { items: [], locations: [], skills: [] },
+      nodes: [
+        {
+          id: 'start',
+          chapter: 1,
+          title: '開始イベント',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '開始',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'jump_node',
+          chapter: 1,
+          title: '他タブジャンプ',
+          type: 'jump',
+          locationId: 'loc_start',
+          purpose: 'ジャンプ',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+          jumpTarget: { tabId: 'tab_other', nodeId: 'node_in_tab_other' },
+        },
+      ],
+      edges: [
+        { id: 'e1', fromNodeId: 'start', toNodeId: 'jump_node', conditionType: 'always' },
+      ],
+      startNodeId: 'start',
+      allNodeIds: ['start', 'jump_node', 'node_in_tab_other'],
+    };
+
+    const issues = validateGraph(graph);
+    expect(issues.some((i) => i.code === 'invalid_jump_target')).toBe(false);
+  });
 });

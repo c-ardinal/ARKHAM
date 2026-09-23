@@ -167,13 +167,23 @@ export function storeNodeToCoreNode(node: StoreNode): CoreNode {
   let branches: { id: string; label: string; conditionType?: string; conditionValue?: string }[] | undefined = undefined;
   if (node.type === 'branch') {
     const rawBranches = d.branches || [];
-    if (rawBranches.length > 0) {
+    if (rawBranches.length >= 2) {
       branches = rawBranches.map((b) => ({
         id: b.id,
         label: b.label || b.id,
         conditionType: b.conditionType,
         conditionValue: b.conditionValue,
       }));
+    } else if (rawBranches.length === 1) {
+      branches = [
+        {
+          id: rawBranches[0].id,
+          label: rawBranches[0].label || rawBranches[0].id,
+          conditionType: rawBranches[0].conditionType,
+          conditionValue: rawBranches[0].conditionValue,
+        },
+        { id: 'false', label: 'False (不一致 / その他)', conditionType: 'always' },
+      ];
     } else {
       // Legacy 2-route condition (true / false)
       branches = [
@@ -303,7 +313,8 @@ export function buildCoreGraph(
   resources: ResourceData[],
   stagesOrSystemConfig?: StageData[] | import('./schema').SystemConfig,
   maybeSystemConfig?: import('./schema').SystemConfig,
-  variablesInput?: Record<string, any>
+  variablesInput?: Record<string, any>,
+  allScenarioNodes?: StoreNode[]
 ): CoreGraph {
   let stages: StageData[] | undefined;
   let systemConfig: import('./schema').SystemConfig | undefined;
@@ -397,13 +408,14 @@ export function buildCoreGraph(
     }
   }
 
-  const startNode = flowNodes.find((n) => n.data.isStart) || flowNodes[0];
+  const explicitStartNode = flowNodes.find((n) => n.data.isStart);
 
   return {
     masterData,
     nodes: coreNodes,
     edges: coreEdges,
-    startNodeId: startNode?.id,
+    startNodeId: explicitStartNode?.id,
     systemConfig,
+    allNodeIds: allScenarioNodes ? allScenarioNodes.map((n) => n.id) : flowNodes.map((n) => n.id),
   };
 }

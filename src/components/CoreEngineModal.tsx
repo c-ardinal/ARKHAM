@@ -57,9 +57,11 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
     };
   }, [tabs, activeTabId, validationScope]);
 
+  const allScenarioNodes = useMemo(() => tabs.flatMap((t) => t.nodes), [tabs]);
+
   const coreGraph = useMemo(() => {
-    return buildCoreGraph(targetNodes, targetEdges, resources, stages, systemConfig, gameState?.variables);
-  }, [targetNodes, targetEdges, resources, stages, systemConfig, gameState?.variables]);
+    return buildCoreGraph(targetNodes, targetEdges, resources, stages, systemConfig, gameState?.variables, allScenarioNodes);
+  }, [targetNodes, targetEdges, resources, stages, systemConfig, gameState?.variables, allScenarioNodes]);
 
   // Linter & Validator Results
   const { lintIssues, validationIssues } = useMemo(() => {
@@ -162,6 +164,8 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
         return 'エンディング到達不能';
       case 'multiple_event_outgoing_edges':
         return 'イベント複数出力';
+      case 'missing_start_node':
+        return '開始ノード未設定';
       default:
         return 'グラフ検証';
     }

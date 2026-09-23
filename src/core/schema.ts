@@ -241,6 +241,7 @@ export interface CoreGraph {
   edges: ScenarioEdge[];
   startNodeId?: string;
   systemConfig?: SystemConfig;
+  allNodeIds?: string[];
 }
 
 // --- Linter Types ---
@@ -280,7 +281,8 @@ export type ValidationIssueCode =
   | 'unconnected_branch_route'
   | 'invalid_jump_target'
   | 'dead_end_unconnected'
-  | 'multiple_event_outgoing_edges';
+  | 'multiple_event_outgoing_edges'
+  | 'missing_start_node';
 
 export interface ValidationIssue {
   code: ValidationIssueCode;

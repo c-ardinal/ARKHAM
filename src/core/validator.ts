@@ -17,7 +17,17 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
 
   const nodeMap = new Map<string, ScenarioNode>(nodes.map((n) => [n.id, n]));
   const itemMap = new Map(masterData.items.map((it) => [it.id, it]));
-  const effectiveStartId = startNodeId && nodeMap.has(startNodeId) ? startNodeId : nodes[0].id;
+
+  const hasExplicitStart = Boolean(startNodeId && nodeMap.has(startNodeId));
+  if (!hasExplicitStart) {
+    issues.push({
+      code: 'missing_start_node',
+      severity: 'warning',
+      message: 'シナリオの開始ノード（Start）が設定されていません。いずれかのイベントノードで「開始ノード」を指定してください。',
+    });
+  }
+
+  const effectiveStartId = hasExplicitStart ? startNodeId! : nodes[0].id;
 
   // Build adjacency list with edges
   const outgoingEdges = new Map<string, ScenarioEdge[]>();
@@ -290,9 +300,9 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
       }
     }
   } else {
-    // When no ending nodes are defined, check for non-jump nodes with no outgoing edges
+    // When no ending nodes are defined, check for non-jump, non-check nodes with no outgoing edges
     for (const node of nodes) {
-      if (reachableFromStart.has(node.id) && node.type !== 'jump') {
+      if (reachableFromStart.has(node.id) && node.type !== 'jump' && node.type !== 'check') {
         const outs = outgoingEdges.get(node.id) || [];
         if (outs.length === 0) {
           issues.push({
@@ -307,9 +317,17 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
   }
 
   // --- 5. Branch Route Validation (Dangling Branch & Unconnected Routes) ---
+  // Evaluated for all branch nodes regardless of start-reachability so authoring feedback is immediate.
   for (const node of nodes) {
-    if (node.type === 'check' && reachableFromStart.has(node.id)) {
+    if (node.type === 'check') {
       const outs = outgoingEdges.get(node.id) || [];
+      const nodeBranches = node.branches && node.branches.length > 0
+        ? node.branches
+        : [
+            { id: 'true', label: 'True (一致)' },
+            { id: 'false', label: 'False (不一致 / その他)' },
+          ];
+
       if (outs.length === 0) {
         issues.push({
           code: 'dangling_branch',
@@ -317,25 +335,25 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
           message: `分岐ノード「${node.title}」に出力エッジが接続されていません。`,
           nodeId: node.id,
         });
-      } else if (node.branches && node.branches.length > 0) {
-        for (const branch of node.branches) {
-          const hasConnectedEdge = outs.some((e) => {
-            const h = (e.sourceHandle || '').replace(/-(left|right)$/, '');
-            if (h === branch.id) return true;
-            if (branch.id === 'true' && (h === 'true' || (!h && outs.length === 1))) return true;
-            if ((branch.id === 'false' || branch.id === 'else') && (h === 'false' || h === 'else')) return true;
-            return false;
-          });
+      }
 
-          if (!hasConnectedEdge) {
-            issues.push({
-              code: 'unconnected_branch_route',
-              severity: 'error',
-              message: `分岐ノード「${node.title}」のルート「${branch.label || branch.id}」に出力エッジが接続されていません。`,
-              nodeId: node.id,
-              details: { branchId: branch.id, branchLabel: branch.label },
-            });
-          }
+      for (const branch of nodeBranches) {
+        const hasConnectedEdge = outs.some((e) => {
+          const h = (e.sourceHandle || '').replace(/-(left|right)$/, '');
+          if (h === branch.id) return true;
+          if (branch.id === 'true' && (h === 'true' || (!h && outs.length === 1))) return true;
+          if ((branch.id === 'false' || branch.id === 'else') && (h === 'false' || h === 'else')) return true;
+          return false;
+        });
+
+        if (!hasConnectedEdge) {
+          issues.push({
+            code: 'unconnected_branch_route',
+            severity: 'error',
+            message: `分岐ノード「${node.title}」のルート「${branch.label || branch.id}」に出力エッジが接続されていません。`,
+            nodeId: node.id,
+            details: { branchId: branch.id, branchLabel: branch.label },
+          });
         }
       }
     }
@@ -357,11 +375,16 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
   }
 
   // --- 7. Jump Node Target Validation ---
+  const validTargetIds = new Set([
+    ...Array.from(nodeMap.keys()),
+    ...(graph.allNodeIds || []),
+  ]);
+
   for (const node of nodes) {
     if (node.type === 'jump') {
       const target = node.jumpTarget;
       const targetNodeId = typeof target === 'string' ? target : target?.nodeId;
-      if (!targetNodeId || !nodeMap.has(targetNodeId)) {
+      if (!targetNodeId || !validTargetIds.has(targetNodeId)) {
         issues.push({
           code: 'invalid_jump_target',
           severity: 'error',
