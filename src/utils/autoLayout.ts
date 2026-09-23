@@ -131,9 +131,8 @@ export function getRouteIndex(node: ScenarioNode, sourceHandle?: string | null):
 
 /**
  * Orders outgoing edges of a branch node for Dagre layout such that:
- * - Upper routes in the branch (Route 1, etc.) are placed on the OUTSIDE (右寄り / large X)
- * - Lower routes in the branch (Else, etc.) are placed on the INSIDE (左寄り / small X)
- * Left-to-right order: [bottommost (Else), ..., topmost (Route 1)]
+ * - Upper routes in the branch are placed on the OUTSIDE (far-left for left side, far-right for right side)
+ * - Lower routes in the branch are placed on the INSIDE (near-center)
  * This guarantees zero crossing and zero overlap between branch edges and nodes.
  */
 export function orderBranchOutgoingEdges(
@@ -148,12 +147,36 @@ export function orderBranchOutgoingEdges(
     routeIndex: getRouteIndex(branchNode, edge.sourceHandle),
   }));
 
-  // Sort descending by routeIndex:
-  // Leftmost (start of array) = highest routeIndex (bottom routes, Else) -> 内側(左寄り)
-  // Rightmost (end of array) = lowest routeIndex (top routes, Route 1)   -> 外側(右寄り)
-  withIndex.sort((a, b) => b.routeIndex - a.routeIndex);
+  withIndex.sort((a, b) => a.routeIndex - b.routeIndex);
 
-  return withIndex.map((item) => item.edge);
+  // Check if edges already have explicit left vs right handle designations
+  const hasExplicitLeft = withIndex.some((item) =>
+    item.edge.sourceHandle?.endsWith('-left')
+  );
+  const hasExplicitRight = withIndex.some(
+    (item) => item.edge.sourceHandle && !item.edge.sourceHandle.endsWith('-left')
+  );
+
+  let leftItems: typeof withIndex;
+  let rightItems: typeof withIndex;
+
+  if (hasExplicitLeft && hasExplicitRight) {
+    leftItems = withIndex.filter((item) => item.edge.sourceHandle?.endsWith('-left'));
+    rightItems = withIndex.filter((item) => !item.edge.sourceHandle?.endsWith('-left'));
+  } else {
+    // Symmetrical split: earlier routes to left, later routes to right
+    const numLeft = Math.floor(withIndex.length / 2);
+    leftItems = withIndex.slice(0, numLeft);
+    rightItems = withIndex.slice(numLeft);
+  }
+
+  // Left side: Higher routes (smaller routeIndex) on outside (far-left), lower routes on inside (near-center)
+  leftItems.sort((a, b) => a.routeIndex - b.routeIndex);
+
+  // Right side: Lower routes (larger routeIndex) on inside (near-center), higher routes on outside (far-right)
+  rightItems.sort((a, b) => b.routeIndex - a.routeIndex);
+
+  return [...leftItems.map((item) => item.edge), ...rightItems.map((item) => item.edge)];
 }
 
 /**
@@ -396,6 +419,40 @@ export function getLayoutedElements(
 
   dagre.layout(g);
 
+  // Sibling slot alignment for branch nodes:
+  // Enforces that direct target siblings on the same rank follow the optimal left-to-right order
+  const branchNodes = dagreTopNodes.filter((n) => n.type === 'branch');
+  branchNodes.forEach((bn) => {
+    const outgoing = edges.filter(
+      (e) => !isReferenceEdge(e) && topLevelIdMap.get(e.source) === bn.id
+    );
+    const orderedEdges = orderBranchOutgoingEdges(bn, outgoing);
+    const orderedTargetIds = orderedEdges
+      .map((e) => topLevelIdMap.get(e.target)!)
+      .filter(Boolean);
+
+    // Group targets by layer/rank (y)
+    const targets = orderedTargetIds
+      .map((id) => ({ id, node: g.node(id) }))
+      .filter((t) => t.node);
+    if (targets.length <= 1) return;
+
+    const yGroups = new Map<number, typeof targets>();
+    targets.forEach((t) => {
+      const roundedY = Math.round(t.node.y / 20) * 20;
+      if (!yGroups.has(roundedY)) yGroups.set(roundedY, []);
+      yGroups.get(roundedY)!.push(t);
+    });
+
+    yGroups.forEach((group) => {
+      if (group.length <= 1) return;
+      const sortedX = group.map((t) => t.node.x).sort((a, b) => a - b);
+      group.forEach((t, idx) => {
+        t.node.x = sortedX[idx];
+      });
+    });
+  });
+
   // Position primary nodes and their satellites
   const updatedTopLevelNodes: ScenarioNode[] = [];
 
@@ -507,6 +564,34 @@ export function getLayoutedElements(
     });
 
     dagre.layout(subG);
+
+    // Sibling slot alignment for branch nodes inside group
+    const groupBranchNodes = children.filter((c) => c.type === 'branch');
+    groupBranchNodes.forEach((bn) => {
+      const outgoing = edges.filter(
+        (e) => !isReferenceEdge(e) && e.source === bn.id && childIdSet.has(e.target)
+      );
+      const orderedEdges = orderBranchOutgoingEdges(bn, outgoing);
+      const targets = orderedEdges
+        .map((e) => ({ id: e.target, node: subG.node(e.target) }))
+        .filter((t) => t.node);
+      if (targets.length <= 1) return;
+
+      const yGroups = new Map<number, typeof targets>();
+      targets.forEach((t) => {
+        const roundedY = Math.round(t.node.y / 20) * 20;
+        if (!yGroups.has(roundedY)) yGroups.set(roundedY, []);
+        yGroups.get(roundedY)!.push(t);
+      });
+
+      yGroups.forEach((group) => {
+        if (group.length <= 1) return;
+        const sortedX = group.map((t) => t.node.x).sort((a, b) => a - b);
+        group.forEach((t, idx) => {
+          t.node.x = sortedX[idx];
+        });
+      });
+    });
 
     const layoutedChildren = children.map((child) => {
       const pos = subG.node(child.id);

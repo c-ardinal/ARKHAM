@@ -198,23 +198,24 @@ describe('autoLayout', () => {
     const t2 = layoutedNodes.find((n) => n.id === 'target-r2')!;
     const tElse = layoutedNodes.find((n) => n.id === 'target-else')!;
 
-    // Order from left to right must be: [Else (bottom / inner), Route 2, Route 1 (top / outer)]
-    // 下の方が内側(左寄り)、上の方が外側(右寄り)
+    // Left: Route 1 (top of branch)
+    // Center: Else (bottom of branch)
+    // Right: Route 2 (upper of right side)
+    expect(t1.position.x).toBeLessThan(tElse.position.x);
     expect(tElse.position.x).toBeLessThan(t2.position.x);
-    expect(t2.position.x).toBeLessThan(t1.position.x);
 
     // Pins should be automatically selected:
-    // Leftmost (tElse) uses left pin, center/right (t2, t1) use right pins
+    // t1 uses left pin, tElse and t2 use right pins
     const e1 = layoutedEdges.find((e) => e.target === 'target-r1')!;
     const e2 = layoutedEdges.find((e) => e.target === 'target-r2')!;
     const eElse = layoutedEdges.find((e) => e.target === 'target-else')!;
 
-    expect(eElse.sourceHandle).toBe('else-left');
+    expect(e1.sourceHandle).toBe('route-1-left');
+    expect(eElse.sourceHandle).toBe('else');
     expect(e2.sourceHandle).toBe('route-2');
-    expect(e1.sourceHandle).toBe('route-1');
   });
 
-  it('places higher routes on the outside (right) and lower routes on the inside (left) for a 4-route branch', () => {
+  it('places higher routes on the outside and lower routes on the inside for a 4-route branch', () => {
     const nodes: ScenarioNode[] = [
       {
         id: 'branch-4',
@@ -249,10 +250,31 @@ describe('autoLayout', () => {
     const t3 = layoutedNodes.find((n) => n.id === 'target-3')!;
     const tElse = layoutedNodes.find((n) => n.id === 'target-else')!;
 
-    // Strictly monotonic from left (bottom / inner) to right (top / outer):
-    // Else (bottommost) < Route 3 < Route 2 < Route 1 (topmost)
+    // Left side: Route 1 is outer (leftmost), Route 2 is inner
+    expect(t1.position.x).toBeLessThan(t2.position.x);
+
+    // Inner region: Route 2 and Else are near center
+    expect(t2.position.x).toBeLessThan(tElse.position.x);
+
+    // Right side: Else is inner, Route 3 is outer (rightmost)
     expect(tElse.position.x).toBeLessThan(t3.position.x);
-    expect(t3.position.x).toBeLessThan(t2.position.x);
-    expect(t2.position.x).toBeLessThan(t1.position.x);
+  });
+
+  it('lays out node_3_console_switch in sample scenario as Console A, C, B from left to right', async () => {
+    const fs = await import('fs');
+    const raw = fs.readFileSync('sample/scenario_indeterminate_organ.json', 'utf-8');
+    const scenario = JSON.parse(raw);
+    const tab = scenario.tabs[0];
+
+    const result = getLayoutedElements(tab.nodes, tab.edges, { direction: 'TB' });
+    const sw = result.nodes.find((n: ScenarioNode) => n.id === 'node_3_console_switch')!;
+    const a = result.nodes.find((n: ScenarioNode) => n.id === 'node_3_console_a')!;
+    const b = result.nodes.find((n: ScenarioNode) => n.id === 'node_3_console_b')!;
+    const c = result.nodes.find((n: ScenarioNode) => n.id === 'node_3_console_c')!;
+
+    expect(sw).toBeDefined();
+    // From left to right: Console A, Console C, Console B
+    expect(a.position.x).toBeLessThan(c.position.x);
+    expect(c.position.x).toBeLessThan(b.position.x);
   });
 });
