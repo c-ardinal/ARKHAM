@@ -14,6 +14,7 @@ import {
   Sliders,
   ExternalLink,
   Flame,
+  GitBranch,
 } from 'lucide-react';
 import { useScenarioStore } from '../store/scenarioStore';
 import { buildCoreGraph } from '../core/adapter';
@@ -77,6 +78,61 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
   const totalWarnings =
     lintIssues.filter((i) => i.severity === 'warning').length +
     validationIssues.filter((i) => i.severity === 'warning').length;
+
+  // Category filtering & Priority Sorting
+  const [issueCategory, setIssueCategory] = useState<'all' | 'branch' | 'reachability' | 'other'>('all');
+
+  const isBranchIssue = (code: string) => code === 'unconnected_branch_route' || code === 'dangling_branch';
+  const isReachabilityIssue = (code: string) =>
+    code === 'unreachable_node' || code === 'dead_end' || code === 'dead_end_unconnected' || code === 'isolated_node' || code === 'missing_start_node' || code === 'unreachable_ending';
+
+  const branchIssuesCount = validationIssues.filter((v) => isBranchIssue(v.code)).length;
+  const reachabilityIssuesCount =
+    validationIssues.filter((v) => isReachabilityIssue(v.code)).length +
+    lintIssues.filter((l) => isReachabilityIssue(l.code)).length;
+  const otherIssuesCount = (validationIssues.length + lintIssues.length) - (branchIssuesCount + reachabilityIssuesCount);
+
+  // Structural actionable issues (branch unconnected, invalid jump, event multi-out) sorted to top
+  const getIssuePriority = (code: string) => {
+    switch (code) {
+      case 'unconnected_branch_route':
+      case 'dangling_branch':
+        return 1;
+      case 'invalid_jump_target':
+      case 'multiple_event_outgoing_edges':
+        return 2;
+      case 'soft_lock_missing_item':
+      case 'infinite_loop':
+      case 'dead_end':
+      case 'dead_end_unconnected':
+        return 3;
+      case 'missing_start_node':
+        return 4;
+      case 'unreachable_node':
+      case 'isolated_node':
+        return 5;
+      default:
+        return 6;
+    }
+  };
+
+  const sortedValidationIssues = useMemo(() => {
+    return [...validationIssues].sort((a, b) => getIssuePriority(a.code) - getIssuePriority(b.code));
+  }, [validationIssues]);
+
+  const filteredValidationIssues = useMemo(() => {
+    if (issueCategory === 'all') return sortedValidationIssues;
+    if (issueCategory === 'branch') return sortedValidationIssues.filter((v) => isBranchIssue(v.code));
+    if (issueCategory === 'reachability') return sortedValidationIssues.filter((v) => isReachabilityIssue(v.code));
+    return sortedValidationIssues.filter((v) => !isBranchIssue(v.code) && !isReachabilityIssue(v.code));
+  }, [sortedValidationIssues, issueCategory]);
+
+  const filteredLintIssues = useMemo(() => {
+    if (issueCategory === 'all') return lintIssues;
+    if (issueCategory === 'branch') return [];
+    if (issueCategory === 'reachability') return lintIssues.filter((l) => isReachabilityIssue(l.code));
+    return lintIssues.filter((l) => !isReachabilityIssue(l.code));
+  }, [lintIssues, issueCategory]);
 
   // Simulator State
   const [simConfig, setSimConfig] = useState<SimulationConfig>({
@@ -150,7 +206,7 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
       case 'invalid_jump_target':
         return '無効なジャンプ先';
       case 'dangling_branch':
-        return '分岐出力エッジなし';
+        return '分岐未接続（出力なし）';
       case 'dead_end':
       case 'dead_end_unconnected':
         return '行き止まり';
@@ -306,6 +362,20 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
                       現在のタブのみ
                     </button>
                   </div>
+                  {branchIssuesCount > 0 && (
+                    <button
+                      onClick={() => setIssueCategory(issueCategory === 'branch' ? 'all' : 'branch')}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border transition-colors ${
+                        issueCategory === 'branch'
+                          ? 'bg-amber-500 text-white border-amber-600'
+                          : 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                      }`}
+                      title="分岐未接続エラーのみを絞り込み表示"
+                    >
+                      <GitBranch size={13} />
+                      分岐未接続: {branchIssuesCount}件
+                    </button>
+                  )}
                   <div className="flex items-center gap-1.5 text-sm">
                     <AlertCircle size={16} className="text-destructive" />
                     <span className="font-semibold text-destructive">{totalErrors}</span> エラー
@@ -328,11 +398,61 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
                 </div>
               )}
 
-              {/* Issues List */}
+              {/* Category Filter Chips */}
               {(validationIssues.length > 0 || lintIssues.length > 0) && (
+                <div className="flex items-center gap-1.5 flex-wrap pb-1 border-b border-border/60">
+                  <span className="text-xs text-muted-foreground mr-1">絞り込み:</span>
+                  <button
+                    onClick={() => setIssueCategory('all')}
+                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                      issueCategory === 'all'
+                        ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    すべて ({totalErrors + totalWarnings})
+                  </button>
+                  <button
+                    onClick={() => setIssueCategory('branch')}
+                    className={`px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+                      issueCategory === 'branch'
+                        ? 'bg-amber-500 text-white font-semibold shadow-xs'
+                        : branchIssuesCount > 0
+                          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/30 font-medium'
+                          : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <GitBranch size={12} />
+                    分岐未接続 ({branchIssuesCount})
+                  </button>
+                  <button
+                    onClick={() => setIssueCategory('reachability')}
+                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                      issueCategory === 'reachability'
+                        ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    到達不能・行き止まり ({reachabilityIssuesCount})
+                  </button>
+                  <button
+                    onClick={() => setIssueCategory('other')}
+                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                      issueCategory === 'other'
+                        ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    その他 ({otherIssuesCount})
+                  </button>
+                </div>
+              )}
+
+              {/* Issues List */}
+              {(filteredValidationIssues.length > 0 || filteredLintIssues.length > 0) && (
                 <div className="space-y-3">
                   {/* Validation Issues (Graph level) */}
-                  {validationIssues.map((v, idx) => (
+                  {filteredValidationIssues.map((v, idx) => (
                     <div
                       key={`val-${idx}`}
                       className={`p-4 rounded-lg border flex items-start justify-between gap-4 ${
@@ -370,7 +490,7 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
                   ))}
 
                   {/* Linter Issues */}
-                  {lintIssues.map((issue, idx) => (
+                  {filteredLintIssues.map((issue, idx) => (
                     <div
                       key={`lint-${idx}`}
                       className={`p-4 rounded-lg border flex items-start justify-between gap-4 ${

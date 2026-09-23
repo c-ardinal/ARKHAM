@@ -109,6 +109,42 @@ const defaultAssertionRules: AssertionRule[] = [
     enabled: true,
   },
   {
+    id: 'branch-routes-unconnected',
+    name: '分岐未接続ルート検出',
+    description: 'すべての分岐ノードのルートに出力エッジが接続されているか確認',
+    condition: (state) => {
+      const tabs = state.tabs || [{ nodes: state.nodes || [], edges: state.edges || [] }];
+      for (const tab of tabs) {
+        const nodes = tab.nodes || [];
+        const edges = tab.edges || [];
+        const branchNodes = nodes.filter((n: any) => n.type === 'branch');
+        for (const b of branchNodes) {
+          const rawBranches = b.data?.branches || [];
+          const hasLegacy = Boolean(b.data?.conditionValue);
+          const effectiveBranches = rawBranches.length > 0
+            ? rawBranches
+            : (hasLegacy ? [{ id: 'true' }] : []);
+          const isMulti = effectiveBranches.length >= 2;
+
+          const isRight = (id: string) => edges.some((e: any) => e.source === b.id && (e.sourceHandle === id || e.sourceHandle === `${id}-right`));
+          const isLeft = (id: string) => edges.some((e: any) => e.source === b.id && e.sourceHandle === `${id}-left`);
+          const elseUsed = isRight('else') || isRight('false') || isLeft('else') || isLeft('false');
+          const trueUsed = isRight(effectiveBranches[0]?.id || 'true') || isLeft(effectiveBranches[0]?.id || 'true');
+          const falseUsed = elseUsed;
+
+          const hasUnconnected = isMulti
+            ? effectiveBranches.some((br: any) => !isRight(br.id) && !isLeft(br.id))
+            : (!trueUsed || !falseUsed);
+
+          if (hasUnconnected) return false;
+        }
+      }
+      return true;
+    },
+    severity: 'error',
+    enabled: true,
+  },
+  {
     id: 'empty-title',
     name: 'タイトル未設定',
     description: 'タイトルが設定されていないノードを検出',
