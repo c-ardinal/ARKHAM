@@ -453,8 +453,83 @@ export function getLayoutedElements(
   const handledChildIds = new Set(updatedChildNodes.map((n) => n.id));
   const remainingChildren = childNodes.filter((c) => !handledChildIds.has(c.id));
 
+  const allResultNodes: ScenarioNode[] = [
+    ...updatedTopLevelNodes,
+    ...updatedChildNodes,
+    ...remainingChildren,
+    ...stickyNodes,
+  ];
+  const resultMap = new Map<string, ScenarioNode>(allResultNodes.map((n) => [n.id, n]));
+
+  // Helper to compute absolute center X of any node (including parent group offset if nested)
+  const getAbsoluteCenterX = (nodeId: string): number | null => {
+    const node = resultMap.get(nodeId);
+    if (!node) return null;
+    const dim = getNodeDimensions(node, nodeWidth, nodeHeight);
+    let x = node.position.x + dim.width / 2;
+    if (node.parentNode) {
+      const parent = resultMap.get(node.parentNode);
+      if (parent) {
+        x += parent.position.x;
+      }
+    }
+    return x;
+  };
+
+  // 4. Optimize multi-branch output pin directions (left vs right) based on layout positions
+  // Prevents edges from cutting across the branch node body
+  const updatedEdges: ScenarioEdge[] = edges.map((edge) => {
+    if (isReferenceEdge(edge)) return edge;
+
+    const sourceNode = resultMap.get(edge.source);
+    if (!sourceNode || sourceNode.type !== 'branch') return edge;
+
+    const rawBranches = sourceNode.data?.branches || [];
+    // Only multi-branch configurations (2 or more routes) have dual left/right handles
+    if (rawBranches.length < 2) return edge;
+
+    const branchCenterX = getAbsoluteCenterX(edge.source);
+    const targetCenterX = getAbsoluteCenterX(edge.target);
+    if (branchCenterX === null || targetCenterX === null) return edge;
+
+    // Target is located to the left of the branch node
+    const isTargetOnLeft = targetCenterX < branchCenterX;
+    const sourceHandle = edge.sourceHandle || '';
+
+    // Check Else route
+    if (
+      sourceHandle === 'else' ||
+      sourceHandle === 'else-left' ||
+      sourceHandle === 'false' ||
+      sourceHandle === 'false-left'
+    ) {
+      const optimalHandle = isTargetOnLeft ? 'else-left' : 'else';
+      if (sourceHandle !== optimalHandle) {
+        return { ...edge, sourceHandle: optimalHandle };
+      }
+      return edge;
+    }
+
+    // Check branch routes
+    for (const b of rawBranches) {
+      if (
+        sourceHandle === b.id ||
+        sourceHandle === `${b.id}-left` ||
+        sourceHandle === `${b.id}-right`
+      ) {
+        const optimalHandle = isTargetOnLeft ? `${b.id}-left` : b.id;
+        if (sourceHandle !== optimalHandle) {
+          return { ...edge, sourceHandle: optimalHandle };
+        }
+        return edge;
+      }
+    }
+
+    return edge;
+  });
+
   return {
-    nodes: [...updatedTopLevelNodes, ...updatedChildNodes, ...remainingChildren, ...stickyNodes],
-    edges,
+    nodes: allResultNodes,
+    edges: updatedEdges,
   };
 }

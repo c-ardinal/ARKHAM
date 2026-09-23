@@ -1527,6 +1527,33 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   } | null>(null);
   const [referenceSearchQuery, setReferenceSearchQuery] = useState('');
 
+  // Close Quick Connect menu when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!quickConnectMenu) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setQuickConnectMenu(null);
+      }
+    };
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('.quick-connect-menu')) {
+        return;
+      }
+      setQuickConnectMenu(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('pointerdown', handlePointerDown, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('pointerdown', handlePointerDown, true);
+    };
+  }, [quickConnectMenu]);
+
   const isValidConnection = useCallback((connection: Connection) => {
     // Disallow connecting to self
     if (connection.source === connection.target) {
@@ -1836,6 +1863,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
        // It does standard deselection.
        // However, manually calling setSelectedNode(null) ensures consistency.
        setSelectedNode(null);
+       setQuickConnectMenu(null);
   }, [onCanvasClick, setSelectedNode, setMenu]);
 
 
@@ -2140,7 +2168,16 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
       {/* Quick Connect / Smart Create Menu */}
       {quickConnectMenu && (
-        <div
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-transparent"
+            onClick={() => setQuickConnectMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setQuickConnectMenu(null);
+            }}
+          />
+          <div
           className={`quick-connect-menu fixed z-50 bg-popover/95 backdrop-blur-md border border-border shadow-2xl rounded-xl p-1.5 flex flex-col gap-1 ${quickConnectMenu.submenu ? 'w-64' : 'w-56'} animate-in fade-in zoom-in-95`}
           style={{
             left: Math.min(window.innerWidth - (quickConnectMenu.submenu ? 280 : 240), quickConnectMenu.x),
@@ -2449,6 +2486,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
             </>
           )}
         </div>
+        </>
       )}
     </div>
     </ZoomLevelContext.Provider>

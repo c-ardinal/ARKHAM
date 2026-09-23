@@ -119,4 +119,49 @@ describe('autoLayout', () => {
     expect(bA.position.y).toBeGreaterThan(root.position.y);
     expect(bB.position.y).toBeGreaterThan(root.position.y);
   });
+
+  it('automatically selects left vs right pin for multi-branch node based on target position', () => {
+    const nodes: ScenarioNode[] = [
+      {
+        id: 'branch-node',
+        type: 'branch',
+        position: { x: 300, y: 0 },
+        data: {
+          label: '分岐判定',
+          branches: [
+            { id: 'route-1', label: 'ルート 1' },
+            { id: 'route-2', label: 'ルート 2' },
+          ],
+        },
+      },
+      { id: 'target-left', type: 'event', position: { x: 0, y: 0 }, data: { label: '左側イベント' } },
+      { id: 'target-right', type: 'event', position: { x: 0, y: 0 }, data: { label: '右側イベント' } },
+    ];
+
+    // Initially both edges are hooked to standard right handles
+    const edges: ScenarioEdge[] = [
+      { id: 'e-1', source: 'branch-node', target: 'target-left', sourceHandle: 'route-1' },
+      { id: 'e-2', source: 'branch-node', target: 'target-right', sourceHandle: 'route-2' },
+    ];
+
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, { direction: 'TB' });
+
+    const bNode = layoutedNodes.find((n) => n.id === 'branch-node')!;
+    expect(bNode).toBeDefined();
+    const tLeft = layoutedNodes.find((n) => n.id === 'target-left')!;
+    const tRight = layoutedNodes.find((n) => n.id === 'target-right')!;
+
+    // Verify layout placement: one node is left, one is right
+    expect(tLeft.position.x).not.toEqual(tRight.position.x);
+    const leftTarget = tLeft.position.x < tRight.position.x ? tLeft : tRight;
+    const rightTarget = tLeft.position.x < tRight.position.x ? tRight : tLeft;
+
+    const edgeToLeft = layoutedEdges.find((e) => e.target === leftTarget.id)!;
+    const edgeToRight = layoutedEdges.find((e) => e.target === rightTarget.id)!;
+
+    // Edge pointing to left target must use -left handle
+    expect(edgeToLeft.sourceHandle).toMatch(/-left$/);
+    // Edge pointing to right target must NOT use -left handle
+    expect(edgeToRight.sourceHandle).not.toMatch(/-left$/);
+  });
 });
