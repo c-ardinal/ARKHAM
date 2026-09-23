@@ -443,6 +443,8 @@ function alignUpstreamForSkipEdges(
 
     const chainIds: string[] = [u.id];
 
+    let tEntryId: string | null = null;
+
     // Follow linear single-path nodes
     for (const nextId of otherOutTargets) {
       let currId: string | null = nextId;
@@ -475,6 +477,7 @@ function alignUpstreamForSkipEdges(
               isDifferentChapter ||
               leadsToBranch
             ) {
+              tEntryId = nextTgt;
               currId = null;
             } else {
               currId = nextTgt;
@@ -482,8 +485,8 @@ function alignUpstreamForSkipEdges(
           } else {
             currId = null;
           }
-
         } else {
+          tEntryId = currId;
           currId = null;
         }
       }
@@ -491,11 +494,30 @@ function alignUpstreamForSkipEdges(
 
     const chainIdSet = new Set(chainIds);
 
-    // Identify intermediate nodes (nodes between U.y and V.y that are NOT in chainIds)
-    const intermediateNodes = nodes.filter((n) => {
-      if (chainIdSet.has(n.id) || n.id === v.id) return false;
-      return n.position.y > u.position.y + 40 && n.position.y < v.position.y - 40;
-    });
+    // Identify intermediate subgraph T (nodes reachable from tEntryId and strictly above V)
+    const intermediateIds = new Set<string>();
+    if (tEntryId) {
+      const q = [tEntryId];
+      while (q.length > 0) {
+        const curr = q.shift()!;
+        if (intermediateIds.has(curr)) continue;
+        intermediateIds.add(curr);
+        const outs = outEdgesMap.get(curr) || [];
+        for (const e of outs) {
+          const tgt = topLevelIdMap.get(e.target)!;
+          if (tgt !== v.id && !intermediateIds.has(tgt) && !chainIdSet.has(tgt)) {
+            const tNode = nodeMap.get(tgt);
+            if (tNode && tNode.position.y < v.position.y - 40) {
+              q.push(tgt);
+            }
+          }
+        }
+      }
+    }
+
+    const intermediateNodes = Array.from(intermediateIds)
+      .map((id) => nodeMap.get(id)!)
+      .filter(Boolean);
 
     if (intermediateNodes.length === 0) continue;
 
@@ -505,90 +527,109 @@ function alignUpstreamForSkipEdges(
     );
     const midX_T = (minX_T + maxX_T) / 2;
 
+    const uDim = getNodeDimensions(u, nodeWidth, nodeHeight);
     const vDim = getNodeDimensions(v, nodeWidth, nodeHeight);
     const vCenterX = v.position.x + vDim.width / 2;
     const isTargetOnRight = vCenterX > midX_T;
 
     if (isTargetOnRight) {
-      const desiredX = Math.round(v.position.x);
-      const currentAnchorX = u.position.x;
-      const shiftX = desiredX - currentAnchorX;
+      // Find any unrelated node to the right of U on similar Y levels (e.g. Dr. Hayes' room)
+      const rightNeighbors = nodes.filter((n) => {
+        if (chainIdSet.has(n.id) || intermediateIds.has(n.id) || n.id === v.id) return false;
+        const yOverlap = Math.abs(n.position.y - u.position.y) < 800;
+        return yOverlap && n.position.x > u.position.x;
+      });
+      const minRightNeighborX =
+        rightNeighbors.length > 0
+          ? Math.min(...rightNeighbors.map((n) => n.position.x))
+          : Infinity;
 
-      if (shiftX > 50) {
-        let maxAllowedShift = shiftX;
-        for (const cId of chainIds) {
-          const cNode = nodeMap.get(cId)!;
-          const cDim = getNodeDimensions(cNode, nodeWidth, nodeHeight);
-          const cY = cNode.position.y;
-          const cHeight = cDim.height;
+      // Position the straight vertical line in the open corridor between maxX_T and minRightNeighborX
+      let lineX: number;
+      if (minRightNeighborX < Infinity) {
+        lineX = Math.round((maxX_T + minRightNeighborX) / 2);
+      } else {
+        lineX = maxX_T + 120;
+      }
+      lineX = Math.max(lineX, maxX_T + 80);
 
-          const rightNeighbors = nodes.filter((n) => {
-            if (chainIdSet.has(n.id) || n.id === v.id) return false;
-            const yOverlap = Math.abs(n.position.y - cY) < Math.max(cHeight, getNodeDimensions(n).height);
-            return yOverlap && n.position.x > cNode.position.x;
-          });
+      // 1. Align target V's top handle with lineX
+      const newVx = Math.round(lineX - vDim.width / 2);
+      const vShift = newVx - v.position.x;
+      v.position.x = newVx;
+      const vSats = parentSatellites.get(v.id) || [];
+      vSats.forEach((s) => {
+        s.position.x += vShift;
+      });
 
-          for (const rn of rightNeighbors) {
-            const maxShiftBeforeCollision = rn.position.x - (cNode.position.x + cDim.width + 40);
-            if (maxShiftBeforeCollision > 0) {
-              maxAllowedShift = Math.min(maxAllowedShift, maxShiftBeforeCollision);
-            }
-          }
-        }
+      // 2. Align U's right handle with lineX
+      const desiredUx =
+        u.type === 'branch'
+          ? Math.round(lineX - uDim.width)
+          : Math.round(lineX - uDim.width / 2);
 
-        if (maxAllowedShift > 50) {
-          for (const cId of chainIds) {
-            const cNode = nodeMap.get(cId)!;
-            cNode.position.x += maxAllowedShift;
+      const uShift = desiredUx - u.position.x;
 
-            const sats = parentSatellites.get(cId) || [];
-            sats.forEach((s) => {
-              s.position.x += maxAllowedShift;
-            });
-          }
-        }
+      for (const cId of chainIds) {
+        const cNode = nodeMap.get(cId)!;
+        cNode.position.x += uShift;
+
+        const sats = parentSatellites.get(cId) || [];
+        sats.forEach((s) => {
+          s.position.x += uShift;
+        });
       }
     } else {
-      const desiredX = Math.round(v.position.x);
-      const currentAnchorX = u.position.x;
-      const shiftX = desiredX - currentAnchorX;
+      // Symmetrical left-side corridor alignment
+      const leftNeighbors = nodes.filter((n) => {
+        if (chainIdSet.has(n.id) || intermediateIds.has(n.id) || n.id === v.id) return false;
+        const yOverlap = Math.abs(n.position.y - u.position.y) < 800;
+        return yOverlap && n.position.x < u.position.x;
+      });
+      const maxLeftNeighborRight =
+        leftNeighbors.length > 0
+          ? Math.max(
+              ...leftNeighbors.map(
+                (n) => n.position.x + getNodeDimensions(n, nodeWidth, nodeHeight).width
+              )
+            )
+          : -Infinity;
 
-      if (shiftX < -50) {
-        let minAllowedShift = shiftX;
-        for (const cId of chainIds) {
-          const cNode = nodeMap.get(cId)!;
-          const cDim = getNodeDimensions(cNode, nodeWidth, nodeHeight);
-          const cY = cNode.position.y;
-          const cHeight = cDim.height;
+      let lineX: number;
+      if (maxLeftNeighborRight > -Infinity) {
+        lineX = Math.round((minX_T + maxLeftNeighborRight) / 2);
+      } else {
+        lineX = minX_T - 120;
+      }
+      lineX = Math.min(lineX, minX_T - 80);
 
-          const leftNeighbors = nodes.filter((n) => {
-            if (chainIdSet.has(n.id) || n.id === v.id) return false;
-            const yOverlap = Math.abs(n.position.y - cY) < Math.max(cHeight, getNodeDimensions(n).height);
-            return yOverlap && n.position.x < cNode.position.x;
-          });
+      const newVx = Math.round(lineX - vDim.width / 2);
+      const vShift = newVx - v.position.x;
+      v.position.x = newVx;
+      const vSats = parentSatellites.get(v.id) || [];
+      vSats.forEach((s) => {
+        s.position.x += vShift;
+      });
 
-          for (const ln of leftNeighbors) {
-            const lnDim = getNodeDimensions(ln, nodeWidth, nodeHeight);
-            const minShiftBeforeCollision = (ln.position.x + lnDim.width + 40) - cNode.position.x;
-            if (minShiftBeforeCollision < 0) {
-              minAllowedShift = Math.max(minAllowedShift, minShiftBeforeCollision);
-            }
-          }
-        }
+      const desiredUx =
+        u.type === 'branch'
+          ? Math.round(lineX)
+          : Math.round(lineX - uDim.width / 2);
 
-        if (minAllowedShift < -50) {
-          for (const cId of chainIds) {
-            const cNode = nodeMap.get(cId)!;
-            cNode.position.x += minAllowedShift;
+      const uShift = desiredUx - u.position.x;
 
-            const sats = parentSatellites.get(cId) || [];
-            sats.forEach((s) => {
-              s.position.x += minAllowedShift;
-            });
-          }
-        }
+      for (const cId of chainIds) {
+        const cNode = nodeMap.get(cId)!;
+        cNode.position.x += uShift;
+
+        const sats = parentSatellites.get(cId) || [];
+        sats.forEach((s) => {
+          s.position.x += uShift;
+        });
       }
     }
+
+
   }
 }
 

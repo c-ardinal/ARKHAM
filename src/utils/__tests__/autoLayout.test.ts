@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
-import { getLayoutedElements } from '../autoLayout';
+import { getLayoutedElements, getNodeDimensions } from '../autoLayout';
 import type { ScenarioNode, ScenarioEdge } from '../../types';
 
 describe('autoLayout', () => {
@@ -356,18 +356,25 @@ describe('autoLayout', () => {
     const battle = result.nodes.find((n) => n.id === 'node_2_5_battle')!;
     const defect = result.nodes.find((n) => n.id === 'node_2_5_defect')!;
     const bulkhead = result.nodes.find((n) => n.id === 'node_3_1_bulkhead')!;
+    const jump = result.nodes.find((n) => n.id === 'node_3_1_jump')!;
+    const director = result.nodes.find((n) => n.id === 'node_2_4_director')!;
     const badEnd1 = result.nodes.find((n) => n.id === 'node_4_2')!;
-    const badEnd2 = result.nodes.find((n) => n.id === 'node_4_3')!;
 
-    console.log('Battle X:', battle.position.x, 'Defect X:', defect.position.x);
-    console.log('Bulkhead X:', bulkhead.position.x);
-    console.log('BadEnd1 X:', badEnd1.position.x, 'BadEnd2 X:', badEnd2.position.x);
+    // Right handle of battle node (x + width) is positioned in the clear corridor between Chapter 3 and Dr. Hayes' room
+    const battleRightX = battle.position.x + getNodeDimensions(battle).width;
+    const jumpRightX = jump.position.x + getNodeDimensions(jump).width;
 
-    // Bad End 1 is on the right outer perimeter
-    expect(badEnd1.position.x).toBeGreaterThan(badEnd2.position.x);
+    // Must be strictly to the right of the entire Chapter 3 subgraph (jumpRightX)
+    expect(battleRightX).toBeGreaterThan(jumpRightX + 40);
 
-    // Battle and Defect should be aligned with Bad End 1 on the right side, not centered over Bulkhead
-    expect(battle.position.x).toBeGreaterThan(bulkhead.position.x);
+    // Must be strictly to the left of Dr. Hayes' room (director)
+    expect(battleRightX).toBeLessThan(director.position.x - 40);
+
+    // Bad End 1's top handle (x + width / 2) aligns with the corridor vertical line
+    const badEnd1CenterX = badEnd1.position.x + getNodeDimensions(badEnd1).width / 2;
+    expect(Math.abs(battleRightX - badEnd1CenterX)).toBeLessThan(20);
+
+    // Defect node is aligned with the chain and positioned above bulkhead
     expect(defect.position.x).toBeGreaterThan(bulkhead.position.x);
   });
 });
