@@ -1560,6 +1560,22 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
           return false;
         }
       }
+
+      // Branch Node per-route 1:1 constraint (Right vs Left mutual exclusion):
+      // If the source node is a branch node, prevent connecting from either side (left or right)
+      // if an outgoing edge already exists for that route.
+      if (srcNode?.type === 'branch' && connection.sourceHandle) {
+        const baseHandle = connection.sourceHandle.replace(/-left$/, '').replace(/-right$/, '');
+        const hasExistingRouteEdge = edges.some((e) => {
+          if (e.source !== connection.source) return false;
+          if (e.type === 'reference' || e.sourceHandle?.startsWith('ref-')) return false;
+          const existingBase = (e.sourceHandle || '').replace(/-left$/, '').replace(/-right$/, '');
+          return existingBase === baseHandle && e.target !== connection.target;
+        });
+        if (hasExistingRouteEdge) {
+          return false;
+        }
+      }
     }
 
     return true;

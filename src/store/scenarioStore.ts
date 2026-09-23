@@ -440,19 +440,43 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       characters: state.characters.map((c) => (c.id === id ? { ...c, ...char } : c))
   })),
   deleteCharacter: (id) => set((state) => {
-      // Walk all tabs so character nodes are removed regardless of which tab is active
+      // Walk all tabs so character nodes are removed and branch condition references are cleared
       const newTabs = state.tabs.map((t) => {
           const nodesToDelete = t.nodes
               .filter((n) => n.type === 'character' && n.data.referenceId === id)
               .map((n) => n.id);
-          if (nodesToDelete.length === 0) return t;
-          return {
-              ...t,
-              nodes: t.nodes.filter((n) => !nodesToDelete.includes(n.id)),
-              edges: t.edges.filter(
+
+          const updatedNodes = t.nodes
+              .filter((n) => !nodesToDelete.includes(n.id))
+              .map((node) => {
+                  if (node.type === 'branch') {
+                      let changed = false;
+                      const newData = { ...node.data };
+                      if (newData.conditionType === 'character_met' && newData.conditionValue === id) {
+                          newData.conditionValue = '';
+                          changed = true;
+                      }
+                      if (newData.branches) {
+                          newData.branches = newData.branches.map((b: any) => {
+                              if (b.conditionType === 'character_met' && b.conditionValue === id) {
+                                  changed = true;
+                                  return { ...b, conditionValue: '' };
+                              }
+                              return b;
+                          });
+                      }
+                      return changed ? { ...node, data: newData } : node;
+                  }
+                  return node;
+              });
+
+          const updatedEdges = nodesToDelete.length > 0
+              ? t.edges.filter(
                   (e) => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target)
-              ),
-          };
+                )
+              : t.edges;
+
+          return { ...t, nodes: updatedNodes, edges: updatedEdges };
       });
       return {
           characters: state.characters.filter((c) => c.id !== id),
@@ -479,6 +503,24 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                           ...node,
                           data: { ...node.data, locationId: '' },
                       };
+                  }
+                  if (node.type === 'branch') {
+                      let changed = false;
+                      const newData = { ...node.data };
+                      if (newData.conditionType === 'stage_visited' && newData.conditionValue === id) {
+                          newData.conditionValue = '';
+                          changed = true;
+                      }
+                      if (newData.branches) {
+                          newData.branches = newData.branches.map((b: any) => {
+                              if (b.conditionType === 'stage_visited' && b.conditionValue === id) {
+                                  changed = true;
+                                  return { ...b, conditionValue: '' };
+                              }
+                              return b;
+                          });
+                      }
+                      return changed ? { ...node, data: newData } : node;
                   }
                   return node;
               });
@@ -555,6 +597,37 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                        },
                    };
                }
+                if (node.type === 'event') {
+                    let changed = false;
+                    const newData = { ...node.data };
+                    if (newData.requiredItems && newData.requiredItems.includes(id)) {
+                        newData.requiredItems = newData.requiredItems.filter((itemId: string) => itemId !== id);
+                        changed = true;
+                    }
+                    if (newData.acquiredItems && newData.acquiredItems.includes(id)) {
+                        newData.acquiredItems = newData.acquiredItems.filter((itemId: string) => itemId !== id);
+                        changed = true;
+                    }
+                    if (changed) return { ...node, data: newData };
+                }
+                if (node.type === 'branch') {
+                    let changed = false;
+                    const newData = { ...node.data };
+                    if ((newData.conditionType === 'item_held' || newData.conditionType === 'clue_found') && newData.conditionValue === id) {
+                        newData.conditionValue = '';
+                        changed = true;
+                    }
+                    if (newData.branches) {
+                        newData.branches = newData.branches.map((b: any) => {
+                            if ((b.conditionType === 'item_held' || b.conditionType === 'clue_found') && b.conditionValue === id) {
+                                changed = true;
+                                return { ...b, conditionValue: '' };
+                            }
+                            return b;
+                        });
+                    }
+                    if (changed) return { ...node, data: newData };
+                }
                if (node.type === 'resource' && node.data.referenceId === id) {
                    return null;
                }
@@ -917,10 +990,48 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     // BL-4: 全タブを走査して該当 nodeId のタブのみ更新（仕様 §5.3 cross-tab update）
     set({
       tabs: state.tabs.map((t) => {
-        if (!t.nodes.some((n) => n.id === id)) return t;
+        const targetNode = t.nodes.find((n) => n.id === id);
+        if (!targetNode) return t;
+
+        let cleanEdges = t.edges;
+
+        // When branches are updated on a branch node, detect deleted branches and clean up disconnected edges
+        if (targetNode.type === 'branch' && Array.isArray(data.branches)) {
+          const oldBranches = targetNode.data.branches || [];
+          const newBranchIds = new Set(data.branches.map((b: any) => b.id));
+          const deletedBranchIds = new Set(
+            oldBranches.filter((b: any) => !newBranchIds.has(b.id)).map((b: any) => b.id)
+          );
+
+          if (deletedBranchIds.size > 0) {
+            cleanEdges = cleanEdges.filter((e) => {
+              if (e.source !== id) return true;
+              const baseHandle = (e.sourceHandle || '').replace(/-left$/, '').replace(/-right$/, '');
+              return !deletedBranchIds.has(baseHandle);
+            });
+          }
+
+          // If dropping to 1 or 0 branches (transitioning to 2-way True/False layout):
+          // Remap left handles to bottom handles
+          if (data.branches.length <= 1) {
+            const firstBranchId = data.branches[0]?.id;
+            cleanEdges = cleanEdges.map((e) => {
+              if (e.source !== id) return e;
+              if (firstBranchId && e.sourceHandle === `${firstBranchId}-left`) {
+                return { ...e, sourceHandle: firstBranchId };
+              }
+              if (e.sourceHandle === 'else-left') {
+                return { ...e, sourceHandle: 'else' };
+              }
+              return e;
+            });
+          }
+        }
+
         return {
           ...t,
           nodes: t.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...data } } : n)),
+          edges: cleanEdges,
         };
       }),
     });
@@ -1638,6 +1749,18 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
                         targetVariable: undefined
                     }
                 };
+            }
+            if (node.type === 'event' && node.data.variableOperations) {
+                const filteredOps = node.data.variableOperations.filter((op: any) => op.variableName !== name);
+                if (filteredOps.length !== node.data.variableOperations.length) {
+                    return {
+                        ...node,
+                        data: {
+                            ...node.data,
+                            variableOperations: filteredOps
+                        }
+                    };
+                }
             }
             return node;
         }),

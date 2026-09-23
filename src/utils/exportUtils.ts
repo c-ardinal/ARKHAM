@@ -140,13 +140,13 @@ export const generateScenarioText = (
                 
                 let caseLabel = `Option ${index + 1}`;
                 if (node.type === 'branch') {
-                    if (node.data.branchType === 'switch' && node.data.branches) {
-                        const branch = node.data.branches.find(b => b.id === edge.sourceHandle);
-                        if (branch) caseLabel = process(branch.label);
-                    } else if (node.data.branchType === 'if_else') {
-                        if (edge.sourceHandle === 'true') caseLabel = 'True';
-                        else if (edge.sourceHandle === 'false') caseLabel = 'False';
+                    const baseHandle = (edge.sourceHandle || '').replace(/-left$/, '').replace(/-right$/, '');
+                    if (node.data.branches) {
+                        const branch = node.data.branches.find(b => b.id === baseHandle);
+                        if (branch) caseLabel = process(branch.label || 'Route');
                     }
+                    if (baseHandle === 'true') caseLabel = 'True';
+                    else if (baseHandle === 'false' || baseHandle === 'else') caseLabel = 'False / Else';
                 }
 
                 if (format === 'markdown') {
@@ -165,13 +165,13 @@ export const generateScenarioText = (
                 
                 let caseLabel = `Option ${index + 1}`;
                 if (node.type === 'branch') {
-                    if (node.data.branchType === 'switch' && node.data.branches) {
-                        const branch = node.data.branches.find(b => b.id === edge.sourceHandle);
-                        if (branch) caseLabel = process(branch.label);
-                    } else if (node.data.branchType === 'if_else') {
-                        if (edge.sourceHandle === 'true') caseLabel = 'True';
-                        else if (edge.sourceHandle === 'false') caseLabel = 'False';
+                    const baseHandle = (edge.sourceHandle || '').replace(/-left$/, '').replace(/-right$/, '');
+                    if (node.data.branches) {
+                        const branch = node.data.branches.find(b => b.id === baseHandle);
+                        if (branch) caseLabel = process(branch.label || 'Route');
                     }
+                    if (baseHandle === 'true') caseLabel = 'True';
+                    else if (baseHandle === 'false' || baseHandle === 'else') caseLabel = 'False / Else';
                 }
 
                 if (format === 'markdown') {

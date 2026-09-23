@@ -1090,7 +1090,20 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                         type="button"
                                         onClick={() => {
                                           const newBranches = branches.filter((_: any, i: number) => i !== index);
-                                          updateNodeData(selectedNode.id, { branches: newBranches });
+                                          // If transitioning back to 2-way T/F (length <= 1), clear leftover route label so it defaults cleanly to True
+                                          if (newBranches.length <= 1 && newBranches[0]) {
+                                            newBranches[0] = {
+                                              ...newBranches[0],
+                                              label: '',
+                                            };
+                                          }
+                                          updateNodeData(selectedNode.id, {
+                                            branches: newBranches,
+                                            ...(newBranches.length <= 1 && newBranches[0] ? {
+                                              conditionType: newBranches[0].conditionType,
+                                              conditionValue: newBranches[0].conditionValue,
+                                            } : {})
+                                          });
                                         }}
                                         className="text-muted-foreground hover:text-destructive text-xs px-1.5 py-0.5 rounded hover:bg-destructive/10 transition-colors"
                                         title="このルートを削除"
@@ -1101,24 +1114,22 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                   </div>
 
                                   {/* Route Label */}
-                                  {isMulti && (
-                                    <div>
-                                      <label className="text-[10px] text-muted-foreground block mb-1">
-                                        ルート名 (ピン表示ラベル)
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={branch.label || ''}
-                                        onChange={(e) => {
-                                          const newBranches = [...branches];
-                                          newBranches[index] = { ...branch, label: e.target.value };
-                                          updateNodeData(selectedNode.id, { branches: newBranches });
-                                        }}
-                                        className={inputClass}
-                                        placeholder={`例: ルート ${index + 1} または 潜入成功`}
-                                      />
-                                    </div>
-                                  )}
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground block mb-1">
+                                      {isMulti ? 'ルート名 (ピン表示ラベル)' : 'True ピン表示ラベル (任意)'}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={branch.label || ''}
+                                      onChange={(e) => {
+                                        const newBranches = [...branches];
+                                        newBranches[index] = { ...branch, label: e.target.value };
+                                        updateNodeData(selectedNode.id, { branches: newBranches });
+                                      }}
+                                      className={inputClass}
+                                      placeholder={isMulti ? `例: ルート ${index + 1} または 潜入成功` : '未入力時は「True (一致)」'}
+                                    />
+                                  </div>
 
                                   {/* Condition Category Picker */}
                                   <div>
@@ -1314,11 +1325,17 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                             <button
                               type="button"
                               onClick={() => {
+                                const baseBranches = branches.map((b: any, i: number) => {
+                                  if (i === 0 && (!b.label || b.label === 'True (条件成立)' || b.label === 'True')) {
+                                    return { ...b, label: 'ルート 1' };
+                                  }
+                                  return b;
+                                });
                                 const newBranches = [
-                                  ...branches,
+                                  ...baseBranches,
                                   {
                                     id: `case_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-                                    label: `ルート ${branches.length + 1}`,
+                                    label: `ルート ${baseBranches.length + 1}`,
                                     conditionType: 'variable',
                                     conditionValue: '',
                                   },

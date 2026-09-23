@@ -7,8 +7,9 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { GitBranch } from 'lucide-react';
 
-const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
+const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
   const variables = useScenarioStore((s) => s.gameState.variables);
+  const edges = useScenarioStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.edges || []);
 
   const label = substituteVariables(data.label, variables);
   const description = substituteVariables(data.description || '', variables);
@@ -21,6 +22,16 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
     : (hasLegacyCondition ? [{ id: 'true', label: 'True (条件一致)', conditionValue: data.conditionValue, conditionType: data.conditionType || 'variable' }] : []);
 
   const isMulti = effectiveBranches.length >= 2;
+
+  // Helper to check which pin has an outgoing edge for this branch route
+  const isRightConnected = (bId: string) =>
+    edges.some((e) => e.source === id && (e.sourceHandle === bId || e.sourceHandle === `${bId}-right`));
+
+  const isLeftConnected = (bId: string) =>
+    edges.some((e) => e.source === id && e.sourceHandle === `${bId}-left`);
+
+  const elseRightUsed = isRightConnected('else') || isRightConnected('false');
+  const elseLeftUsed = isLeftConnected('else') || isLeftConnected('false');
 
   return (
     <div className={`relative px-4 py-2.5 shadow-sm hover:shadow-md rounded-md border-2 min-w-[180px] max-w-[420px] w-max transition-shadow duration-200 ${
@@ -68,7 +79,9 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
         <div className="flex justify-between items-center mt-3 pt-2 border-t border-purple-200/60 dark:border-purple-800/60 gap-6">
           <div className="relative flex flex-col items-center max-w-[220px] text-center">
             <span className="text-xs text-green-700 dark:text-green-400 font-bold mb-1 break-words">
-              {effectiveBranches[0]?.label ? effectiveBranches[0].label : 'True (一致)'}
+              {effectiveBranches[0]?.label && !effectiveBranches[0].label.startsWith('ルート ')
+                ? effectiveBranches[0].label
+                : 'True (一致)'}
             </span>
             <Handle 
               type="source" 
@@ -108,31 +121,87 @@ const BranchNode = ({ data, selected }: NodeProps<BranchNodeData>) => {
         </div>
       )}
 
-      {/* When 2 or more routes: Progressive Multi-Exit Right Pin layout */}
+      {/* When 2 or more routes: Progressive Multi-Exit Dual-Sided (Left & Right) Pin layout */}
       {isMulti && (
         <div className="flex flex-col mt-2 gap-1.5 pt-2 border-t border-purple-200 dark:border-purple-800">
-          {effectiveBranches.map((branch, index) => (
-            <div key={branch.id} className="relative flex items-center justify-between min-h-[26px] py-1 pl-2.5 pr-6 bg-purple-100/70 dark:bg-purple-800/50 rounded text-xs gap-3">
-              <span className="text-purple-950 dark:text-purple-100 font-bold break-words leading-tight max-w-[340px]" title={branch.label}>
-                {branch.label || `ルート ${index + 1}`}
-              </span>
-              <Handle 
-                type="source" 
-                position={Position.Right} 
-                id={branch.id} 
-                className="!bg-purple-600 dark:!bg-purple-400 !w-2.5 !h-2.5 !right-[-5px]"
-                style={{ top: '50%', transform: 'translateY(-50%)' }}
-              />
-            </div>
-          ))}
-          <div className="relative flex items-center justify-between min-h-[26px] py-1 pl-2.5 pr-6 bg-slate-200/70 dark:bg-slate-800/50 rounded text-xs gap-3">
-            <span className="text-muted-foreground font-semibold">その他 (Else)</span>
+          {effectiveBranches.map((branch, index) => {
+            const rightUsed = isRightConnected(branch.id);
+            const leftUsed = isLeftConnected(branch.id);
+
+            return (
+              <div
+                key={branch.id}
+                className="relative flex items-center justify-between min-h-[26px] py-1 pl-4 pr-4 bg-purple-100/70 dark:bg-purple-800/50 rounded text-xs gap-2"
+              >
+                {/* Left Pin */}
+                <Handle 
+                  type="source" 
+                  position={Position.Left} 
+                  id={`${branch.id}-left`} 
+                  isConnectable={!rightUsed}
+                  className={`!w-2.5 !h-2.5 !left-[-5px] transition-colors ${
+                    rightUsed
+                      ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
+                      : '!bg-purple-600 dark:!bg-purple-400'
+                  }`}
+                  style={{ top: '50%', transform: 'translateY(-50%)' }}
+                  title={rightUsed ? '右側ピンに接続済みのため接続不可' : '左側へ接続'}
+                />
+
+                <span className="text-purple-950 dark:text-purple-100 font-bold break-words leading-tight max-w-[320px] text-center flex-1" title={branch.label}>
+                  {branch.label || `ルート ${index + 1}`}
+                </span>
+
+                {/* Right Pin */}
+                <Handle 
+                  type="source" 
+                  position={Position.Right} 
+                  id={branch.id} 
+                  isConnectable={!leftUsed}
+                  className={`!w-2.5 !h-2.5 !right-[-5px] transition-colors ${
+                    leftUsed
+                      ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
+                      : '!bg-purple-600 dark:!bg-purple-400'
+                  }`}
+                  style={{ top: '50%', transform: 'translateY(-50%)' }}
+                  title={leftUsed ? '左側ピンに接続済みのため接続不可' : '右側へ接続'}
+                />
+              </div>
+            );
+          })}
+
+          {/* Else Route Row with Dual-Sided Pins */}
+          <div className="relative flex items-center justify-between min-h-[26px] py-1 pl-4 pr-4 bg-slate-200/70 dark:bg-slate-800/50 rounded text-xs gap-2">
+            {/* Left Else Pin */}
+            <Handle 
+              type="source" 
+              position={Position.Left} 
+              id="else-left" 
+              isConnectable={!elseRightUsed}
+              className={`!w-2.5 !h-2.5 !left-[-5px] transition-colors ${
+                elseRightUsed
+                  ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
+                  : '!bg-slate-400 dark:!bg-slate-500'
+              }`}
+              style={{ top: '50%', transform: 'translateY(-50%)' }}
+              title={elseRightUsed ? '右側ピンに接続済みのため接続不可' : '左側へ接続 (その他)'}
+            />
+
+            <span className="text-muted-foreground font-semibold flex-1 text-center">その他 (Else)</span>
+
+            {/* Right Else Pin */}
             <Handle 
               type="source" 
               position={Position.Right} 
               id="else" 
-              className="!bg-slate-400 dark:!bg-slate-500 !w-2.5 !h-2.5 !right-[-5px]"
+              isConnectable={!elseLeftUsed}
+              className={`!w-2.5 !h-2.5 !right-[-5px] transition-colors ${
+                elseLeftUsed
+                  ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
+                  : '!bg-slate-400 dark:!bg-slate-500'
+              }`}
               style={{ top: '50%', transform: 'translateY(-50%)' }}
+              title={elseLeftUsed ? '左側ピンに接続済みのため接続不可' : '右側へ接続 (その他)'}
             />
             {/* Alias handle for 'false' for legacy compatibility */}
             <Handle 

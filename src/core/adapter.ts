@@ -215,14 +215,17 @@ export function storeEdgeToCoreEdge(edge: StoreEdge, nodeMap?: Map<string, Store
             conditionValue: srcNode.data?.conditionValue,
           }] : []);
 
+      const rawHandle = edge.sourceHandle || '';
+      const baseHandle = rawHandle.replace(/-left$/, '').replace(/-right$/, '');
+
       const matchedCase = effectiveBranches.find(
-        (b) => b.id === edge.sourceHandle || (edge.sourceHandle === 'true' && (b.id === 'true' || effectiveBranches.length === 1))
+        (b) => b.id === baseHandle || (baseHandle === 'true' && (b.id === 'true' || effectiveBranches.length === 1))
       );
 
       if (matchedCase) {
         conditionType = (matchedCase.conditionType as EdgeConditionType) || 'variable';
         conditionValue = matchedCase.conditionValue || matchedCase.targetId || '';
-      } else if (edge.sourceHandle === 'else' || edge.sourceHandle === 'false') {
+      } else if (baseHandle === 'else' || baseHandle === 'false') {
         const varConditions = effectiveBranches
           .filter((b) => (b.conditionType === 'variable' || !b.conditionType) && b.conditionValue)
           .map((b) => `!(${b.conditionValue})`);
