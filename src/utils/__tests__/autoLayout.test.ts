@@ -276,5 +276,72 @@ describe('autoLayout', () => {
     // From left to right: Console A, Console C, Console B
     expect(a.position.x).toBeLessThan(c.position.x);
     expect(c.position.x).toBeLessThan(b.position.x);
+
+    const evalNode = result.nodes.find((n: ScenarioNode) => n.id === 'node_3_scrum_eval')!;
+    const e4_1 = result.nodes.find((n: ScenarioNode) => n.id === 'node_4_1')!;
+    const e4_2 = result.nodes.find((n: ScenarioNode) => n.id === 'node_4_2')!;
+    const e4_3 = result.nodes.find((n: ScenarioNode) => n.id === 'node_4_3')!;
+
+    expect(evalNode).toBeDefined();
+    // Eval node is placed in the center between A and B
+    expect(a.position.x).toBeLessThan(evalNode.position.x);
+    expect(evalNode.position.x).toBeLessThan(b.position.x);
+
+    // Downstream endings from evalNode: 4_1 (True End, left) < 4_3 (Bad End 2, center) < 4_2 (Bad End 1, right)
+    expect(e4_1.position.x).toBeLessThan(e4_3.position.x);
+    expect(e4_3.position.x).toBeLessThan(e4_2.position.x);
+  });
+
+  it('guarantees multi-level branch subtrees do not cross', () => {
+    // Branch node with 3 routes
+    // Route 1 (top, left): A1 -> A2
+    // Route 2 (middle, inside right): C1 -> C2
+    // Route 3 (bottom, inside center/else): B1 -> B2
+    const nodes: ScenarioNode[] = [
+      {
+        id: 'branch',
+        type: 'branch',
+        position: { x: 0, y: 0 },
+        data: {
+          label: '3-Branch Multi-Level',
+          branches: [
+            { id: 'r1', label: 'Route 1' },
+            { id: 'r2', label: 'Route 2' },
+          ],
+        },
+      },
+      { id: 'a1', type: 'event', position: { x: 0, y: 0 }, data: { label: 'A1' } },
+      { id: 'a2', type: 'event', position: { x: 0, y: 0 }, data: { label: 'A2' } },
+      { id: 'b1', type: 'event', position: { x: 0, y: 0 }, data: { label: 'B1' } },
+      { id: 'b2', type: 'event', position: { x: 0, y: 0 }, data: { label: 'B2' } },
+      { id: 'else1', type: 'event', position: { x: 0, y: 0 }, data: { label: 'Else1' } },
+      { id: 'else2', type: 'event', position: { x: 0, y: 0 }, data: { label: 'Else2' } },
+    ];
+
+    const edges: ScenarioEdge[] = [
+      { id: 'e-r1', source: 'branch', target: 'a1', sourceHandle: 'r1' },
+      { id: 'e-a1-a2', source: 'a1', target: 'a2' },
+      { id: 'e-r2', source: 'branch', target: 'b1', sourceHandle: 'r2' },
+      { id: 'e-b1-b2', source: 'b1', target: 'b2' },
+      { id: 'e-else', source: 'branch', target: 'else1', sourceHandle: 'else' },
+      { id: 'e-else1-else2', source: 'else1', target: 'else2' },
+    ];
+
+    const result = getLayoutedElements(nodes, edges, { direction: 'TB' });
+
+    const a1 = result.nodes.find((n) => n.id === 'a1')!;
+    const a2 = result.nodes.find((n) => n.id === 'a2')!;
+    const else1 = result.nodes.find((n) => n.id === 'else1')!;
+    const else2 = result.nodes.find((n) => n.id === 'else2')!;
+    const b1 = result.nodes.find((n) => n.id === 'b1')!;
+    const b2 = result.nodes.find((n) => n.id === 'b2')!;
+
+    // Level 1 order: a1 < else1 < b1
+    expect(a1.position.x).toBeLessThan(else1.position.x);
+    expect(else1.position.x).toBeLessThan(b1.position.x);
+
+    // Level 2 downstream order: a2 < else2 < b2 (NO crossing!)
+    expect(a2.position.x).toBeLessThan(else2.position.x);
+    expect(else2.position.x).toBeLessThan(b2.position.x);
   });
 });

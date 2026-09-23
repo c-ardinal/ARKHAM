@@ -260,6 +260,104 @@ function resolveCollisions(
 }
 
 /**
+ * Sorts nodes and flow edges in topological order, with branch outgoing edges ordered
+ * according to orderBranchOutgoingEdges. This guarantees that Dagre receives nodes and edges
+ * in optimal order from root to leaves, preventing downstream crossovers.
+ */
+export function orderNodesAndEdgesByFlow(
+  nodes: ScenarioNode[],
+  edges: ScenarioEdge[],
+  nodeToTopLevelMap: Map<string, string>
+): { orderedNodeIds: string[]; orderedEdges: ScenarioEdge[] } {
+  const nodeIds = new Set(nodes.map((n) => n.id));
+
+  // Map of outgoing edges grouped by source ID
+  const outgoingMap = new Map<string, ScenarioEdge[]>();
+  const inDegree = new Map<string, number>();
+  nodeIds.forEach((id) => inDegree.set(id, 0));
+
+  edges.forEach((edge) => {
+    if (isReferenceEdge(edge)) return;
+    const srcId = nodeToTopLevelMap.get(edge.source);
+    const tgtId = nodeToTopLevelMap.get(edge.target);
+    if (!srcId || !tgtId || srcId === tgtId) return;
+    if (!nodeIds.has(srcId) || !nodeIds.has(tgtId)) return;
+
+    if (!outgoingMap.has(srcId)) outgoingMap.set(srcId, []);
+    outgoingMap.get(srcId)!.push(edge);
+    inDegree.set(tgtId, (inDegree.get(tgtId) || 0) + 1);
+  });
+
+  // Re-order outgoing edges for branch nodes
+  nodes.forEach((n) => {
+    const outList = outgoingMap.get(n.id);
+    if (n.type === 'branch' && outList && outList.length > 1) {
+      outgoingMap.set(n.id, orderBranchOutgoingEdges(n, outList));
+    }
+  });
+
+  // Initial roots (in-degree 0)
+  const roots = nodes.filter((n) => inDegree.get(n.id) === 0);
+  // Sort roots: start nodes first, then by chapter, then by y/x position
+  roots.sort((a, b) => {
+    const aStart = a.data?.isStart ? 1 : 0;
+    const bStart = b.data?.isStart ? 1 : 0;
+    if (aStart !== bStart) return bStart - aStart;
+    const aChap = a.data?.chapter ?? 0;
+    const bChap = b.data?.chapter ?? 0;
+    if (aChap !== bChap) return aChap - bChap;
+    if (a.position.y !== b.position.y) return a.position.y - b.position.y;
+    return a.position.x - b.position.x;
+  });
+
+  const queue: string[] = roots.map((n) => n.id);
+  const visited = new Set<string>();
+  const orderedNodeIds: string[] = [];
+  const orderedEdges: ScenarioEdge[] = [];
+  const registeredEdgeKeys = new Set<string>();
+
+  while (queue.length > 0) {
+    const u = queue.shift()!;
+    if (visited.has(u)) continue;
+    visited.add(u);
+    orderedNodeIds.push(u);
+
+    const outList = outgoingMap.get(u) || [];
+    outList.forEach((e) => {
+      const tgtId = nodeToTopLevelMap.get(e.target)!;
+      const edgeKey = `${u}->${tgtId}`;
+      if (!registeredEdgeKeys.has(edgeKey)) {
+        registeredEdgeKeys.add(edgeKey);
+        orderedEdges.push(e);
+      }
+      const deg = (inDegree.get(tgtId) || 1) - 1;
+      inDegree.set(tgtId, deg);
+      if (deg <= 0 && !visited.has(tgtId)) {
+        queue.push(tgtId);
+      }
+    });
+
+    // If queue is empty but there are still unvisited nodes (e.g. cycle or disconnected component)
+    if (queue.length === 0 && orderedNodeIds.length < nodes.length) {
+      const remaining = nodes.filter((n) => !visited.has(n.id));
+      remaining.sort((a, b) => (inDegree.get(a.id) || 0) - (inDegree.get(b.id) || 0));
+      if (remaining.length > 0) {
+        queue.push(remaining[0].id);
+      }
+    }
+  }
+
+  // Append any missed nodes
+  nodes.forEach((n) => {
+    if (!visited.has(n.id)) {
+      orderedNodeIds.push(n.id);
+    }
+  });
+
+  return { orderedNodeIds, orderedEdges };
+}
+
+/**
  * Automatically calculates node positions using Dagre layout algorithm.
  * Design Philosophy:
  * - Primary flow: Top to Bottom (TB)
@@ -350,7 +448,15 @@ export function getLayoutedElements(
     { baseDim: { width: number; height: number }; dagreWidth: number; dagreHeight: number }
   >();
 
-  dagreTopNodes.forEach((node) => {
+  // Order nodes and edges by topological flow
+  const { orderedNodeIds, orderedEdges } = orderNodesAndEdgesByFlow(
+    dagreTopNodes,
+    edges,
+    topLevelIdMap
+  );
+
+  orderedNodeIds.forEach((nodeId) => {
+    const node = topLevelNodeMap.get(nodeId)!;
     const baseDim = getNodeDimensions(node, nodeWidth, nodeHeight);
     const sats = parentSatellites.get(node.id) || [];
 
@@ -376,45 +482,17 @@ export function getLayoutedElements(
     g.setNode(node.id, { width: dagreWidth, height: dagreHeight });
   });
 
-  const dagreNodeIdSet = new Set(dagreTopNodes.map((n) => n.id));
   const registeredEdges = new Set<string>();
-
-  // Group top-level flow edges by source node ID to arrange branch outgoing edges
-  const topEdgesBySource = new Map<string, ScenarioEdge[]>();
-  edges.forEach((edge) => {
-    if (isReferenceEdge(edge)) return; // Reference edges are excluded from primary flow layout
+  orderedEdges.forEach((edge) => {
     const srcTop = topLevelIdMap.get(edge.source);
     const tgtTop = topLevelIdMap.get(edge.target);
-
-    if (
-      srcTop &&
-      tgtTop &&
-      srcTop !== tgtTop &&
-      dagreNodeIdSet.has(srcTop) &&
-      dagreNodeIdSet.has(tgtTop)
-    ) {
-      if (!topEdgesBySource.has(srcTop)) {
-        topEdgesBySource.set(srcTop, []);
-      }
-      topEdgesBySource.get(srcTop)!.push(edge);
-    }
-  });
-
-  topEdgesBySource.forEach((outgoingList, srcTop) => {
-    const srcNode = topLevelNodeMap.get(srcTop);
-    const orderedList =
-      srcNode && srcNode.type === 'branch'
-        ? orderBranchOutgoingEdges(srcNode, outgoingList)
-        : outgoingList;
-
-    orderedList.forEach((edge) => {
-      const tgtTop = topLevelIdMap.get(edge.target)!;
+    if (srcTop && tgtTop && srcTop !== tgtTop) {
       const edgeKey = `${srcTop}->${tgtTop}`;
       if (!registeredEdges.has(edgeKey)) {
         registeredEdges.add(edgeKey);
         g.setEdge(srcTop, tgtTop);
       }
-    });
+    }
   });
 
   dagre.layout(g);
@@ -533,34 +611,29 @@ export function getLayoutedElements(
       marginy: 50,
     });
 
+
     const childIdSet = new Set(children.map((c) => c.id));
-    children.forEach((child) => {
+    const childIdMap = new Map(children.map((c) => [c.id, c.id]));
+    const childEdges = edges.filter(
+      (e) => !isReferenceEdge(e) && childIdSet.has(e.source) && childIdSet.has(e.target)
+    );
+    const { orderedNodeIds: childOrderedIds, orderedEdges: childOrderedEdges } =
+      orderNodesAndEdgesByFlow(children, childEdges, childIdMap);
+
+    const childNodeMap = new Map(children.map((c) => [c.id, c]));
+    childOrderedIds.forEach((childId) => {
+      const child = childNodeMap.get(childId)!;
       const dim = getNodeDimensions(child, nodeWidth, nodeHeight);
       subG.setNode(child.id, dim);
     });
 
-    const childNodeMap = new Map(children.map((c) => [c.id, c]));
-    const childEdgesBySource = new Map<string, ScenarioEdge[]>();
-    edges.forEach((e) => {
-      if (isReferenceEdge(e)) return;
-      if (childIdSet.has(e.source) && childIdSet.has(e.target)) {
-        if (!childEdgesBySource.has(e.source)) {
-          childEdgesBySource.set(e.source, []);
-        }
-        childEdgesBySource.get(e.source)!.push(e);
-      }
-    });
-
-    childEdgesBySource.forEach((outgoingList, srcId) => {
-      const srcNode = childNodeMap.get(srcId);
-      const orderedList =
-        srcNode && srcNode.type === 'branch'
-          ? orderBranchOutgoingEdges(srcNode, outgoingList)
-          : outgoingList;
-
-      orderedList.forEach((e) => {
+    const registeredChildEdges = new Set<string>();
+    childOrderedEdges.forEach((e) => {
+      const k = `${e.source}->${e.target}`;
+      if (!registeredChildEdges.has(k)) {
+        registeredChildEdges.add(k);
         subG.setEdge(e.source, e.target);
-      });
+      }
     });
 
     dagre.layout(subG);
@@ -676,7 +749,14 @@ export function getLayoutedElements(
     if (branchCenterX === null || targetCenterX === null) return edge;
 
     // Target is located to the left of the branch node
-    const isTargetOnLeft = targetCenterX < branchCenterX;
+    let isTargetOnLeft: boolean;
+    if (Math.abs(targetCenterX - branchCenterX) > 5) {
+      isTargetOnLeft = targetCenterX < branchCenterX;
+    } else {
+      const rIdx = getRouteIndex(sourceNode, edge.sourceHandle);
+      const numLeft = Math.floor(rawBranches.length / 2);
+      isTargetOnLeft = rIdx < numLeft;
+    }
     const sourceHandle = edge.sourceHandle || '';
 
     // Check Else route
