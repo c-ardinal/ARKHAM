@@ -40,6 +40,10 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
     ? effectiveBranches.some((b) => !isRightConnected(b.id) && !isLeftConnected(b.id))
     : (!trueUsed || !falseUsed);
 
+  const hasExplicitFalseOrElse = effectiveBranches.some((b) => b.id === 'false' || b.id === 'else');
+  const isConditionBranch = data.branchType === 'condition' || (effectiveBranches.length === 2 && effectiveBranches.some((b) => b.id === 'true') && effectiveBranches.some((b) => b.id === 'false'));
+  const showElseRow = isMulti && !isConditionBranch && !hasExplicitFalseOrElse && (Boolean(data.hasElse) || elseRightUsed || elseLeftUsed);
+
   return (
     <div className={`relative px-4 py-2.5 shadow-sm hover:shadow-md rounded-md border-2 min-w-[180px] max-w-[420px] w-max transition-shadow duration-200 ${
       selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
@@ -216,48 +220,42 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
             );
           })}
 
-          {/* Else Route Row with Dual-Sided Pins */}
-          <div className="relative flex items-center justify-between min-h-[26px] py-1 pl-4 pr-4 bg-slate-200/70 dark:bg-slate-800/50 rounded text-xs gap-2">
-            {/* Left Else Pin */}
-            <Handle 
-              type="source" 
-              position={Position.Left} 
-              id="else-left" 
-              isConnectable={!elseRightUsed}
-              className={`!w-2.5 !h-2.5 !left-[-5px] transition-colors ${
-                elseRightUsed
-                  ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
-                  : '!bg-slate-400 dark:!bg-slate-500'
-              }`}
-              style={{ top: '50%', transform: 'translateY(-50%)' }}
-              title={elseRightUsed ? '右側ピンに接続済みのため接続不可' : '左側へ接続 (その他)'}
-            />
+          {/* Else Route Row with Dual-Sided Pins (rendered only when explicit or needed) */}
+          {showElseRow && (
+            <div className="relative flex items-center justify-between min-h-[26px] py-1 pl-4 pr-4 bg-slate-200/70 dark:bg-slate-800/50 rounded text-xs gap-2">
+              {/* Left Else Pin */}
+              <Handle 
+                type="source" 
+                position={Position.Left} 
+                id="else-left" 
+                isConnectable={!elseRightUsed}
+                className={`!w-2.5 !h-2.5 !left-[-5px] transition-colors ${
+                  elseRightUsed
+                    ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
+                    : '!bg-slate-400 dark:!bg-slate-500'
+                }`}
+                style={{ top: '50%', transform: 'translateY(-50%)' }}
+                title={elseRightUsed ? '右側ピンに接続済みのため接続不可' : '左側へ接続 (その他)'}
+              />
 
-            <span className="text-muted-foreground font-semibold flex-1 text-center">その他 (Else)</span>
+              <span className="text-muted-foreground font-semibold flex-1 text-center">その他 (Else)</span>
 
-            {/* Right Else Pin */}
-            <Handle 
-              type="source" 
-              position={Position.Right} 
-              id="else" 
-              isConnectable={!elseLeftUsed}
-              className={`!w-2.5 !h-2.5 !right-[-5px] transition-colors ${
-                elseLeftUsed
-                  ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
-                  : '!bg-slate-400 dark:!bg-slate-500'
-              }`}
-              style={{ top: '50%', transform: 'translateY(-50%)' }}
-              title={elseLeftUsed ? '左側ピンに接続済みのため接続不可' : '右側へ接続 (その他)'}
-            />
-            {/* Alias handle for 'false' for legacy compatibility */}
-            <Handle 
-              type="source" 
-              position={Position.Right} 
-              id="false" 
-              className="!opacity-0 !pointer-events-none" 
-              style={{ top: '50%', transform: 'translateY(-50%)' }}
-            />
-          </div>
+              {/* Right Else Pin */}
+              <Handle 
+                type="source" 
+                position={Position.Right} 
+                id="else" 
+                isConnectable={!elseLeftUsed}
+                className={`!w-2.5 !h-2.5 !right-[-5px] transition-colors ${
+                  elseLeftUsed
+                    ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
+                    : '!bg-slate-400 dark:!bg-slate-500'
+                }`}
+                style={{ top: '50%', transform: 'translateY(-50%)' }}
+                title={elseLeftUsed ? '左側ピンに接続済みのため接続不可' : '右側へ接続 (その他)'}
+              />
+            </div>
+          )}
         </div>
       )}
       
