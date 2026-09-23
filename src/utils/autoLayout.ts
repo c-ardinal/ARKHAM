@@ -95,6 +95,92 @@ export function isReferenceEdge(edge: ScenarioEdge): boolean {
 }
 
 /**
+ * Resolves the 0-based vertical index of a branch route from top to bottom.
+ * 0 is the topmost route; larger indices represent lower routes.
+ */
+export function getRouteIndex(node: ScenarioNode, sourceHandle?: string | null): number {
+  if (node.type !== 'branch') return 0;
+  const branches = node.data?.branches || [];
+  const handle = sourceHandle || '';
+
+  // 1. Check named branch routes
+  for (let i = 0; i < branches.length; i++) {
+    const bId = branches[i].id;
+    if (handle === bId || handle === `${bId}-left` || handle === `${bId}-right`) {
+      return i;
+    }
+  }
+
+  // 2. Check Else / False route (rendered at the very bottom)
+  if (
+    handle === 'else' ||
+    handle === 'else-left' ||
+    handle === 'false' ||
+    handle === 'false-left'
+  ) {
+    return branches.length > 0 ? branches.length : 1;
+  }
+
+  // 3. Fallback for True (legacy / 2-branch)
+  if (handle === 'true' || handle === 'true-left') {
+    return 0;
+  }
+
+  return 0;
+}
+
+/**
+ * Orders outgoing edges of a branch node for Dagre layout such that:
+ * - Upper routes in the branch are placed on the OUTSIDE (far-left for left side, far-right for right side)
+ * - Lower routes in the branch are placed on the INSIDE (near-center)
+ * This guarantees zero crossing and zero overlap between branch edges and nodes.
+ */
+export function orderBranchOutgoingEdges(
+  branchNode: ScenarioNode,
+  outgoingEdges: ScenarioEdge[]
+): ScenarioEdge[] {
+  if (outgoingEdges.length <= 1) return outgoingEdges;
+
+  // Map each edge to its route index
+  const withIndex = outgoingEdges.map((edge) => ({
+    edge,
+    routeIndex: getRouteIndex(branchNode, edge.sourceHandle),
+  }));
+
+  // Initial sort by routeIndex ascending
+  withIndex.sort((a, b) => a.routeIndex - b.routeIndex);
+
+  // Check if edges already have explicit left vs right handle designations
+  const hasExplicitLeft = withIndex.some((item) =>
+    item.edge.sourceHandle?.endsWith('-left')
+  );
+  const hasExplicitRight = withIndex.some(
+    (item) => item.edge.sourceHandle && !item.edge.sourceHandle.endsWith('-left')
+  );
+
+  let leftItems: typeof withIndex;
+  let rightItems: typeof withIndex;
+
+  if (hasExplicitLeft && hasExplicitRight) {
+    leftItems = withIndex.filter((item) => item.edge.sourceHandle?.endsWith('-left'));
+    rightItems = withIndex.filter((item) => !item.edge.sourceHandle?.endsWith('-left'));
+  } else {
+    // Symmetrical split: earlier routes to left, later routes to right
+    const numLeft = Math.floor(withIndex.length / 2);
+    leftItems = withIndex.slice(0, numLeft);
+    rightItems = withIndex.slice(numLeft);
+  }
+
+  // Left side: Higher routes (smaller routeIndex) on outside (far-left), lower routes on inside (near-center)
+  leftItems.sort((a, b) => a.routeIndex - b.routeIndex);
+
+  // Right side: Lower routes (larger routeIndex) on inside (near-center), higher routes on outside (far-right)
+  rightItems.sort((a, b) => b.routeIndex - a.routeIndex);
+
+  return [...leftItems.map((item) => item.edge), ...rightItems.map((item) => item.edge)];
+}
+
+/**
  * Resolves remaining bounding box collisions using AABB push separation
  */
 function resolveCollisions(
@@ -294,6 +380,8 @@ export function getLayoutedElements(
   const dagreNodeIdSet = new Set(dagreTopNodes.map((n) => n.id));
   const registeredEdges = new Set<string>();
 
+  // Group top-level flow edges by source node ID to arrange branch outgoing edges
+  const topEdgesBySource = new Map<string, ScenarioEdge[]>();
   edges.forEach((edge) => {
     if (isReferenceEdge(edge)) return; // Reference edges are excluded from primary flow layout
     const srcTop = topLevelIdMap.get(edge.source);
@@ -306,12 +394,28 @@ export function getLayoutedElements(
       dagreNodeIdSet.has(srcTop) &&
       dagreNodeIdSet.has(tgtTop)
     ) {
+      if (!topEdgesBySource.has(srcTop)) {
+        topEdgesBySource.set(srcTop, []);
+      }
+      topEdgesBySource.get(srcTop)!.push(edge);
+    }
+  });
+
+  topEdgesBySource.forEach((outgoingList, srcTop) => {
+    const srcNode = topLevelNodeMap.get(srcTop);
+    const orderedList =
+      srcNode && srcNode.type === 'branch'
+        ? orderBranchOutgoingEdges(srcNode, outgoingList)
+        : outgoingList;
+
+    orderedList.forEach((edge) => {
+      const tgtTop = topLevelIdMap.get(edge.target)!;
       const edgeKey = `${srcTop}->${tgtTop}`;
       if (!registeredEdges.has(edgeKey)) {
         registeredEdges.add(edgeKey);
         g.setEdge(srcTop, tgtTop);
       }
-    }
+    });
   });
 
   dagre.layout(g);
@@ -402,10 +506,28 @@ export function getLayoutedElements(
       subG.setNode(child.id, dim);
     });
 
+    const childNodeMap = new Map(children.map((c) => [c.id, c]));
+    const childEdgesBySource = new Map<string, ScenarioEdge[]>();
     edges.forEach((e) => {
+      if (isReferenceEdge(e)) return;
       if (childIdSet.has(e.source) && childIdSet.has(e.target)) {
-        subG.setEdge(e.source, e.target);
+        if (!childEdgesBySource.has(e.source)) {
+          childEdgesBySource.set(e.source, []);
+        }
+        childEdgesBySource.get(e.source)!.push(e);
       }
+    });
+
+    childEdgesBySource.forEach((outgoingList, srcId) => {
+      const srcNode = childNodeMap.get(srcId);
+      const orderedList =
+        srcNode && srcNode.type === 'branch'
+          ? orderBranchOutgoingEdges(srcNode, outgoingList)
+          : outgoingList;
+
+      orderedList.forEach((e) => {
+        subG.setEdge(e.source, e.target);
+      });
     });
 
     dagre.layout(subG);
