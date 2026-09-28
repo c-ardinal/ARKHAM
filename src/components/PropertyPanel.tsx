@@ -4,7 +4,7 @@ import type { ScenarioNode } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { INPUT_CLASS, LABEL_CLASS, ERROR_MSG_CLASS as ERROR_CLASS } from '../styles/common';
-import { X, AlertCircle, Dices } from 'lucide-react';
+import { X, AlertCircle, Dices, Sparkles } from 'lucide-react';
 import { useRenderMetricsIfDebug } from '../hooks/useRenderMetrics';
 import { JumpTargetCombobox } from './JumpTargetCombobox';
 import { SearchableSelect } from './SearchableSelect';
@@ -1047,6 +1047,61 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                             ? '上から順に判定し、最初に合致したルートへ進みます'
                             : '「+ 分岐ルートを追加」で多分岐（複数ルート）に拡張できます'}
                         </p>
+                      </div>
+                    </div>
+
+                    {/* Quick Presets for TRPG Check / Selection */}
+                    <div className="p-2 rounded-md bg-muted/40 border border-border/60 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                        <Sparkles size={12} className="text-amber-500 shrink-0" />
+                        <span>汎用判定・選択プリセット</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBranches = [
+                              { id: `case_${Date.now()}_succ`, label: '成功 (Success)', conditionType: 'check', conditionValue: '' },
+                              { id: `case_${Date.now()}_fail`, label: '失敗 (Failure)', conditionType: 'check', conditionValue: '' },
+                            ];
+                            updateNodeData(selectedNode.id, { branches: newBranches, branchType: 'switch' });
+                          }}
+                          className="px-1.5 py-1 bg-background hover:bg-accent text-foreground rounded text-[10px] font-medium border border-border shadow-xs transition-colors cursor-pointer text-center"
+                          title="二値判定（成功 / 失敗）の2分岐を自動生成"
+                        >
+                          成否 (2分岐)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBranches = [
+                              { id: `case_${Date.now()}_crit`, label: '大成功 (Critical)', conditionType: 'check', conditionValue: '' },
+                              { id: `case_${Date.now()}_succ`, label: '通常成功 (Success)', conditionType: 'check', conditionValue: '' },
+                              { id: `case_${Date.now()}_fail`, label: '失敗 (Failure)', conditionType: 'check', conditionValue: '' },
+                              { id: `case_${Date.now()}_fumb`, label: '大失敗 (Fumble)', conditionType: 'check', conditionValue: '' },
+                            ];
+                            updateNodeData(selectedNode.id, { branches: newBranches, branchType: 'switch' });
+                          }}
+                          className="px-1.5 py-1 bg-background hover:bg-accent text-foreground rounded text-[10px] font-medium border border-border shadow-xs transition-colors cursor-pointer text-center"
+                          title="4段階成果（大成功 / 成功 / 失敗 / 大失敗）の4分岐を自動生成"
+                        >
+                          4段階成果
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBranches = [
+                              { id: `case_${Date.now()}_opt1`, label: '調査対象 A', conditionType: 'variable', conditionValue: '' },
+                              { id: `case_${Date.now()}_opt2`, label: '調査対象 B', conditionType: 'variable', conditionValue: '' },
+                              { id: `case_${Date.now()}_opt3`, label: '別エリアへ移動', conditionType: 'variable', conditionValue: '' },
+                            ];
+                            updateNodeData(selectedNode.id, { branches: newBranches, branchType: 'switch' });
+                          }}
+                          className="px-1.5 py-1 bg-background hover:bg-accent text-foreground rounded text-[10px] font-medium border border-border shadow-xs transition-colors cursor-pointer text-center"
+                          title="探索・行動選択（3択）を自動生成"
+                        >
+                          調査選択 (3択)
+                        </button>
                       </div>
                     </div>
 

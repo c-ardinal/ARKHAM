@@ -35,6 +35,7 @@ export interface ScenarioNodeData {
   conditionType?: 'variable' | 'item_held' | 'check' | string;
   conditionVariable?: string;
   conditionValue?: string; // Used for branch condition/variable
+  hasElse?: boolean;
   
   // For Event nodes
   isStart?: boolean;
@@ -79,6 +80,8 @@ export interface ScenarioNodeData {
   sanCheck?: import('./core/schema').SanCheckConfig; // Backward compatibility
   timeCostMinutes?: number;
   isEnding?: boolean;
+  associatedCharacterIds?: string[];
+  associatedStageIds?: string[];
   variableOperator?: 'set' | 'add' | 'subtract';
   variableOperations?: import('./core/schema').VariableOperation[];
 }
@@ -135,6 +138,31 @@ export interface CharacterData {
   abilities?: string;
   skills?: string;
   note?: string;
+}
+
+export interface ScenarioMetadata {
+  title: string;
+  author?: string;
+  system?: string;
+  targetTime?: string;
+  targetTimeMinutes?: number;
+  recommendedParty?: string;
+  recommendedSkills?: string[];
+  lossRate?: string;
+  regulations?: string;
+  overview?: string;
+  truth?: string;
+  handouts?: {
+    shared?: string;
+    list?: Array<{
+      id?: string;
+      title: string;
+      role?: string;
+      publicInfo?: string;
+      secretInfo?: string;
+      recommendedRole?: string;
+    }>;
+  };
 }
 
 export type StageType = 'Location' | 'Faction' | 'Lore';

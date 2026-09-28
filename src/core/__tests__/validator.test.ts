@@ -489,6 +489,94 @@ describe('ARKHAM Graph Validator Module', () => {
     expect(unconnected.map((u) => (u.details as any)?.branchId)).toEqual(expect.arrayContaining(['route_2', 'route_3']));
   });
 
+  it('detects unconnected Else fallback route as a warning when not connected', () => {
+    const graph: CoreGraph = {
+      masterData: { items: [], locations: [], skills: [] },
+      nodes: [
+        {
+          id: 'start',
+          chapter: 1,
+          title: '開始イベント',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '開始',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'branch_multi',
+          chapter: 1,
+          title: '多分岐判定',
+          type: 'check',
+          locationId: 'loc_start',
+          purpose: '分岐',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+          branches: [
+            { id: 'case_1', label: 'ルート1' },
+            { id: 'case_2', label: 'ルート2' },
+          ],
+        },
+        {
+          id: 'tgt_1',
+          chapter: 1,
+          title: '行先1',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '行先1',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+        {
+          id: 'tgt_2',
+          chapter: 1,
+          title: '行先2',
+          type: 'event',
+          locationId: 'loc_start',
+          purpose: '行先2',
+          kpInstructions: [],
+          investigationPoints: [],
+          readAloudText: '',
+          requiredItems: [],
+          acquiredItems: [],
+          consumedItems: [],
+          timeCostMinutes: 5,
+        },
+      ],
+      edges: [
+        { id: 'e_start', fromNodeId: 'start', toNodeId: 'branch_multi', conditionType: 'always' },
+        { id: 'e_1', fromNodeId: 'branch_multi', toNodeId: 'tgt_1', sourceHandle: 'case_1', conditionType: 'choice' },
+        { id: 'e_2', fromNodeId: 'branch_multi', toNodeId: 'tgt_2', sourceHandle: 'case_2', conditionType: 'choice' },
+      ],
+      startNodeId: 'start',
+    };
+
+    const issues = validateGraph(graph);
+    // Explicit routes are connected -> 0 errors!
+    const errors = issues.filter((i) => i.severity === 'error');
+    expect(errors).toHaveLength(0);
+
+    // Else route is unconnected -> 1 warning!
+    const elseWarnings = issues.filter((i) => i.code === 'unconnected_else_route');
+    expect(elseWarnings).toHaveLength(1);
+    expect(elseWarnings[0].severity).toBe('warning');
+  });
+
   it('detects invalid jump target when jumpTarget is missing or points to non-existent node', () => {
     const graph: CoreGraph = {
       masterData: { items: [], locations: [], skills: [] },

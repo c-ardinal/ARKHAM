@@ -25,24 +25,38 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
 
   // Helper to check which pin has an outgoing edge for this branch route
   const isRightConnected = (bId: string) =>
-    edges.some((e) => e.source === id && (e.sourceHandle === bId || e.sourceHandle === `${bId}-right`));
+    edges.some((e) => {
+      if (e.source !== id) return false;
+      const sh = e.sourceHandle || '';
+      if (sh === bId || sh === `${bId}-right`) return true;
+      if (bId === 'false' && (sh === 'else' || sh === 'else-right')) return true;
+      if (bId === 'else' && (sh === 'false' || sh === 'false-right')) return true;
+      return false;
+    });
 
   const isLeftConnected = (bId: string) =>
-    edges.some((e) => e.source === id && e.sourceHandle === `${bId}-left`);
+    edges.some((e) => {
+      if (e.source !== id) return false;
+      const sh = e.sourceHandle || '';
+      if (sh === `${bId}-left`) return true;
+      if (bId === 'false' && sh === 'else-left') return true;
+      if (bId === 'else' && sh === 'false-left') return true;
+      return false;
+    });
 
-  const elseRightUsed = isRightConnected('else') || isRightConnected('false');
-  const elseLeftUsed = isLeftConnected('else') || isLeftConnected('false');
+  const elseRightUsed = isRightConnected('else');
+  const elseLeftUsed = isLeftConnected('else');
 
   const trueUsed = isRightConnected(effectiveBranches[0]?.id || 'true') || isLeftConnected(effectiveBranches[0]?.id || 'true');
-  const falseUsed = elseRightUsed || elseLeftUsed;
+  const falseUsed = isRightConnected('false') || isLeftConnected('false') || elseRightUsed || elseLeftUsed;
+
+  const showElseRow = isMulti && !effectiveBranches.some((b) => b.id === 'else');
 
   const hasUnconnectedRoutes = isMulti
     ? effectiveBranches.some((b) => !isRightConnected(b.id) && !isLeftConnected(b.id))
     : (!trueUsed || !falseUsed);
 
-  const hasExplicitFalseOrElse = effectiveBranches.some((b) => b.id === 'false' || b.id === 'else');
-  const isConditionBranch = data.branchType === 'condition' || (effectiveBranches.length === 2 && effectiveBranches.some((b) => b.id === 'true') && effectiveBranches.some((b) => b.id === 'false'));
-  const showElseRow = isMulti && !isConditionBranch && !hasExplicitFalseOrElse && (Boolean(data.hasElse) || elseRightUsed || elseLeftUsed);
+  const hasUnconnectedElse = showElseRow && !elseRightUsed && !elseLeftUsed;
 
   return (
     <div className={`relative px-4 py-2.5 shadow-sm hover:shadow-md rounded-md border-2 min-w-[180px] max-w-[420px] w-max transition-shadow duration-200 ${
@@ -50,7 +64,9 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
     } ${
       hasUnconnectedRoutes
         ? 'border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-purple-900/30'
-        : 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/40'
+        : hasUnconnectedElse
+          ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/40'
+          : 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/40'
     }`}>
 
       {data.hasSticky && <StickyIndicator />}
@@ -74,6 +90,15 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
             >
               <AlertTriangle size={12} className="text-amber-600 dark:text-amber-400" />
               未接続あり
+            </span>
+          )}
+          {!hasUnconnectedRoutes && hasUnconnectedElse && (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 font-medium shrink-0 border border-amber-300/80 dark:border-amber-700/80"
+              title="フォールバックルート「その他 (Else)」が出力エッジに未接続です（警告）"
+            >
+              <AlertTriangle size={11} className="text-amber-600 dark:text-amber-400" />
+              Else未接続
             </span>
           )}
           <div className="text-base font-bold text-purple-900 dark:text-purple-100 break-words">
@@ -216,13 +241,37 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
                   style={{ top: '50%', transform: 'translateY(-50%)' }}
                   title={leftUsed ? '左側ピンに接続済みのため接続不可' : isUnconnected ? '【未接続】右側へ接続' : '右側へ接続'}
                 />
+                {/* When branch.id is 'false', provide alias handles so edges with 'else'/'else-left' properly dock here */}
+                {branch.id === 'false' && (
+                  <>
+                    <Handle 
+                      type="source" 
+                      position={Position.Left} 
+                      id="else-left" 
+                      className="!opacity-0 !pointer-events-none !left-[-5px]" 
+                      style={{ top: '50%', transform: 'translateY(-50%)' }}
+                    />
+                    <Handle 
+                      type="source" 
+                      position={Position.Right} 
+                      id="else" 
+                      className="!opacity-0 !pointer-events-none !right-[-5px]" 
+                      style={{ top: '50%', transform: 'translateY(-50%)' }}
+                    />
+                  </>
+                )}
               </div>
             );
           })}
 
           {/* Else Route Row with Dual-Sided Pins (rendered only when explicit or needed) */}
+          {/* Else Route Row with Dual-Sided Pins (rendered for multi-route branches) */}
           {showElseRow && (
-            <div className="relative flex items-center justify-between min-h-[26px] py-1 pl-4 pr-4 bg-slate-200/70 dark:bg-slate-800/50 rounded text-xs gap-2">
+            <div className={`relative flex items-center justify-between min-h-[26px] py-1 pl-4 pr-4 rounded text-xs gap-2 transition-colors ${
+              elseRightUsed || elseLeftUsed
+                ? 'bg-purple-100/70 dark:bg-purple-800/50'
+                : 'bg-amber-50/40 dark:bg-amber-950/20 border border-amber-300/60 dark:border-amber-700/60'
+            }`}>
               {/* Left Else Pin */}
               <Handle 
                 type="source" 
@@ -232,13 +281,22 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
                 className={`!w-2.5 !h-2.5 !left-[-5px] transition-colors ${
                   elseRightUsed
                     ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
-                    : '!bg-slate-400 dark:!bg-slate-500'
+                    : elseLeftUsed
+                      ? '!bg-purple-600 dark:!bg-purple-400'
+                      : '!bg-amber-500 ring-2 ring-amber-300 dark:ring-amber-600'
                 }`}
                 style={{ top: '50%', transform: 'translateY(-50%)' }}
-                title={elseRightUsed ? '右側ピンに接続済みのため接続不可' : '左側へ接続 (その他)'}
+                title={elseRightUsed ? '右側ピンに接続済みのため接続不可' : !elseLeftUsed ? '【未接続 (警告)】左側へ接続 (その他)' : '左側へ接続 (その他)'}
               />
 
-              <span className="text-muted-foreground font-semibold flex-1 text-center">その他 (Else)</span>
+              <span className="text-muted-foreground font-semibold flex-1 text-center inline-flex items-center justify-center gap-1">
+                {!elseRightUsed && !elseLeftUsed && (
+                  <span title="その他 (Else) ルートに出力エッジが接続されていません（警告）">
+                    <AlertTriangle size={11} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                  </span>
+                )}
+                その他 (Else)
+              </span>
 
               {/* Right Else Pin */}
               <Handle 
@@ -249,10 +307,12 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
                 className={`!w-2.5 !h-2.5 !right-[-5px] transition-colors ${
                   elseLeftUsed
                     ? '!bg-slate-300 dark:!bg-slate-600 !border !border-dashed !border-slate-400 opacity-40 cursor-not-allowed'
-                    : '!bg-slate-400 dark:!bg-slate-500'
+                    : elseRightUsed
+                      ? '!bg-purple-600 dark:!bg-purple-400'
+                      : '!bg-amber-500 ring-2 ring-amber-300 dark:ring-amber-600'
                 }`}
                 style={{ top: '50%', transform: 'translateY(-50%)' }}
-                title={elseLeftUsed ? '左側ピンに接続済みのため接続不可' : '右側へ接続 (その他)'}
+                title={elseLeftUsed ? '左側ピンに接続済みのため接続不可' : !elseRightUsed ? '【未接続 (警告)】右側へ接続 (その他)' : '右側へ接続 (その他)'}
               />
             </div>
           )}

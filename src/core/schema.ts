@@ -279,6 +279,7 @@ export type ValidationIssueCode =
   | 'dead_end'
   | 'dangling_branch'
   | 'unconnected_branch_route'
+  | 'unconnected_else_route'
   | 'invalid_jump_target'
   | 'dead_end_unconnected'
   | 'multiple_event_outgoing_edges'

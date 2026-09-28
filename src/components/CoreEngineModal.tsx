@@ -82,7 +82,8 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
   // Category filtering & Priority Sorting
   const [issueCategory, setIssueCategory] = useState<'all' | 'branch' | 'reachability' | 'other'>('all');
 
-  const isBranchIssue = (code: string) => code === 'unconnected_branch_route' || code === 'dangling_branch';
+  const isBranchIssue = (code: string) =>
+    code === 'unconnected_branch_route' || code === 'unconnected_else_route' || code === 'dangling_branch';
   const isReachabilityIssue = (code: string) =>
     code === 'unreachable_node' || code === 'dead_end' || code === 'dead_end_unconnected' || code === 'isolated_node' || code === 'missing_start_node' || code === 'unreachable_ending';
 
@@ -96,6 +97,7 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
   const getIssuePriority = (code: string) => {
     switch (code) {
       case 'unconnected_branch_route':
+      case 'unconnected_else_route':
       case 'dangling_branch':
         return 1;
       case 'invalid_jump_target':
@@ -203,6 +205,8 @@ export const CoreEngineModal: React.FC<CoreEngineModalProps> = ({ isOpen, onClos
     switch (code) {
       case 'unconnected_branch_route':
         return '分岐未接続ルート';
+      case 'unconnected_else_route':
+        return '分岐未接続（Else）';
       case 'invalid_jump_target':
         return '無効なジャンプ先';
       case 'dangling_branch':

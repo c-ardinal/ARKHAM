@@ -22,7 +22,6 @@ import { Play, Edit, Undo, Redo, ChevronDown, Check, ChevronRight, Activity, Dic
 
 import { useTranslation } from '../hooks/useTranslation';
 import { TabBar } from './TabBar';
-import { generateScenarioText } from '../utils/exportUtils';
 import sampleStory from '../../sample/sample_Story.json';
 import sampleNestedGroup from '../../sample/sample_NestedGroupNodes.json';
 import sampleIndeterminateOrgan from '../../sample/scenario_indeterminate_organ.json';
@@ -31,6 +30,11 @@ import { createPortal } from 'react-dom'; // Import createPortal
 import { useMenuStructure } from '../hooks/useMenuStructure';
 import type { MenuItem as MenuItemType } from '../types/menu';
 import type { ScenarioNode } from '../types';
+import { DEFAULT_SYSTEM_PRESETS } from '../types';
+import { importFromHumanYaml } from '../core/humanImporter';
+import { exportToHumanYaml } from '../core/humanExporter';
+import { buildCoreGraph } from '../core/adapter';
+import { exportToScenarioMarkdown } from '../core/exporter';
 
 interface MenuItemProps {
     onClick?: (e: React.MouseEvent) => void;
@@ -590,9 +594,51 @@ export const Layout = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
+        const isYaml = file.name.endsWith('.yaml') || file.name.endsWith('.yml') || (!content.trim().startsWith('{') && (content.includes('タイトル:') || content.includes('場面一覧:')));
+
+        if (isYaml) {
+          const result = importFromHumanYaml(content);
+
+          const currentSys = useScenarioStore.getState().systemConfig;
+          let sysConfig = currentSys;
+          if (result.scenarioMetadata.system) {
+            const matchSys = Object.values(DEFAULT_SYSTEM_PRESETS).find(p => 
+              p.name.includes(result.scenarioMetadata.system!) || result.scenarioMetadata.system!.includes(p.name)
+            );
+            if (matchSys) sysConfig = matchSys;
+          }
+
+          const scenarioPackage: any = {
+            version: 2,
+            scenarioTitle: result.scenarioMetadata.title,
+            scenarioMetadata: result.scenarioMetadata,
+            systemConfig: sysConfig,
+            characters: result.characters,
+            resources: result.resources,
+            stages: result.stages,
+            activeTabId: 'tab_main',
+            tabs: [
+              {
+                id: 'tab_main',
+                name: result.scenarioMetadata.title,
+                nodes: result.nodes,
+                edges: result.edges,
+              }
+            ]
+          };
+
+          await loadScenarioWithStabilization(scenarioPackage);
+          useScenarioStore.getState().applyAutoLayout('TB');
+          setTimeout(() => {
+            canvasRef.current?.fitViewWithSave();
+          }, 150);
+          toast.success(`シナリオ「${result.scenarioMetadata.title}」を読み込み、自動整列しました`);
+          return;
+        }
+
         const data = JSON.parse(content);
         
         // Validate the data
@@ -632,7 +678,7 @@ export const Layout = () => {
       } catch (error) {
         console.error('Failed to load scenario:', error);
         setValidationError({
-          errors: ['シナリオの読み込みに失敗しました。不正なJSONです。', error instanceof Error ? error.message : String(error)],
+          errors: ['シナリオの読み込みに失敗しました。ファイル形式を確認してください。', error instanceof Error ? error.message : String(error)],
           warnings: []
         });
         toast.error(t('toast.loadFailed' as any));
@@ -671,17 +717,56 @@ const menuActions = {
             }
         });
     },
-    onExport: (type: 'text' | 'markdown') => {
+    onExport: (type: 'yaml' | 'body_markdown') => {
         try {
-            const text = generateScenarioText(nodes, edges, gameState.variables, type);
-            const blob = new Blob([text], { type: type === 'text' ? 'text/plain' : 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `scenario_export_${Date.now()}.${type === 'text' ? 'txt' : 'md'}`;
-            a.click();
-            URL.revokeObjectURL(url);
-            toast.success(t('toast.scenarioExported' as any));
+            if (type === 'yaml') {
+                const store = useScenarioStore.getState();
+                const currentTab = store.tabs.find(t => t.id === store.activeTabId) || store.tabs[0];
+                const yamlText = exportToHumanYaml({
+                    scenarioMetadata: store.scenarioMetadata,
+                    scenarioTitle: store.scenarioTitle,
+                    systemConfig: store.systemConfig,
+                    characters: store.characters,
+                    resources: store.resources,
+                    stages: store.stages,
+                    nodes: currentTab ? currentTab.nodes : [],
+                    edges: currentTab ? currentTab.edges : [],
+                });
+                const blob = new Blob([yamlText], { type: 'text/yaml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const safeName = (store.scenarioTitle || 'scenario').replace(/[^\w\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/g, '_');
+                a.download = `${safeName}_${Date.now()}.yaml`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success('シナリオ原稿 (YAML) をエクスポートしました');
+                return;
+            }
+
+            if (type === 'body_markdown') {
+                const store = useScenarioStore.getState();
+                const currentTab = store.tabs.find(t => t.id === store.activeTabId) || store.tabs[0];
+                const coreGraph = buildCoreGraph(
+                    currentTab ? currentTab.nodes : [],
+                    currentTab ? currentTab.edges : [],
+                    store.resources,
+                    store.stages,
+                    store.systemConfig,
+                    store.gameState.variables
+                );
+                const bodyMd = exportToScenarioMarkdown(coreGraph);
+                const blob = new Blob([bodyMd], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const safeName = (store.scenarioTitle || 'scenario').replace(/[^\w\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/g, '_');
+                a.download = `${safeName}_body_${Date.now()}.md`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success('シナリオ本文 (Markdown) をエクスポートしました');
+                return;
+            }
         } catch (err) {
             console.error('[Layout] Export failed:', err);
             toast.error(t('toast.exportFailed' as any));
@@ -918,7 +1003,7 @@ const menuActions = {
             ref={fileInputRef} 
             onChange={handleLoad} 
             className="hidden" 
-            accept=".json"
+            accept=".json,.yaml,.yml,text/yaml,text/x-yaml,application/x-yaml,application/json"
        />
 
       {confirmModal && (

@@ -356,6 +356,25 @@ export function validateGraph(graph: CoreGraph): ValidationIssue[] {
           });
         }
       }
+
+      // Check fallback Else route for multi-branch nodes (warning severity)
+      const isMulti = nodeBranches.length >= 2;
+      const hasExplicitElse = nodeBranches.some((b) => b.id === 'else');
+      if (isMulti && !hasExplicitElse && outs.length > 0) {
+        const hasElseConnected = outs.some((e) => {
+          const h = (e.sourceHandle || '').replace(/-(left|right)$/, '');
+          return h === 'else';
+        });
+        if (!hasElseConnected) {
+          issues.push({
+            code: 'unconnected_else_route',
+            severity: 'warning',
+            message: `分岐ノード「${node.title}」のフォールバックルート「その他 (Else)」に出力エッジが接続されていません。条件に一致しない場合の進路が未定義です。`,
+            nodeId: node.id,
+            details: { branchId: 'else', branchLabel: 'その他 (Else)' },
+          });
+        }
+      }
     }
   }
 

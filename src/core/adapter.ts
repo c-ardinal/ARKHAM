@@ -130,7 +130,7 @@ function mapNodeType(node: StoreNode): ScenarioNodeType {
 /**
  * Converts a StoreNode to a CoreNode
  */
-export function storeNodeToCoreNode(node: StoreNode): CoreNode {
+export function storeNodeToCoreNode(node: StoreNode, edges?: StoreEdge[]): CoreNode {
   const d = node.data;
 
   // Infer acquired/consumed items if legacy Element node was used
@@ -174,6 +174,19 @@ export function storeNodeToCoreNode(node: StoreNode): CoreNode {
         conditionType: b.conditionType,
         conditionValue: b.conditionValue,
       }));
+
+      const hasExplicitElse = rawBranches.some((b) => b.id === 'else');
+      const hasElseConnected = edges && edges.some(
+        (e) => e.source === node.id && (e.sourceHandle === 'else' || e.sourceHandle === 'else-left' || e.sourceHandle === 'else-right')
+      );
+
+      if (!hasExplicitElse && (d.hasElse || hasElseConnected)) {
+        branches.push({
+          id: 'else',
+          label: 'その他 (Else)',
+          conditionType: 'always',
+        });
+      }
     } else if (rawBranches.length === 1) {
       branches = [
         {
@@ -372,7 +385,7 @@ export function buildCoreGraph(
 
   const flowNodes = nodes.filter((n) => Boolean(n.type && FLOW_NODE_TYPES.has(n.type)));
   const coreNodes = flowNodes.map((n) => {
-    const core = storeNodeToCoreNode(n);
+    const core = storeNodeToCoreNode(n, edges);
     if (refStagesMap.has(n.id)) {
       core.associatedStageIds = Array.from(refStagesMap.get(n.id)!);
     }
@@ -419,3 +432,5 @@ export function buildCoreGraph(
     allNodeIds: allScenarioNodes ? allScenarioNodes.map((n) => n.id) : flowNodes.map((n) => n.id),
   };
 }
+
+export { buildCoreGraph as storeGraphToCoreGraph };

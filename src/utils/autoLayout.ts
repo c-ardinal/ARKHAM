@@ -1045,12 +1045,26 @@ export function getLayoutedElements(
     }
     const sourceHandle = edge.sourceHandle || '';
 
-    // Check Else route
+    // 1. Check named branch routes first (including explicit 'false', 'true', etc.)
+    for (const b of rawBranches) {
+      if (
+        sourceHandle === b.id ||
+        sourceHandle === `${b.id}-left` ||
+        sourceHandle === `${b.id}-right` ||
+        (b.id === 'false' && (sourceHandle === 'else' || sourceHandle === 'else-left'))
+      ) {
+        const optimalHandle = isTargetOnLeft ? `${b.id}-left` : b.id;
+        if (sourceHandle !== optimalHandle) {
+          return { ...edge, sourceHandle: optimalHandle };
+        }
+        return edge;
+      }
+    }
+
+    // 2. Check Else route (when node has an Else / Default route)
     if (
       sourceHandle === 'else' ||
-      sourceHandle === 'else-left' ||
-      sourceHandle === 'false' ||
-      sourceHandle === 'false-left'
+      sourceHandle === 'else-left'
     ) {
       const optimalHandle = isTargetOnLeft ? 'else-left' : 'else';
       if (sourceHandle !== optimalHandle) {
@@ -1059,19 +1073,20 @@ export function getLayoutedElements(
       return edge;
     }
 
-    // Check branch routes
-    for (const b of rawBranches) {
-      if (
-        sourceHandle === b.id ||
-        sourceHandle === `${b.id}-left` ||
-        sourceHandle === `${b.id}-right`
-      ) {
-        const optimalHandle = isTargetOnLeft ? `${b.id}-left` : b.id;
-        if (sourceHandle !== optimalHandle) {
-          return { ...edge, sourceHandle: optimalHandle };
-        }
-        return edge;
+    // 3. Fallback for legacy 2-way bottom pins (true / false) when not explicitly in rawBranches
+    if (sourceHandle === 'true' || sourceHandle === 'true-left') {
+      const optimalHandle = isTargetOnLeft ? 'true-left' : 'true';
+      if (sourceHandle !== optimalHandle) {
+        return { ...edge, sourceHandle: optimalHandle };
       }
+      return edge;
+    }
+    if (sourceHandle === 'false' || sourceHandle === 'false-left') {
+      const optimalHandle = isTargetOnLeft ? 'false-left' : 'false';
+      if (sourceHandle !== optimalHandle) {
+        return { ...edge, sourceHandle: optimalHandle };
+      }
+      return edge;
     }
 
     return edge;

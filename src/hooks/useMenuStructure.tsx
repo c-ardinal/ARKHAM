@@ -19,8 +19,9 @@ export interface MenuExternalActions {
     onOpenSystemConfig?: () => void;
     onSave: () => void;
     onLoadClick: () => void;
+    onLoadYamlClick?: () => void;
     onLoadSample: (type: 'story' | 'nested' | 'indeterminate_organ') => void;
-    onExport: (type: 'text' | 'markdown') => void;
+    onExport: (type: 'yaml' | 'body_markdown') => void;
     onOpenCoreEngine?: () => void;
     onReset: () => void;
     onOpenManual: () => void;
@@ -74,7 +75,17 @@ export const useMenuStructure = (actions: MenuExternalActions, isDebugModeEnable
                     : []),
                 { id: 'sep0', type: 'divider' },
                 { id: 'save', type: 'item', label: t('common.save'), icon: Save, action: actions.onSave },
-                { id: 'load', type: 'item', label: t('common.load'), icon: Upload, action: actions.onLoadClick },
+                { id: 'load', type: 'item', label: 'シナリオを開く...', icon: Upload, action: actions.onLoadClick },
+                {
+                    id: 'export_menu',
+                    type: 'submenu',
+                    label: 'エクスポート (書き出し)',
+                    icon: Download,
+                    children: [
+                        { id: 'export_yaml', type: 'item', label: 'シナリオ原稿ファイル (.yaml) ★推奨', icon: FileText, action: () => actions.onExport('yaml') },
+                        { id: 'export_body_md', type: 'item', label: 'シナリオ本文原稿 (Markdown)', icon: Book, action: () => actions.onExport('body_markdown') },
+                    ]
+                },
                 { 
                     id: 'load_sample', 
                     type: 'submenu', 
@@ -98,16 +109,6 @@ export const useMenuStructure = (actions: MenuExternalActions, isDebugModeEnable
                         },
                       ]
                     : []),
-                {
-                    id: 'export',
-                    type: 'submenu',
-                    label: t('menu.export'),
-                    icon: Download,
-                    children: [
-                        { id: 'export_txt', type: 'item', label: t('menu.exportSimple'), icon: Download, action: () => actions.onExport('text') },
-                        { id: 'export_md', type: 'item', label: t('menu.exportMarkdown'), icon: Download, action: () => actions.onExport('markdown') }
-                    ]
-                },
                 { id: 'sep2', type: 'divider' },
                 { id: 'reset', type: 'item', label: t('common.reset'), icon: Trash2, action: actions.onReset, danger: true }
             ]

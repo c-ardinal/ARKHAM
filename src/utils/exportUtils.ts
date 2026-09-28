@@ -3,13 +3,13 @@ import type { ScenarioNodeData } from '../types';
 import { substituteVariables } from './textUtils';
 import type { Variable } from '../types';
 
-type ExportFormat = 'text' | 'markdown';
+type ExportFormat = 'markdown';
 
 export const generateScenarioText = (
     nodes: Node<ScenarioNodeData>[],
     edges: Edge[],
     variables: Record<string, Variable>,
-    format: ExportFormat
+    format: ExportFormat = 'markdown'
 ): string => {
     const lines: string[] = [];
     

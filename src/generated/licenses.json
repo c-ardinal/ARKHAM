@@ -10,5 +10,6 @@
   "reactflow": "MIT",
   "remark-gfm": "MIT",
   "tailwind-merge": "MIT",
+  "yaml": "ISC",
   "zustand": "MIT"
 }
