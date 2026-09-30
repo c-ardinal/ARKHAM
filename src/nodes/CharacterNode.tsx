@@ -6,6 +6,7 @@ import type { CharacterType, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 
 
@@ -51,7 +52,7 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
                <div className="text-xs text-muted-foreground leading-none mb-0.5">{character.reading}</div>
             )}
             <div className="text-sm font-bold break-words">
-                {character.name || '(No Name)'}
+                <NodeMarkdown content={character.name || '(No Name)'} inline />
             </div>
         </div>
       </div>
@@ -59,8 +60,8 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       {/* Content Preview */}
       <div className="p-3 text-xs space-y-1">
           {character.description && (
-              <div className="whitespace-pre-wrap break-words text-muted-foreground pb-1">
-                  {character.description}
+              <div className="break-words text-muted-foreground pb-1">
+                  <NodeMarkdown content={character.description} />
               </div>
           )}
           <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700"></div>
@@ -69,16 +70,16 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
           {character.abilities && (
              <div className="pb-1">
                  <div className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-0.5">{t('characters.abilities')}</div>
-                 <div className="whitespace-pre-wrap break-words text-muted-foreground">
-                     {character.abilities}
+                 <div className="break-words text-muted-foreground">
+                     <NodeMarkdown content={character.abilities} />
                  </div>
              </div>
           )}
           {character.skills && (
              <div className="pb-1">
                  <div className="text-xs font-semibold text-green-800 dark:text-green-300 mb-0.5">{t('characters.skills')}</div>
-                 <div className="whitespace-pre-wrap break-words text-muted-foreground">
-                     {character.skills}
+                 <div className="break-words text-muted-foreground">
+                     <NodeMarkdown content={character.skills} />
                  </div>
              </div>
           )}

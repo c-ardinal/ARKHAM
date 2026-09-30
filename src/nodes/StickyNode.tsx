@@ -2,10 +2,10 @@ import { memo, useEffect } from 'react';
 import { Handle, Position, type NodeProps, useUpdateNodeInternals } from 'reactflow';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { substituteVariables } from '../utils/textUtils';
+
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const StickyNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const variables = useScenarioStore((s) => s.gameState.variables);
   const updateNodeInternals = useUpdateNodeInternals();
 
   useEffect(() => {
@@ -38,12 +38,14 @@ const StickyNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
       
       {data.label && (
           <div className="font-bold text-base mb-1 break-words">
-            {substituteVariables(data.label, variables)}
+            <NodeMarkdown content={data.label} inline />
           </div>
       )}
-      <div className="text-sm whitespace-pre-wrap opacity-90 leading-snug break-words">
-        {substituteVariables(data.description || '', variables)}
-      </div>
+      {data.description && (
+        <div className="text-sm opacity-90 leading-snug break-words">
+          <NodeMarkdown content={data.description} />
+        </div>
+      )}
     </div>
   );
 };

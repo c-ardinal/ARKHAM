@@ -7,6 +7,7 @@
 import YAML from 'yaml';
 import { isReferenceEdge } from '../utils/autoLayout';
 import type { ScenarioNode, ScenarioEdge, CharacterData, ResourceData, StageData, ScenarioMetadata, SystemConfig } from '../types';
+import type { Tab } from '../types/tab';
 import type {
   HumanScenarioDocument,
   HumanScenarioBasicInfo,
@@ -30,6 +31,7 @@ export interface HumanExportInput {
   stages?: StageData[];
   nodes?: ScenarioNode[];
   edges?: ScenarioEdge[];
+  tabs?: Tab[];
 }
 
 export function exportToHumanDocument(input: HumanExportInput): HumanScenarioDocument {
@@ -40,6 +42,8 @@ export function exportToHumanDocument(input: HumanExportInput): HumanScenarioDoc
   const resources = input.resources || [];
   const stages = input.stages || [];
   const sysConfig = input.systemConfig;
+  const tabs = input.tabs;
+  const hasMultipleTabs = Boolean(tabs && tabs.length > 1);
 
   // Build ID to Name lookups
   const charMap = new Map<string, string>();
@@ -129,6 +133,7 @@ export function exportToHumanDocument(input: HumanExportInput): HumanScenarioDoc
       名前: s.name,
       種別: typeJp,
       概要: s.description || undefined,
+      詳細: s.details || undefined,
       備考: s.note || undefined,
     };
   });
@@ -143,7 +148,7 @@ export function exportToHumanDocument(input: HumanExportInput): HumanScenarioDoc
 
   const isAttachedHelperNode = (n: ScenarioNode) => {
     if (n.type === 'branch' && n.id.endsWith('_branch') && n.data?.label?.endsWith(' の分岐')) return true;
-    if (n.type === 'jump' && n.id.endsWith('_jump') && n.data?.label?.startsWith('合流: ')) return true;
+    if (n.type === 'jump' && (n.id.includes('_cross_jump') || (n.id.endsWith('_jump') && n.data?.label?.startsWith('合流: ')))) return true;
     return false;
   };
 
@@ -193,6 +198,8 @@ export function exportToHumanDocument(input: HumanExportInput): HumanScenarioDoc
       typeJp = d.label?.includes('判定') ? '判定' : (d.branchType === 'switch' ? '行動選択' : '分岐');
     } else if (node.type === 'element') {
       typeJp = d.infoType === 'Knowledge' ? '手がかり' : 'アイテム';
+    } else if (node.type === 'memo') {
+      typeJp = 'メモ';
     } else if (node.type === 'character') {
       typeJp = '登場人物';
     } else if (node.type === 'jump') {
@@ -398,6 +405,7 @@ export function exportToHumanDocument(input: HumanExportInput): HumanScenarioDoc
       合流先: jumpTargetJp,
       ジャンプ先: jumpTargetJp,
       エンディング: d.isEnding ? true : undefined,
+      タブ: hasMultipleTabs ? (d.tab || (tabs ? tabs.find((t) => t.nodes.some((n) => n.id === node.id))?.name : undefined)) : undefined,
     });
   }
 
@@ -405,6 +413,7 @@ export function exportToHumanDocument(input: HumanExportInput): HumanScenarioDoc
     シナリオ基本情報: basicInfo,
     シナリオの真相: meta?.truth || undefined,
     事前情報: advanceInfo,
+    タブ一覧: hasMultipleTabs ? tabs!.map((t) => ({ ID: t.id, 名前: t.name })) : undefined,
     登場人物: humanCharacters.length > 0 ? humanCharacters : undefined,
     アイテム: humanResources.length > 0 ? humanResources : undefined,
     舞台: humanStages.length > 0 ? humanStages : undefined,

@@ -19,9 +19,17 @@ export function getNodeDimensions(
 ): { width: number; height: number } {
   // 1. Measured dimensions directly from React Flow DOM
   const measuredWidth =
-    typeof node.width === 'number' && node.width > 0 ? Math.round(node.width) : null;
+    typeof node.width === 'number' && node.width > 0
+      ? Math.round(node.width)
+      : typeof (node as any).measured?.width === 'number' && (node as any).measured.width > 0
+      ? Math.round((node as any).measured.width)
+      : null;
   const measuredHeight =
-    typeof node.height === 'number' && node.height > 0 ? Math.round(node.height) : null;
+    typeof node.height === 'number' && node.height > 0
+      ? Math.round(node.height)
+      : typeof (node as any).measured?.height === 'number' && (node as any).measured.height > 0
+      ? Math.round((node as any).measured.height)
+      : null;
 
   if (measuredWidth && measuredHeight) {
     return { width: measuredWidth, height: measuredHeight };
@@ -52,8 +60,11 @@ export function getNodeDimensions(
     }
     case 'branch': {
       const labelLen = (node.data?.label || '').length;
-      const w = Math.max(220, Math.min(420, 160 + labelLen * 12));
-      return { width: measuredWidth ?? w, height: measuredHeight ?? 120 };
+      const branches = node.data?.branches || [];
+      const branchCount = Math.max(1, branches.length);
+      const w = Math.max(240, Math.min(460, 160 + labelLen * 12));
+      const h = Math.max(120, 90 + branchCount * 30);
+      return { width: measuredWidth ?? w, height: measuredHeight ?? h };
     }
     case 'element':
     case 'information': {
@@ -61,6 +72,11 @@ export function getNodeDimensions(
     }
     case 'variable': {
       return { width: measuredWidth ?? 200, height: measuredHeight ?? 90 };
+    }
+    case 'jump': {
+      const labelLen = (node.data?.label || '').length;
+      const w = Math.max(200, Math.min(380, 160 + labelLen * 10));
+      return { width: measuredWidth ?? w, height: measuredHeight ?? 90 };
     }
     case 'character':
     case 'resource':
@@ -73,11 +89,23 @@ export function getNodeDimensions(
     case 'memo': {
       const desc = node.data?.description || '';
       const descLines = desc ? desc.split('\n').length : 0;
-      return { width: measuredWidth ?? 240, height: measuredHeight ?? Math.max(110, 85 + descLines * 20) };
+      const hasTable = desc.includes('|');
+      const maxLineLen = desc ? desc.split('\n').reduce((m, l) => Math.max(m, l.length), 0) : 0;
+      const w = Math.max(240, Math.min(520, hasTable ? 460 : Math.max(240, 120 + maxLineLen * 9)));
+      const h = Math.max(110, Math.min(700, 85 + descLines * 20));
+      return { width: measuredWidth ?? w, height: measuredHeight ?? h };
     }
     case 'group': {
-      const w = typeof node.style?.width === 'number' ? node.style.width : 420;
-      const h = typeof node.style?.height === 'number' ? node.style.height : 320;
+      const w = typeof node.width === 'number' && node.width > 0
+        ? node.width
+        : typeof node.style?.width === 'number'
+        ? node.style.width
+        : 420;
+      const h = typeof node.height === 'number' && node.height > 0
+        ? node.height
+        : typeof node.style?.height === 'number'
+        ? node.style.height
+        : 320;
       return { width: w, height: h };
     }
     default:
@@ -705,10 +733,150 @@ export function getLayoutedElements(
     }
   }
 
-  // Primary top-level nodes for Dagre (excluding satellites)
+  // 2. BOTTOM-UP: Layout child nodes inside groups FIRST and compute accurate group bounds!
+  const groupChildrenMap = new Map<string, ScenarioNode[]>();
+  childNodes.forEach((child) => {
+    if (!child.parentNode) return;
+    if (!groupChildrenMap.has(child.parentNode)) {
+      groupChildrenMap.set(child.parentNode, []);
+    }
+    groupChildrenMap.get(child.parentNode)!.push(child);
+  });
+
+  const updatedChildNodes: ScenarioNode[] = [];
+  for (const [groupId, children] of groupChildrenMap.entries()) {
+    if (children.length === 0) continue;
+
+    let layoutedChildren: ScenarioNode[];
+    if (children.length === 1) {
+      const singleChild = children[0];
+      layoutedChildren = [
+        {
+          ...singleChild,
+          position: { x: 40, y: 50 },
+        },
+      ];
+    } else {
+      const subG = new dagre.graphlib.Graph();
+      subG.setDefaultEdgeLabel(() => ({}));
+      subG.setGraph({
+        rankdir: direction,
+        nodesep: 60,
+        ranksep: 80,
+        marginx: 40,
+        marginy: 50,
+      });
+
+      const childIdSet = new Set(children.map((c) => c.id));
+      const childIdMap = new Map(children.map((c) => [c.id, c.id]));
+      const childEdges = edges.filter(
+        (e) => !isReferenceEdge(e) && childIdSet.has(e.source) && childIdSet.has(e.target)
+      );
+      const { orderedNodeIds: childOrderedIds, orderedEdges: childOrderedEdges } =
+        orderNodesAndEdgesByFlow(children, childEdges, childIdMap);
+
+      const childNodeMap = new Map(children.map((c) => [c.id, c]));
+      childOrderedIds.forEach((childId) => {
+        const child = childNodeMap.get(childId)!;
+        const dim = getNodeDimensions(child, nodeWidth, nodeHeight);
+        subG.setNode(child.id, dim);
+      });
+
+      const registeredChildEdges = new Set<string>();
+      childOrderedEdges.forEach((e) => {
+        const k = `${e.source}->${e.target}`;
+        if (!registeredChildEdges.has(k)) {
+          registeredChildEdges.add(k);
+          subG.setEdge(e.source, e.target);
+        }
+      });
+
+      dagre.layout(subG);
+
+      // Sibling slot alignment for branch nodes inside group
+      const groupBranchNodes = children.filter((c) => c.type === 'branch');
+      groupBranchNodes.forEach((bn) => {
+        const outgoing = edges.filter(
+          (e) => !isReferenceEdge(e) && e.source === bn.id && childIdSet.has(e.target)
+        );
+        const orderedEdges = orderBranchOutgoingEdges(bn, outgoing);
+        const targets = orderedEdges
+          .map((e) => ({ id: e.target, node: subG.node(e.target) }))
+          .filter((t) => t.node);
+        if (targets.length <= 1) return;
+
+        const yGroups = new Map<number, typeof targets>();
+        targets.forEach((t) => {
+          const roundedY = Math.round(t.node.y / 20) * 20;
+          if (!yGroups.has(roundedY)) yGroups.set(roundedY, []);
+          yGroups.get(roundedY)!.push(t);
+        });
+
+        yGroups.forEach((group) => {
+          if (group.length <= 1) return;
+          const sortedX = group.map((t) => t.node.x).sort((a, b) => a - b);
+          group.forEach((t, idx) => {
+            t.node.x = sortedX[idx];
+          });
+        });
+      });
+
+      layoutedChildren = children.map((child) => {
+        const pos = subG.node(child.id);
+        if (!pos) return child;
+        const dim = getNodeDimensions(child, nodeWidth, nodeHeight);
+        return {
+          ...child,
+          position: {
+            x: Math.round(pos.x - dim.width / 2),
+            y: Math.round(pos.y - dim.height / 2),
+          },
+        };
+      });
+
+      // Ensure children inside group do not collide
+      resolveCollisions(layoutedChildren, { minGap: 20 });
+    }
+
+    // Normalize padding inside group
+    const minChildX = Math.min(...layoutedChildren.map((c) => c.position.x));
+    const minChildY = Math.min(...layoutedChildren.map((c) => c.position.y));
+    const shiftX = minChildX < 40 ? 40 - minChildX : 0;
+    const shiftY = minChildY < 50 ? 50 - minChildY : 0;
+    if (shiftX !== 0 || shiftY !== 0) {
+      layoutedChildren.forEach((c) => {
+        c.position.x += shiftX;
+        c.position.y += shiftY;
+      });
+    }
+
+    // Automatically expand parent group to encompass all children
+    const maxX = Math.max(
+      ...layoutedChildren.map((c) => c.position.x + getNodeDimensions(c, nodeWidth, nodeHeight).width)
+    );
+    const maxY = Math.max(
+      ...layoutedChildren.map((c) => c.position.y + getNodeDimensions(c, nodeWidth, nodeHeight).height)
+    );
+    const requiredW = Math.max(400, maxX + 50);
+    const requiredH = Math.max(280, maxY + 50);
+
+    const groupNode = topLevelNodeMap.get(groupId);
+    if (groupNode) {
+      groupNode.style = {
+        ...groupNode.style,
+        width: requiredW,
+        height: requiredH,
+      };
+      groupNode.width = requiredW;
+      groupNode.height = requiredH;
+    }
+
+    updatedChildNodes.push(...layoutedChildren);
+  }
+
+  // 3. Layout top-level primary nodes (now knowing exact group dimensions)
   const dagreTopNodes = topLevelNodes.filter((n) => !satelliteParents.has(n.id));
 
-  // 2. Layout top-level primary nodes
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({
@@ -870,126 +1038,30 @@ export function getLayoutedElements(
   // Post-process collision separation for top-level nodes
   resolveCollisions(updatedTopLevelNodes, { minGap: 24, satelliteParents });
 
-  // 3. Layout child nodes inside groups (relative to parent group)
-  const groupChildrenMap = new Map<string, ScenarioNode[]>();
-  childNodes.forEach((child) => {
-    if (!child.parentNode) return;
-    if (!groupChildrenMap.has(child.parentNode)) {
-      groupChildrenMap.set(child.parentNode, []);
-    }
-    groupChildrenMap.get(child.parentNode)!.push(child);
-  });
-
-  const updatedChildNodes: ScenarioNode[] = [];
-  for (const [groupId, children] of groupChildrenMap.entries()) {
-    if (children.length <= 1) {
-      updatedChildNodes.push(...children);
-      continue;
-    }
-
-    const subG = new dagre.graphlib.Graph();
-    subG.setDefaultEdgeLabel(() => ({}));
-    subG.setGraph({
-      rankdir: direction,
-      nodesep: 60,
-      ranksep: 80,
-      marginx: 40,
-      marginy: 50,
-    });
-
-
-    const childIdSet = new Set(children.map((c) => c.id));
-    const childIdMap = new Map(children.map((c) => [c.id, c.id]));
-    const childEdges = edges.filter(
-      (e) => !isReferenceEdge(e) && childIdSet.has(e.source) && childIdSet.has(e.target)
-    );
-    const { orderedNodeIds: childOrderedIds, orderedEdges: childOrderedEdges } =
-      orderNodesAndEdgesByFlow(children, childEdges, childIdMap);
-
-    const childNodeMap = new Map(children.map((c) => [c.id, c]));
-    childOrderedIds.forEach((childId) => {
-      const child = childNodeMap.get(childId)!;
-      const dim = getNodeDimensions(child, nodeWidth, nodeHeight);
-      subG.setNode(child.id, dim);
-    });
-
-    const registeredChildEdges = new Set<string>();
-    childOrderedEdges.forEach((e) => {
-      const k = `${e.source}->${e.target}`;
-      if (!registeredChildEdges.has(k)) {
-        registeredChildEdges.add(k);
-        subG.setEdge(e.source, e.target);
-      }
-    });
-
-    dagre.layout(subG);
-
-    // Sibling slot alignment for branch nodes inside group
-    const groupBranchNodes = children.filter((c) => c.type === 'branch');
-    groupBranchNodes.forEach((bn) => {
-      const outgoing = edges.filter(
-        (e) => !isReferenceEdge(e) && e.source === bn.id && childIdSet.has(e.target)
-      );
-      const orderedEdges = orderBranchOutgoingEdges(bn, outgoing);
-      const targets = orderedEdges
-        .map((e) => ({ id: e.target, node: subG.node(e.target) }))
-        .filter((t) => t.node);
-      if (targets.length <= 1) return;
-
-      const yGroups = new Map<number, typeof targets>();
-      targets.forEach((t) => {
-        const roundedY = Math.round(t.node.y / 20) * 20;
-        if (!yGroups.has(roundedY)) yGroups.set(roundedY, []);
-        yGroups.get(roundedY)!.push(t);
+  // Normalize top-level nodes and associated sticky nodes to start at (80, 80)
+  if (updatedTopLevelNodes.length > 0) {
+    const minTopX = Math.min(...updatedTopLevelNodes.map((n) => n.position.x));
+    const minTopY = Math.min(...updatedTopLevelNodes.map((n) => n.position.y));
+    const shiftTopX = 80 - minTopX;
+    const shiftTopY = 80 - minTopY;
+    if (shiftTopX !== 0 || shiftTopY !== 0) {
+      updatedTopLevelNodes.forEach((n) => {
+        n.position.x += shiftTopX;
+        n.position.y += shiftTopY;
       });
-
-      yGroups.forEach((group) => {
-        if (group.length <= 1) return;
-        const sortedX = group.map((t) => t.node.x).sort((a, b) => a - b);
-        group.forEach((t, idx) => {
-          t.node.x = sortedX[idx];
-        });
+      stickyNodes.forEach((s) => {
+        if (s.data?.targetNodeId) {
+          const targetTop = updatedTopLevelNodes.find((n) => n.id === s.data.targetNodeId);
+          if (targetTop) {
+            s.position.x += shiftTopX;
+            s.position.y += shiftTopY;
+          }
+        } else {
+          s.position.x += shiftTopX;
+          s.position.y += shiftTopY;
+        }
       });
-    });
-
-    const layoutedChildren = children.map((child) => {
-      const pos = subG.node(child.id);
-      if (!pos) return child;
-      const dim = getNodeDimensions(child, nodeWidth, nodeHeight);
-      return {
-        ...child,
-        position: {
-          x: Math.round(pos.x - dim.width / 2),
-          y: Math.round(pos.y - dim.height / 2),
-        },
-      };
-    });
-
-    // Ensure children inside group do not collide
-    resolveCollisions(layoutedChildren, { minGap: 20 });
-
-    // Automatically expand parent group to encompass all children
-    if (layoutedChildren.length > 0) {
-      const maxX = Math.max(
-        ...layoutedChildren.map((c) => c.position.x + getNodeDimensions(c).width)
-      );
-      const maxY = Math.max(
-        ...layoutedChildren.map((c) => c.position.y + getNodeDimensions(c).height)
-      );
-      const requiredW = Math.max(400, maxX + 50);
-      const requiredH = Math.max(300, maxY + 50);
-
-      const groupNode = updatedTopLevelNodes.find((n) => n.id === groupId);
-      if (groupNode) {
-        groupNode.style = {
-          ...groupNode.style,
-          width: requiredW,
-          height: requiredH,
-        };
-      }
     }
-
-    updatedChildNodes.push(...layoutedChildren);
   }
 
   const handledChildIds = new Set(updatedChildNodes.map((n) => n.id));

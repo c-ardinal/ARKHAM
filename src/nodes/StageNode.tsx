@@ -6,6 +6,7 @@ import type { StageType, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const StageNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
@@ -55,7 +56,7 @@ const StageNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
             <div className="text-xs text-muted-foreground leading-none mb-0.5 truncate">{stage.reading}</div>
           )}
           <div className="text-sm font-bold break-words">
-            {stage.name || '(No Name)'}
+            <NodeMarkdown content={stage.name || '(No Name)'} inline />
           </div>
         </div>
       </div>
@@ -63,19 +64,19 @@ const StageNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       {/* Content Preview */}
       <div className="p-3 text-xs space-y-1.5">
         {stage.description && (
-          <div className="text-muted-foreground whitespace-pre-wrap break-words">
-            {stage.description}
+          <div className="text-muted-foreground break-words">
+            <NodeMarkdown content={stage.description} />
           </div>
         )}
         {stage.details && (
-          <div className="whitespace-pre-wrap break-words text-muted-foreground border-t border-border/50 pt-1.5 mt-1">
-            <span className="font-semibold text-foreground/80">{t('stages.details' as any) || '詳細'}: </span>
-            {stage.details}
+          <div className="break-words text-muted-foreground border-t border-border/50 pt-1.5 mt-1">
+            <span className="font-semibold text-foreground/80 block mb-0.5">{t('stages.details' as any) || '詳細'}: </span>
+            <NodeMarkdown content={stage.details} />
           </div>
         )}
         {stage.note && (
           <div className="text-[11px] text-muted-foreground/80 italic border-t border-border/40 pt-1">
-            {stage.note}
+            <NodeMarkdown content={stage.note} />
           </div>
         )}
       </div>

@@ -25,6 +25,7 @@ import { TabBar } from './TabBar';
 import sampleStory from '../../sample/sample_Story.json';
 import sampleNestedGroup from '../../sample/sample_NestedGroupNodes.json';
 import sampleIndeterminateOrgan from '../../sample/scenario_indeterminate_organ.json';
+import sampleIndeterminateOrganYaml from '../../source_scenario/scenario_indeterminate_organ.yaml?raw';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { createPortal } from 'react-dom'; // Import createPortal
 import { useMenuStructure } from '../hooks/useMenuStructure';
@@ -451,11 +452,13 @@ export const Layout = () => {
       const data = {
         version: 2,
         scenarioTitle,
+        scenarioMetadata: useScenarioStore.getState().scenarioMetadata,
         systemConfig,
         tabs: tabsWithViewport,
         activeTabId,
         gameState,
         characters,
+        stages: useScenarioStore.getState().stages,
         resources,
         edgeType,
       };
@@ -611,6 +614,17 @@ export const Layout = () => {
             if (matchSys) sysConfig = matchSys;
           }
 
+          const tabs = (result.tabs && result.tabs.length > 0)
+            ? result.tabs
+            : [
+                {
+                  id: 'tab_main',
+                  name: result.scenarioMetadata.title,
+                  nodes: result.nodes,
+                  edges: result.edges,
+                }
+              ];
+
           const scenarioPackage: any = {
             version: 2,
             scenarioTitle: result.scenarioMetadata.title,
@@ -619,23 +633,15 @@ export const Layout = () => {
             characters: result.characters,
             resources: result.resources,
             stages: result.stages,
-            activeTabId: 'tab_main',
-            tabs: [
-              {
-                id: 'tab_main',
-                name: result.scenarioMetadata.title,
-                nodes: result.nodes,
-                edges: result.edges,
-              }
-            ]
+            activeTabId: tabs[0].id,
+            tabs,
           };
 
           await loadScenarioWithStabilization(scenarioPackage);
-          useScenarioStore.getState().applyAutoLayout('TB');
           setTimeout(() => {
             canvasRef.current?.fitViewWithSave();
           }, 150);
-          toast.success(`シナリオ「${result.scenarioMetadata.title}」を読み込み、自動整列しました`);
+          toast.success(`シナリオ「${result.scenarioMetadata.title}」を読み込み、章ごとにタブ配置しました`);
           return;
         }
 
@@ -710,7 +716,38 @@ const menuActions = {
             onConfirm: () => {
                 let sampleData: any = sampleStory;
                 if (type === 'nested') sampleData = sampleNestedGroup;
-                else if (type === 'indeterminate_organ') sampleData = sampleIndeterminateOrgan;
+                else if (type === 'indeterminate_organ') {
+                  const result = importFromHumanYaml(sampleIndeterminateOrganYaml);
+                  const currentSys = useScenarioStore.getState().systemConfig;
+                  let sysConfig = currentSys;
+                  if (result.scenarioMetadata.system) {
+                    const matchSys = Object.values(DEFAULT_SYSTEM_PRESETS).find(p => 
+                      p.name.includes(result.scenarioMetadata.system!) || result.scenarioMetadata.system!.includes(p.name)
+                    );
+                    if (matchSys) sysConfig = matchSys;
+                  }
+                  const tabs = (result.tabs && result.tabs.length > 0)
+                    ? result.tabs
+                    : [
+                        {
+                          id: 'tab_main',
+                          name: result.scenarioMetadata.title,
+                          nodes: result.nodes,
+                          edges: result.edges,
+                        }
+                      ];
+                  sampleData = {
+                    version: 2,
+                    scenarioTitle: result.scenarioMetadata.title,
+                    scenarioMetadata: result.scenarioMetadata,
+                    systemConfig: sysConfig,
+                    characters: result.characters,
+                    resources: result.resources,
+                    stages: result.stages,
+                    activeTabId: tabs[0].id,
+                    tabs,
+                  };
+                }
                 console.log('[Layout] Loading sample data:', { type, hasViewport: !!(sampleData as any).viewport, viewport: (sampleData as any).viewport });
                 loadScenarioWithStabilization(sampleData);
                 toast.success(t('toast.sampleLoaded' as any));
@@ -721,7 +758,8 @@ const menuActions = {
         try {
             if (type === 'yaml') {
                 const store = useScenarioStore.getState();
-                const currentTab = store.tabs.find(t => t.id === store.activeTabId) || store.tabs[0];
+                const allNodes = store.tabs.flatMap(t => t.nodes);
+                const allEdges = store.tabs.flatMap(t => t.edges);
                 const yamlText = exportToHumanYaml({
                     scenarioMetadata: store.scenarioMetadata,
                     scenarioTitle: store.scenarioTitle,
@@ -729,8 +767,9 @@ const menuActions = {
                     characters: store.characters,
                     resources: store.resources,
                     stages: store.stages,
-                    nodes: currentTab ? currentTab.nodes : [],
-                    edges: currentTab ? currentTab.edges : [],
+                    nodes: allNodes,
+                    edges: allEdges,
+                    tabs: store.tabs,
                 });
                 const blob = new Blob([yamlText], { type: 'text/yaml;charset=utf-8' });
                 const url = URL.createObjectURL(blob);

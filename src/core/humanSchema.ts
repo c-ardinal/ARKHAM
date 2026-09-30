@@ -60,6 +60,7 @@ export interface HumanStage {
   名前: string;
   種別?: HumanStageType;
   概要?: string;
+  詳細?: string;
   備考?: string;
 }
 
@@ -114,6 +115,7 @@ export type HumanSceneNodeType =
   | 'アイテム'
   | '手がかり'
   | '情報'
+  | 'メモ'
   | '登場人物'
   | 'エネミー'
   | '怪物'
@@ -123,9 +125,15 @@ export type HumanSceneNodeType =
   | 'グループ'
   | 'フェーズ';
 
+export interface HumanTabDefinition {
+  ID?: string;
+  名前: string;
+}
+
 export interface HumanScene {
   ID?: string; // ノード固有ID（省略時は自動採番）
   参照ID?: string; // 登場人物・アイテム・舞台の関連付けID（character, element, stageノード用）
+  タブ?: string; // 所属タブ名またはタブID（省略時は自動割当または単一タブ）
   章?: number;
   場面: string; // 場面タイトル / ノード表示名
   種別?: HumanSceneNodeType; // ノードの種別（省略時は '場面'）
@@ -150,6 +158,7 @@ export interface HumanScene {
 
 export interface HumanScenarioDocument {
   シナリオ基本情報: HumanScenarioBasicInfo;
+  タブ一覧?: Array<HumanTabDefinition | string>;
   シナリオの真相?: string;
   事前情報?: HumanAdvanceInfo;
   登場人物?: HumanCharacter[];

@@ -3,12 +3,12 @@ import { Handle, Position, type NodeProps } from 'reactflow';
 import { Plus, Minus } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { substituteVariables } from '../utils/textUtils';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
+
 const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
-  const variables = useScenarioStore((s) => s.gameState.variables);
   const description = data.description;
 
   const getIcon = () => {
@@ -49,14 +49,14 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
             {getIcon()}
           </div>
           <div className="text-base font-bold flex items-center gap-1 text-blue-900 dark:text-blue-100 break-words">
-              {substituteVariables(data.infoValue || 'None', variables)}
+            <NodeMarkdown content={data.infoValue || 'None'} inline />
           </div>
         </div>
 
         {description && (
             <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
-                <div className="text-sm opacity-80 whitespace-pre-wrap break-words text-blue-900 dark:text-blue-100">
-                    {substituteVariables(data.description || '', variables)}
+                <div className="text-sm opacity-80 break-words text-blue-900 dark:text-blue-100">
+                    <NodeMarkdown content={data.description || ''} />
                 </div>
             </div>
         )}
@@ -68,7 +68,7 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
                     : 'bg-green-100 text-green-950 dark:bg-green-900 dark:text-green-50'
             }`} title={data.infoValue}>
               <span className="break-words max-w-[240px]">
-                  {substituteVariables(data.infoValue || 'None', variables)}
+                  <NodeMarkdown content={data.infoValue || 'None'} inline />
               </span>
               <span className="font-bold ml-1 shrink-0 opacity-80">
                   x{data.quantity !== undefined ? data.quantity : 1}

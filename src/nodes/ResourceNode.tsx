@@ -7,6 +7,7 @@ import type { ResourceType, ScenarioNodeData } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
@@ -67,7 +68,7 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
                <div className="text-xs text-muted-foreground leading-none mb-0.5">{resource.reading}</div>
             )}
             <div className="text-sm font-bold break-words">
-                {resource.name || '(No Name)'}
+                <NodeMarkdown content={resource.name || '(No Name)'} inline />
             </div>
         </div>
       </div>
@@ -75,18 +76,20 @@ const ResourceNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       {/* Content Preview */}
       <div className="p-3 text-xs space-y-1">
           {resource.cost && (
-              <div className="text-muted-foreground whitespace-pre-wrap break-words">
-                  <span className="font-semibold">{t('resources.cost')}:</span> {resource.cost}
+              <div className="text-muted-foreground break-words flex items-baseline gap-1">
+                  <span className="font-semibold shrink-0">{t('resources.cost')}:</span>
+                  <NodeMarkdown content={resource.cost} inline />
               </div>
           )}
            {resource.effect && (
-              <div className="text-muted-foreground whitespace-pre-wrap break-words">
-                  <span className="font-semibold">{t('resources.effect')}:</span> {resource.effect}
+              <div className="text-muted-foreground break-words">
+                  <span className="font-semibold block mb-0.5">{t('resources.effect')}:</span>
+                  <NodeMarkdown content={resource.effect} />
               </div>
           )}
           {resource.description && (
-              <div className="whitespace-pre-wrap break-words text-muted-foreground border-t border-border/50 pt-1 mt-1">
-                  {resource.description}
+              <div className="break-words text-muted-foreground border-t border-border/50 pt-1 mt-1">
+                  <NodeMarkdown content={resource.description} />
               </div>
           )}
       </div>

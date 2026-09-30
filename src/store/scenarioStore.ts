@@ -14,7 +14,7 @@ import type {
   OnEdgesChange,
   OnConnect,
 } from 'reactflow';
-import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData, StageData, SystemConfig } from '../types';
+import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData, StageData, SystemConfig, ScenarioMetadata } from '../types';
 import { DEFAULT_SYSTEM_CONFIG, DEFAULT_SYSTEM_PRESETS } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 import { recomputeEdgeVisibility } from './edgeVisibility';
@@ -96,8 +96,10 @@ interface ScenarioState {
   // System & Scenario Metadata
   systemConfig: SystemConfig;
   scenarioTitle: string;
+  scenarioMetadata?: ScenarioMetadata;
   setSystemConfig: (config: SystemConfig) => void;
   setScenarioTitle: (title: string) => void;
+  setScenarioMetadata: (metadata?: ScenarioMetadata) => void;
   createNewScenario: (title: string, system: SystemConfig) => void;
 
   // Tab CRUD
@@ -173,7 +175,7 @@ interface ScenarioState {
   clearSimulationOverlay: () => void;
 
   // Auto-Layout
-  applyAutoLayout: (direction?: 'LR' | 'TB') => void;
+  applyAutoLayout: (direction?: 'LR' | 'TB', measuredNodes?: ScenarioNode[]) => void;
 
   // Bulk Sticky Operations
   showAllStickies: () => void;
@@ -366,16 +368,33 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   resources: initialStoredState?.resources || [],
   systemConfig: (initialStoredState as any)?.systemConfig || DEFAULT_SYSTEM_CONFIG,
   scenarioTitle: (initialStoredState as any)?.scenarioTitle || '無題のシナリオ',
+  scenarioMetadata: (initialStoredState as any)?.scenarioMetadata,
   simulationOverlay: { active: false, result: null },
   setSimulationOverlay: (overlay) => set({ simulationOverlay: overlay }),
   clearSimulationOverlay: () => set({ simulationOverlay: { active: false, result: null } }),
 
-  applyAutoLayout: (direction = 'TB') => {
+  applyAutoLayout: (direction = 'TB', measuredNodes?: ScenarioNode[]) => {
     get().pushHistory();
     const state = get();
     const activeTab = getActiveTabFrom(state);
     if (!activeTab || activeTab.nodes.length === 0) return;
-    const { nodes, edges } = getLayoutedElements(activeTab.nodes, activeTab.edges, { direction });
+
+    let sourceNodes = activeTab.nodes;
+    if (measuredNodes && measuredNodes.length > 0) {
+      const measuredMap = new Map(measuredNodes.map((m) => [m.id, m]));
+      sourceNodes = activeTab.nodes.map((n) => {
+        const m = measuredMap.get(n.id);
+        if (!m) return n;
+        return {
+          ...n,
+          width: m.width ?? (m as any).measured?.width ?? n.width,
+          height: m.height ?? (m as any).measured?.height ?? n.height,
+          measured: (m as any).measured ?? (n as any).measured,
+        };
+      });
+    }
+
+    const { nodes, edges } = getLayoutedElements(sourceNodes, activeTab.edges, { direction });
     set({
       tabs: withActiveTab(state, () => ({ nodes, edges })),
     });
@@ -391,6 +410,12 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
   setScenarioTitle: (title) => {
     set({ scenarioTitle: title });
+    get().pushHistory();
+    get().saveToLocalStorage();
+  },
+
+  setScenarioMetadata: (metadata) => {
+    set({ scenarioMetadata: metadata });
     get().pushHistory();
     get().saveToLocalStorage();
   },
@@ -1199,11 +1224,14 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
          }
        }
 
+       const loadedMetadata = (rawData as any).scenarioMetadata || (data as any).scenarioMetadata;
+
        set({
            tabs,
            activeTabId,
            systemConfig: loadedSystemConfig,
            scenarioTitle: loadedTitle,
+           scenarioMetadata: loadedMetadata,
            gameState: gameState || {
               currentNodes: [],
               revealedNodes: [],
@@ -3180,6 +3208,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     const dataToSave = {
       version: SCHEMA_VERSION,
       scenarioTitle: state.scenarioTitle,
+      scenarioMetadata: state.scenarioMetadata,
       systemConfig: state.systemConfig,
       tabs: state.tabs,
       activeTabId: state.activeTabId,
@@ -3216,6 +3245,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         resources: initialStoredState.resources || get().resources,
         systemConfig: (initialStoredState as any).systemConfig || get().systemConfig,
         scenarioTitle: (initialStoredState as any).scenarioTitle || get().scenarioTitle,
+        scenarioMetadata: (initialStoredState as any).scenarioMetadata || get().scenarioMetadata,
         language: initialStoredState.language || get().language,
         theme: initialStoredState.theme || get().theme,
         edgeType: initialStoredState.edgeType || get().edgeType,

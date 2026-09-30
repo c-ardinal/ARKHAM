@@ -6,6 +6,7 @@ import { substituteVariables } from '../utils/textUtils';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { GitBranch, AlertTriangle } from 'lucide-react';
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
   const variables = useScenarioStore((s) => s.gameState.variables);
@@ -102,14 +103,14 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
             </span>
           )}
           <div className="text-base font-bold text-purple-900 dark:text-purple-100 break-words">
-            {label}
+            <NodeMarkdown content={label} inline />
           </div>
         </div>
 
         {description && (
           <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-800">
-            <div className="text-sm opacity-80 text-purple-900 dark:text-purple-300/70 whitespace-pre-wrap break-words">
-              {description}
+            <div className="text-sm opacity-80 text-purple-900 dark:text-purple-300/70 break-words">
+              <NodeMarkdown content={description} />
             </div>
           </div>
         )}

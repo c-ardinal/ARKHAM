@@ -3,13 +3,12 @@ import { Handle, Position, type NodeProps } from 'reactflow';
 import { Rabbit, AlertTriangle } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { substituteVariables } from '../utils/textUtils';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const JumpNode = ({ id: _id, data, selected }: NodeProps<ScenarioNodeData>) => {
   const allTabs = useScenarioStore((s) => s.tabs);
-  const variables = useScenarioStore((s) => s.gameState.variables);
   const description = data.description;
 
   const targetNodeId = typeof data.jumpTarget === 'string'
@@ -57,14 +56,14 @@ const JumpNode = ({ id: _id, data, selected }: NodeProps<ScenarioNodeData>) => {
               </span>
             )}
             <div className="font-bold text-base text-yellow-900 dark:text-yellow-100">
-                {substituteVariables(data.label, variables)}
+                <NodeMarkdown content={data.label} inline />
             </div>
         </div>
 
         {description && (
             <div className="mt-2 pt-2 border-t border-yellow-300 dark:border-yellow-700">
-                <div className="text-sm opacity-90 whitespace-pre-wrap text-yellow-900 dark:text-yellow-100">
-                    {substituteVariables(data.description || '', variables)}
+                <div className="text-sm opacity-90 text-yellow-900 dark:text-yellow-100">
+                    <NodeMarkdown content={data.description} />
                 </div>
             </div>
         )}
@@ -73,7 +72,7 @@ const JumpNode = ({ id: _id, data, selected }: NodeProps<ScenarioNodeData>) => {
           <label className="text-sm uppercase font-bold opacity-70 block mb-1 cursor-pointer text-yellow-900 dark:text-yellow-100">Jump To</label>
           <div className={`text-sm p-1 rounded border min-h-[24px] cursor-pointer ${isBroken ? 'border-amber-400 bg-amber-100/60 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300' : 'border-yellow-300 dark:border-yellow-700 bg-white/50 dark:bg-black/20'}`}>
               {targetNode ? (
-                  substituteVariables(targetNode.data.label || 'Unknown Node', variables)
+                  <NodeMarkdown content={targetNode.data.label || 'Unknown Node'} inline />
               ) : (
                   <span className="opacity-70 italic font-semibold">{!data.jumpTarget ? '⚠️ 未設定' : '⚠️ リンク切れ (削除済)'}</span>
               )}

@@ -8,6 +8,7 @@ import { StickyIndicator } from '../components/common/StickyIndicator';
 import { useTranslation } from '../hooks/useTranslation';
 
 import { Flag, Star, Clock, KeyRound, Gift, Zap, Dices, AlertTriangle } from 'lucide-react';
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
@@ -79,7 +80,9 @@ const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
                 複数出力不可 ({narrativeOuts.length}本)
               </span>
             )}
-            <div className="text-lg font-bold text-orange-900 dark:text-orange-100 break-words">{label}</div>
+            <div className="text-lg font-bold text-orange-900 dark:text-orange-100 break-words">
+              <NodeMarkdown content={label} inline />
+            </div>
           </div>
         </div>
 
@@ -125,8 +128,8 @@ const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
         
         {description && (
             <div className="mt-2 pt-2 border-t border-orange-200 dark:border-orange-800">
-                <div className="text-sm opacity-80 text-orange-800 dark:text-orange-200/70 whitespace-pre-wrap break-words">
-                    {description}
+                <div className="text-sm opacity-80 text-orange-800 dark:text-orange-200/70 break-words">
+                    <NodeMarkdown content={description} />
                 </div>
             </div>
         )}

@@ -5,7 +5,7 @@
  */
 
 import YAML from 'yaml';
-import type { ScenarioNode, ScenarioEdge, CharacterData, ResourceData, StageData, ScenarioMetadata } from '../types';
+import type { ScenarioNode, ScenarioEdge, CharacterData, ResourceData, StageData, ScenarioMetadata, Tab } from '../types';
 import type {
   HumanScenarioDocument,
   HumanScene,
@@ -19,6 +19,7 @@ export interface HumanImportResult {
   stages: StageData[];
   nodes: ScenarioNode[];
   edges: ScenarioEdge[];
+  tabs?: Tab[];
 }
 
 function sanitizeIdPart(str: string): string {
@@ -164,6 +165,7 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
         name: s.名前,
         type,
         description: s.概要,
+        details: s.詳細 || s.備考,
         note: s.備考,
       };
       stages.push(stageData);
@@ -269,8 +271,9 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
   // Pass 1: Discover groups
   rawScenes.forEach((scene, idx) => {
     if (scene.種別 === 'グループ' || scene.種別 === 'フェーズ') {
-      const groupId = `group_${idx + 1}_${sanitizeIdPart(scene.場面)}`;
+      const groupId = scene.ID || `group_${idx + 1}_${sanitizeIdPart(scene.場面)}`;
       groupLabelToId.set(scene.場面, groupId);
+      if (scene.ID) groupLabelToId.set(scene.ID, groupId);
     } else if (scene.グループ && !groupLabelToId.has(scene.グループ)) {
       const groupId = `group_auto_${groupLabelToId.size + 1}_${sanitizeIdPart(scene.グループ)}`;
       groupLabelToId.set(scene.グループ, groupId);
@@ -290,7 +293,8 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
           label: scene.場面,
           expanded: true,
           description: scene.描写 || scene.目的 || scene.場面,
-          chapter: scene.章 || 1,
+          chapter: scene.章 !== undefined ? scene.章 : 1,
+          tab: scene.タブ,
           order: idx,
         },
         style: { width: 1400, height: 900, zIndex: -1 },
@@ -301,6 +305,9 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
   for (const [gLabel, gId] of groupLabelToId.entries()) {
     if (!createdGroupIds.has(gId)) {
       createdGroupIds.add(gId);
+      const gScenes = rawScenes.filter((s) => s.グループ === gLabel);
+      const gChapter = gScenes.find((s) => s.章 !== undefined)?.章 ?? 1;
+      const gTab = gScenes.find((s) => s.タブ)?.タブ;
       groupNodes.push({
         id: gId,
         type: 'group',
@@ -309,6 +316,8 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
           label: gLabel,
           expanded: true,
           description: gLabel,
+          chapter: gChapter,
+          tab: gTab,
         },
         style: { width: 1400, height: 900, zIndex: -1 },
       });
@@ -464,7 +473,8 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
           label: scene.場面,
           branchType,
           branches: branchCases,
-          chapter: scene.章 || 1,
+          chapter: scene.章 !== undefined ? scene.章 : 1,
+          tab: scene.タブ,
           description: scene.描写,
           conditionType: kind === '判定' ? 'check' : 'variable',
           order: idx,
@@ -529,7 +539,8 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
           infoType: (kind === '手がかり' || kind === '情報') ? 'Knowledge' : 'Item',
           actionType: 'acquire',
           acquiredItems: refItemId ? [refItemId] : acquiredList,
-          chapter: scene.章 || 1,
+          chapter: scene.章 !== undefined ? scene.章 : 1,
+          tab: scene.タブ,
           description: scene.描写,
           order: idx,
         },
@@ -555,7 +566,43 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
       return;
     }
 
-    // C. Character Node (Standalone)
+    // C. Memo Node (メモノード)
+    if (kind === 'メモ') {
+      const memoText = [scene.描写, scene.KP情報 ? (Array.isArray(scene.KP情報) ? scene.KP情報.join('\n') : scene.KP情報) : undefined]
+        .filter(Boolean)
+        .join('\n\n');
+
+      flowNodes.push({
+        id: nodeId,
+        type: 'memo',
+        position: { x: 0, y: 0 },
+        parentNode,
+        data: {
+          label: scene.場面,
+          description: memoText || scene.描写 || '',
+          chapter: scene.章 ?? 0,
+          tab: scene.タブ,
+          order: idx,
+        },
+      });
+
+      if (scene.行き先) {
+        const dests = Array.isArray(scene.行き先) ? scene.行き先 : [scene.行き先];
+        dests.forEach((destTitle, dIdx) => {
+          const targetNodeId = resolveTargetNodeId(destTitle, nodeId, parentNode);
+          if (targetNodeId) {
+            addEdge({
+              id: `edge_${nodeId}_to_${targetNodeId}_${dIdx}`,
+              source: nodeId,
+              target: targetNodeId,
+            });
+          }
+        });
+      }
+      return;
+    }
+
+    // D. Character Node (Standalone)
     if (kind === '登場人物' || kind === 'NPC' || kind === 'エネミー' || kind === '怪物') {
       const refCharId = resolveSingleCharacterId(scene, kind);
       const refChar = charIdToData.get(refCharId);
@@ -570,7 +617,8 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
           referenceId: refCharId,
           characterType: (kind === 'エネミー' || kind === '怪物' || refChar?.type === 'Monster') ? 'Monster' : 'NPC',
           associatedCharacterIds: [refCharId],
-          chapter: scene.章 || 1,
+          chapter: scene.章 !== undefined ? scene.章 : 1,
+          tab: scene.タブ,
           description: scene.描写 || refChar?.description,
           order: idx,
         },
@@ -603,7 +651,8 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
         data: {
           label: scene.場面,
           referenceId: refStageId,
-          chapter: scene.章 || 1,
+          chapter: scene.章 !== undefined ? scene.章 : 1,
+          tab: scene.タブ,
           description: scene.描写,
           order: idx,
         },
@@ -638,7 +687,8 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
         data: {
           label: scene.場面,
           jumpTarget: targetNodeId ? { tabId: 'tab_main', nodeId: targetNodeId } : undefined,
-          chapter: scene.章 || 1,
+          chapter: scene.章 !== undefined ? scene.章 : 1,
+          tab: scene.タブ,
           description: scene.描写,
           order: idx,
         },
@@ -669,7 +719,8 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
       data: {
         label: scene.場面,
         isStart: idx === 0,
-        chapter: scene.章 || 1,
+        chapter: scene.章 !== undefined ? scene.章 : 1,
+        tab: scene.タブ,
         order: idx,
         locationId: locId,
         purpose: scene.目的,
@@ -879,20 +930,186 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
 
   const rawCombinedNodes = [...groupNodes, ...flowNodes];
 
-  // 6. オートレイアウトの適用 (Dagre による自動整列)
-  const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-    rawCombinedNodes,
-    edges,
-    { direction: 'TB' }
+  const allNodesMap = new Map<string, ScenarioNode>();
+  for (const n of rawCombinedNodes) {
+    allNodesMap.set(n.id, n);
+  }
+
+  // 6. タブ分割 (ファイルのスキーマでタブ一覧または場面のタブが指定されている場合のみ分割)
+  const rawTabs = doc.タブ一覧;
+  const hasExplicitTabs = Boolean(
+    (rawTabs && rawTabs.length > 0) ||
+    rawScenes.some((s) => s.タブ)
   );
+
+  let tabs: Tab[] = [];
+
+  if (!hasExplicitTabs) {
+    // スキーマでタブが指定されていない場合: 全ての場面・章を1画面（単一タブ）に集約
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      rawCombinedNodes,
+      edges,
+      { direction: 'TB' }
+    );
+    tabs = [
+      {
+        id: 'tab_main',
+        name: scenarioMetadata.title || 'メインフロー',
+        nodes: layoutedNodes,
+        edges: layoutedEdges,
+      },
+    ];
+  } else {
+    // スキーマでタブが指定されている場合: 指定されたタブ定義に従って分割配置
+    interface TabInfo {
+      id: string;
+      name: string;
+    }
+    const tabsList: TabInfo[] = [];
+    const tabKeyToId = new Map<string, string>(); // maps both id and name to tabId
+
+    if (rawTabs && Array.isArray(rawTabs)) {
+      rawTabs.forEach((entry, idx) => {
+        const tabName = typeof entry === 'string' ? entry : entry.名前;
+        const tabId = (typeof entry === 'object' && entry.ID) ? entry.ID : `tab_${idx + 1}_${sanitizeIdPart(tabName)}`;
+        const info: TabInfo = { id: tabId, name: tabName };
+        tabsList.push(info);
+        tabKeyToId.set(tabId, tabId);
+        tabKeyToId.set(tabName, tabId);
+      });
+    }
+
+    rawScenes.forEach((s) => {
+      if (s.タブ && !tabKeyToId.has(s.タブ)) {
+        const tabId = `tab_${tabsList.length + 1}_${sanitizeIdPart(s.タブ)}`;
+        const info: TabInfo = { id: tabId, name: s.タブ };
+        tabsList.push(info);
+        tabKeyToId.set(tabId, tabId);
+        tabKeyToId.set(s.タブ, tabId);
+      }
+    });
+
+    if (tabsList.length === 0) {
+      tabsList.push({ id: 'tab_main', name: scenarioMetadata.title || 'メインフロー' });
+    }
+
+    const getTabIdOfNode = (n: ScenarioNode): string => {
+      const directTab = n.data?.tab;
+      if (directTab && tabKeyToId.has(directTab)) {
+        return tabKeyToId.get(directTab)!;
+      }
+      if (n.parentNode) {
+        const pNode = allNodesMap.get(n.parentNode);
+        const pTab = pNode?.data?.tab;
+        if (pTab && tabKeyToId.has(pTab)) {
+          return tabKeyToId.get(pTab)!;
+        }
+      }
+      const ch = n.data?.chapter;
+      if (ch !== undefined) {
+        const matchTab = tabsList.find((t) => {
+          if (ch === 0 && (t.name.includes('事前') || t.id.includes('ch0') || t.id.includes('intro'))) return true;
+          return t.name.includes(`第${ch}章`) || t.id.includes(`ch${ch}`);
+        });
+        if (matchTab) return matchTab.id;
+      }
+      return tabsList[0].id;
+    };
+
+    const nodesByTabId = new Map<string, ScenarioNode[]>();
+    const edgesByTabId = new Map<string, ScenarioEdge[]>();
+    for (const t of tabsList) {
+      nodesByTabId.set(t.id, []);
+      edgesByTabId.set(t.id, []);
+    }
+
+    for (const n of rawCombinedNodes) {
+      const tid = getTabIdOfNode(n);
+      if (!nodesByTabId.has(tid)) nodesByTabId.set(tid, []);
+      nodesByTabId.get(tid)!.push(n);
+    }
+
+    // Update existing jump nodes' target tabId
+    for (const n of rawCombinedNodes) {
+      if (n.type === 'jump' && n.data?.jumpTarget?.nodeId) {
+        const targetNode = allNodesMap.get(n.data.jumpTarget.nodeId);
+        if (targetNode) {
+          const targetTabId = getTabIdOfNode(targetNode);
+          n.data.jumpTarget.tabId = targetTabId;
+        }
+      }
+    }
+
+    // Process edges: partition within-tab, or bridge cross-tab
+    for (const e of edges) {
+      const srcNode = allNodesMap.get(e.source);
+      const tgtNode = allNodesMap.get(e.target);
+      if (!srcNode || !tgtNode) continue;
+
+      const srcTabId = getTabIdOfNode(srcNode);
+      const tgtTabId = getTabIdOfNode(tgtNode);
+
+      if (srcTabId === tgtTabId) {
+        if (!edgesByTabId.has(srcTabId)) edgesByTabId.set(srcTabId, []);
+        edgesByTabId.get(srcTabId)!.push(e);
+      } else {
+        const targetTabInfo = tabsList.find((t) => t.id === tgtTabId) || { id: tgtTabId, name: tgtTabId };
+        const jumpId = `jump_${e.source}_to_${e.target}_cross_jump`;
+        const jumpLabel = `${targetTabInfo.name}へ進む`;
+
+        const jumpNode: ScenarioNode = {
+          id: jumpId,
+          type: 'jump',
+          position: { x: (srcNode.position?.x ?? 0) + 200, y: srcNode.position?.y ?? 0 },
+          parentNode: srcNode.parentNode,
+          data: {
+            label: jumpLabel,
+            jumpTarget: { tabId: tgtTabId, nodeId: tgtNode.id },
+            chapter: srcNode.data?.chapter,
+            tab: srcTabId,
+            description: tgtNode.data?.label ? `「${tgtNode.data.label}」へジャンプします` : '別タブへ遷移します',
+          },
+        };
+        nodesByTabId.get(srcTabId)!.push(jumpNode);
+        allNodesMap.set(jumpId, jumpNode);
+
+        edgesByTabId.get(srcTabId)!.push({
+          ...e,
+          id: `${e.id}_to_cross_jump`,
+          target: jumpId,
+        });
+      }
+    }
+
+    // Apply auto layout per tab
+    for (const t of tabsList) {
+      const tabNodes = nodesByTabId.get(t.id) || [];
+      const tabEdges = edgesByTabId.get(t.id) || [];
+      const { nodes: layoutedTabNodes, edges: layoutedTabEdges } = getLayoutedElements(
+        tabNodes,
+        tabEdges,
+        { direction: 'TB' }
+      );
+      tabs.push({
+        id: t.id,
+        name: t.name,
+        nodes: layoutedTabNodes,
+        edges: layoutedTabEdges,
+      });
+    }
+  }
+
+  const allLayoutedNodes = tabs.flatMap((t) => t.nodes);
+  const allLayoutedEdges = tabs.flatMap((t) => t.edges);
 
   return {
     scenarioMetadata,
     characters,
     resources,
     stages,
-    nodes: layoutedNodes,
-    edges: layoutedEdges,
+    nodes: allLayoutedNodes,
+    edges: allLayoutedEdges,
+    tabs,
   };
 }
 

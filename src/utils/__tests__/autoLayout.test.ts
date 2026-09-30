@@ -377,4 +377,65 @@ describe('autoLayout', () => {
     // Defect node is aligned with the chain and positioned above bulkhead
     expect(defect.position.x).toBeGreaterThan(bulkhead.position.x);
   });
+
+  it('correctly calculates group dimensions bottom-up on the first pass and stabilizes in 1 pass', () => {
+    const nodes: ScenarioNode[] = [
+      {
+        id: 'group-1',
+        type: 'group',
+        position: { x: 0, y: 0 },
+        data: { label: '調査グループ', expanded: true },
+      },
+      {
+        id: 'child-1',
+        type: 'event',
+        parentNode: 'group-1',
+        position: { x: 0, y: 0 },
+        data: { label: '室内探索' },
+      },
+      {
+        id: 'child-2',
+        type: 'event',
+        parentNode: 'group-1',
+        position: { x: 0, y: 0 },
+        data: { label: '金庫発見' },
+      },
+      {
+        id: 'neighbor-event',
+        type: 'event',
+        position: { x: 0, y: 0 },
+        data: { label: 'グループ隣接イベント' },
+      },
+    ];
+
+    const edges: ScenarioEdge[] = [
+      { id: 'e-c1-c2', source: 'child-1', target: 'child-2' },
+      { id: 'e-g-n', source: 'group-1', target: 'neighbor-event' },
+    ];
+
+    // Pass 1: Fresh layout
+    const pass1 = getLayoutedElements(nodes, edges, { direction: 'TB' });
+    const gNode1 = pass1.nodes.find((n) => n.id === 'group-1')!;
+    const neighbor1 = pass1.nodes.find((n) => n.id === 'neighbor-event')!;
+
+    // Group style width and height must be expanded to encompass its children
+    expect(gNode1.style?.width).toBeGreaterThanOrEqual(400);
+    expect(gNode1.style?.height).toBeGreaterThanOrEqual(280);
+
+    // Neighbor event must be placed below or separated from the full group bounding box (no overlap!)
+    const gBottom1 = gNode1.position.y + Number(gNode1.style!.height);
+    expect(neighbor1.position.y).toBeGreaterThanOrEqual(gBottom1 + 40);
+
+    // Pass 2: Layout again with result of Pass 1 (verifying convergence in 1 single pass)
+    const pass2 = getLayoutedElements(pass1.nodes, pass1.edges, { direction: 'TB' });
+    const gNode2 = pass2.nodes.find((n) => n.id === 'group-1')!;
+    const neighbor2 = pass2.nodes.find((n) => n.id === 'neighbor-event')!;
+
+    // Positions should be completely identical between Pass 1 and Pass 2
+    expect(gNode2.position.x).toEqual(gNode1.position.x);
+    expect(gNode2.position.y).toEqual(gNode1.position.y);
+    expect(neighbor2.position.x).toEqual(neighbor1.position.x);
+    expect(neighbor2.position.y).toEqual(neighbor1.position.y);
+  });
 });
+

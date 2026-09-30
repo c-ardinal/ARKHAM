@@ -10,6 +10,7 @@ import ReactFlow, {
   type Connection,
   MarkerType,
   useReactFlow,
+  PanOnScrollMode,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useScenarioStore } from '../store/scenarioStore';
@@ -413,12 +414,26 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       tabs: state.tabs.map((t) => (t.id === prevId ? { ...t, viewport: currentVp } : t)),
     }));
 
-    // 2. 新タブの viewport を復元（未保存なら fitView）
+    // 2. 新タブの viewport を復元（未保存ならノード描画完了を待って fitView）
     const newTab = useScenarioStore.getState().tabs.find((t) => t.id === activeTabId);
     if (newTab?.viewport) {
       setViewport(newTab.viewport, { duration: 0 });
     } else {
-      fitView({ padding: 0.2, duration: 200 });
+      const t1 = setTimeout(() => {
+        requestAnimationFrame(() => {
+          fitView({ padding: 0.2, duration: 0 });
+        });
+      }, 50);
+      const t2 = setTimeout(() => {
+        requestAnimationFrame(() => {
+          fitView({ padding: 0.2, duration: 150 });
+        });
+      }, 150);
+      prevActiveTabIdRef.current = activeTabId;
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     }
 
     prevActiveTabIdRef.current = activeTabId;
@@ -1405,41 +1420,71 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
       });
   }, [nodes]);
 
-  // Use sortedNodes directly. Removed processedNodes to avoid object reference changes.
-  const processedNodes = sortedNodes;
-
-  // Heatmap Display Overlay
-  const displayNodes = useMemo(() => {
-    if (!simulationOverlay?.active || !simulationOverlay.result) {
-      return processedNodes;
-    }
-    const { nodeLostCounts, nodeVisitCounts, totalRuns } = simulationOverlay.result;
-    return processedNodes.map((node) => {
-      const lostCount = nodeLostCounts?.[node.id] || 0;
-      const visitCount = nodeVisitCounts?.[node.id] || 0;
-      const visitRate = totalRuns > 0 ? (visitCount / totalRuns) * 100 : 0;
-
-      let extraStyle: React.CSSProperties = {};
-      if (lostCount > 0) {
-        extraStyle = {
-          boxShadow: '0 0 0 3px #ef4444, 0 4px 14px rgba(239, 68, 68, 0.45)',
-          borderColor: '#ef4444',
-        };
-      } else if (visitCount > 0) {
-        if (visitRate >= 70) {
-          extraStyle = {
-            boxShadow: '0 0 0 2.5px #10b981',
-          };
-        } else if (visitRate >= 30) {
-          extraStyle = {
-            boxShadow: '0 0 0 2px #3b82f6',
-          };
-        }
-      } else {
-        extraStyle = {
-          opacity: 0.4,
+  // Group nodes are configured with dragHandle: '.group-drag-handle' so only their title/description badge can move them
+  const processedNodes = useMemo(() => {
+    return sortedNodes.map((node) => {
+      if (node.type === 'group' && node.dragHandle !== '.group-drag-handle') {
+        return {
+          ...node,
+          dragHandle: '.group-drag-handle',
         };
       }
+      return node;
+    });
+  }, [sortedNodes]);
+
+  // Heatmap Display Overlay & Play Mode Adjustments
+  const displayNodes = useMemo(() => {
+    const isPlay = mode === 'play';
+    const isOverlay = Boolean(simulationOverlay?.active && simulationOverlay.result);
+
+    if (!isOverlay && !isPlay) {
+      return processedNodes;
+    }
+
+    const { nodeLostCounts, nodeVisitCounts, totalRuns } = isOverlay && simulationOverlay?.result
+      ? simulationOverlay.result
+      : { nodeLostCounts: {}, nodeVisitCounts: {}, totalRuns: 0 };
+
+    return processedNodes.map((node) => {
+      let extraStyle: React.CSSProperties = {};
+
+      if (isPlay && node.type === 'group') {
+        extraStyle.pointerEvents = 'none';
+      }
+
+      if (isOverlay) {
+        const lostCount = nodeLostCounts?.[node.id] || 0;
+        const visitCount = nodeVisitCounts?.[node.id] || 0;
+        const visitRate = totalRuns > 0 ? (visitCount / totalRuns) * 100 : 0;
+
+        if (lostCount > 0) {
+          extraStyle = {
+            ...extraStyle,
+            boxShadow: '0 0 0 3px #ef4444, 0 4px 14px rgba(239, 68, 68, 0.45)',
+            borderColor: '#ef4444',
+          };
+        } else if (visitCount > 0) {
+          if (visitRate >= 70) {
+            extraStyle = {
+              ...extraStyle,
+              boxShadow: '0 0 0 2.5px #10b981',
+            };
+          } else if (visitRate >= 30) {
+            extraStyle = {
+              ...extraStyle,
+              boxShadow: '0 0 0 2px #3b82f6',
+            };
+          }
+        } else {
+          extraStyle = {
+            ...extraStyle,
+            opacity: 0.4,
+          };
+        }
+      }
+
+      if (Object.keys(extraStyle).length === 0) return node;
 
       return {
         ...node,
@@ -1449,7 +1494,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         },
       };
     });
-  }, [processedNodes, simulationOverlay]);
+  }, [processedNodes, simulationOverlay, mode]);
 
   const displayEdges = useMemo(() => {
     if (!simulationOverlay?.active || !simulationOverlay.result) {
@@ -1886,6 +1931,16 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
                 opacity: 0 !important;
                 pointer-events: none !important;
             }
+            .react-flow__node-group {
+                pointer-events: none !important;
+            }
+            .react-flow__node-group .group-drag-handle {
+                pointer-events: none !important;
+                cursor: default !important;
+            }
+            .react-flow__node-group .pointer-events-auto {
+                pointer-events: auto !important;
+            }
           `}</style>
       )}
       {/* Simulation Heatmap HUD */}
@@ -1989,6 +2044,11 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
         selectionKeyCode="Shift" // Default behavior
         deleteKeyCode={null} // Disable default delete to handle it manually
         minZoom={0.01}
+        panOnScroll={true}
+        panOnScrollMode={PanOnScrollMode.Free}
+        zoomOnScroll={false}
+        zoomActivationKeyCode={['Control', 'Meta']}
+        preventScrolling={true}
         // Skip rendering nodes/edges outside the viewport. For large
         // scenarios this slashes both React render work and Compositor
         // layer count.
@@ -2105,7 +2165,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
 
                 <ControlButton 
                     onClick={() => {
-                      applyAutoLayout('TB');
+                      applyAutoLayout('TB', getNodes() as ScenarioNode[]);
                       setTimeout(() => {
                         fitView({ padding: 0.2, duration: 400 });
                       }, 50);

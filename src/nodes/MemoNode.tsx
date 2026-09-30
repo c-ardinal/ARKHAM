@@ -3,13 +3,12 @@ import { Handle, Position, type NodeProps } from 'reactflow';
 import { StickyNote } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { substituteVariables } from '../utils/textUtils';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
-const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
-  const variables = useScenarioStore((s) => s.gameState.variables);
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
+const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   return (
     <div className={`px-4 py-3 shadow-sm rounded-md border-2 min-w-[180px] min-h-[100px] w-max relative transition-shadow duration-200
       ${selected ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
@@ -21,12 +20,16 @@ const MemoNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
       {data.hasSticky && <StickyIndicator />}
       {data.revealed && <RevealedBadge />}
       <div className="flex items-center mb-2">
-        <StickyNote size={16} className="mr-2 opacity-70" />
-        <div className="font-bold text-base">{substituteVariables(data.label, variables)}</div>
+        <StickyNote size={16} className="mr-2 opacity-70 shrink-0" />
+        <div className="font-bold text-base">
+          <NodeMarkdown content={data.label} inline />
+        </div>
       </div>
-      <div className="text-sm whitespace-pre-wrap opacity-90 leading-relaxed">
-        {substituteVariables(data.description || '', variables)}
-      </div>
+      {data.description && (
+        <div className="text-sm opacity-90 leading-relaxed">
+          <NodeMarkdown content={data.description} />
+        </div>
+      )}
       <Handle
         type="target"
         position={Position.Top}

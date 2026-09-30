@@ -68,6 +68,7 @@ export interface ScenarioNodeData {
 
   // ARKHAM Core Engine Extensions
   chapter?: number;
+  tab?: string;
   locationId?: string;
   purpose?: string;
   kpInstructions?: string[];

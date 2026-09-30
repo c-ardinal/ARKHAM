@@ -3,9 +3,10 @@ import { Handle, Position, type NodeProps } from 'reactflow';
 import { Variable, ArrowLeft } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
-import { substituteVariables } from '../utils/textUtils';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
+
+import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   const variables = useScenarioStore((s) => s.gameState.variables);
@@ -52,8 +53,8 @@ const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
 
         {description && (
             <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
-                <div className="text-sm opacity-80 whitespace-pre-wrap break-words text-red-900 dark:text-red-100">
-                    {substituteVariables(data.description || '', variables)}
+                <div className="text-sm opacity-80 break-words text-red-900 dark:text-red-100">
+                    <NodeMarkdown content={data.description} />
                 </div>
             </div>
         )}
@@ -64,7 +65,7 @@ const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
            </div>
            <ArrowLeft size={12} className="opacity-50 shrink-0" />
            <div className="text-sm font-mono bg-black/10 dark:bg-black/30 px-1.5 py-0.5 rounded break-all max-w-[160px]" title={data.variableValue}>
-               {substituteVariables(data.variableValue || 'Value', variables)}
+               <NodeMarkdown content={data.variableValue || 'Value'} inline />
            </div>
         </div>
       </div>

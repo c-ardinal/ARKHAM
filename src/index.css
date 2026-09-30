@@ -243,3 +243,15 @@
     bottom: auto !important;
     right: auto !important;
 }
+
+/* Group Node: make the node wrapper pass pointer events through to canvas pane, while drag handle & interactive controls remain active */
+.react-flow__node-group {
+    pointer-events: none !important;
+}
+
+.react-flow__node-group .group-drag-handle,
+.react-flow__node-group .pointer-events-auto,
+.react-flow__node-group .react-flow__handle {
+    pointer-events: auto !important;
+}
+
