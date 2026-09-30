@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { VariableSuggestInput } from './VariableSuggestInput';
 import { useScenarioStore, useUnifiedVariableList, type UnifiedVariableItem } from '../store/scenarioStore';
 import { useTranslation } from '../hooks/useTranslation';
@@ -8,8 +8,6 @@ import {
   Edit2,
   Save,
   X,
-  ArrowDownAZ,
-  ArrowUpAZ,
   Variable as VariableIcon,
   Lock,
   Link as LinkIcon,
@@ -20,9 +18,28 @@ import {
   MapPin,
   Package,
   Layers,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import type { VariableType } from '../types';
 import { INPUT_CLASS } from '../styles/common';
+
+type VariableCategoryKey = 'all' | 'global' | 'character' | 'stage' | 'resource' | 'node';
+
+interface VariableCategoryDef {
+  key: VariableCategoryKey;
+  label: string;
+  icon: React.ReactNode;
+}
+
+const VARIABLE_CATEGORIES: VariableCategoryDef[] = [
+  { key: 'all', label: 'すべて', icon: <VariableIcon size={12} /> },
+  { key: 'global', label: '全体', icon: <Globe size={12} /> },
+  { key: 'character', label: 'キャラ', icon: <User size={12} /> },
+  { key: 'stage', label: '舞台', icon: <MapPin size={12} /> },
+  { key: 'resource', label: '部隊', icon: <Package size={12} /> },
+  { key: 'node', label: '要素', icon: <Layers size={12} /> },
+];
 
 export const VariableList = React.memo(() => {
   const {
@@ -46,11 +63,21 @@ export const VariableList = React.memo(() => {
   const { t } = useTranslation();
   const allUnifiedVars = useUnifiedVariableList();
 
-  // Search & Filter
+  // Search & Selected Category (Matching ResourceList & StageList)
+  const [selectedCategory, setSelectedCategory] = useState<VariableCategoryKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [scopeFilter, setScopeFilter] = useState<'all' | 'global' | 'character' | 'stage' | 'resource' | 'node'>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'type' | 'scope'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Category horizontal scroll & drag state (Matching ResourceList & StageList)
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const activeCatButtonRef = useRef<HTMLButtonElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const isMouseDownRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragScrollLeftRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+  const [isDraggingCategory, setIsDraggingCategory] = useState(false);
 
   // Adding Form state
   const [isAdding, setIsAdding] = useState(false);
@@ -70,6 +97,107 @@ export const VariableList = React.memo(() => {
   const [editIsConstant, setEditIsConstant] = useState(false);
   const [editLinkedVariable, setEditLinkedVariable] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Category item counts
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {
+      all: allUnifiedVars.length,
+      global: 0,
+      character: 0,
+      stage: 0,
+      resource: 0,
+      node: 0,
+    };
+    allUnifiedVars.forEach((v) => {
+      if (c[v.ownerType] !== undefined) c[v.ownerType]++;
+    });
+    return c;
+  }, [allUnifiedVars]);
+
+  // Check category scroll boundary to toggle chevron buttons
+  const checkScrollBoundary = useCallback(() => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  // Update boundary on scroll, resize, or counts change
+  useEffect(() => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+
+    checkScrollBoundary();
+    el.addEventListener('scroll', checkScrollBoundary, { passive: true });
+    window.addEventListener('resize', checkScrollBoundary);
+
+    return () => {
+      el.removeEventListener('scroll', checkScrollBoundary);
+      window.removeEventListener('resize', checkScrollBoundary);
+    };
+  }, [checkScrollBoundary, counts]);
+
+  // Mouse wheel horizontal scroll (passive: false to prevent default page jump)
+  useEffect(() => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+        checkScrollBoundary();
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [checkScrollBoundary]);
+
+  // Scroll active tab into view when selection changes
+  useEffect(() => {
+    if (activeCatButtonRef.current) {
+      activeCatButtonRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'nearest',
+      });
+    }
+  }, [selectedCategory]);
+
+  // Drag-to-scroll handlers
+  const handleCatMouseDown = (e: React.MouseEvent) => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    isMouseDownRef.current = true;
+    hasDraggedRef.current = false;
+    dragStartXRef.current = e.pageX - el.offsetLeft;
+    dragScrollLeftRef.current = el.scrollLeft;
+    setIsDraggingCategory(true);
+  };
+
+  const handleCatMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDownRef.current || !categoryScrollRef.current) return;
+    const el = categoryScrollRef.current;
+    const x = e.pageX - el.offsetLeft;
+    const walk = x - dragStartXRef.current;
+    if (Math.abs(walk) > 3) {
+      hasDraggedRef.current = true;
+    }
+    el.scrollLeft = dragScrollLeftRef.current - walk;
+    checkScrollBoundary();
+  };
+
+  const handleCatMouseUpOrLeave = () => {
+    isMouseDownRef.current = false;
+    setIsDraggingCategory(false);
+  };
+
+  const scrollByAmount = (delta: number) => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: delta, behavior: 'smooth' });
+  };
 
   // Available element nodes for target scope selection
   const elementNodes = useMemo(() => {
@@ -229,182 +357,185 @@ export const VariableList = React.memo(() => {
     }
   };
 
-  // Filter and sort items
-  const filteredAndSortedList = useMemo(() => {
-    let list = allUnifiedVars;
-
-    // Scope filter
-    if (scopeFilter !== 'all') {
-      list = list.filter((v) => v.ownerType === scopeFilter);
-    }
-
-    // Search query
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      list = list.filter(
-        (v) =>
-          v.name.toLowerCase().includes(q) ||
-          v.fullName.toLowerCase().includes(q) ||
-          (v.ownerName && v.ownerName.toLowerCase().includes(q))
-      );
-    }
-
-    // Sort
-    return [...list].sort((a, b) => {
-      let valA: string = '';
-      let valB: string = '';
-
-      if (sortBy === 'name') {
-        valA = a.fullName.toLowerCase();
-        valB = b.fullName.toLowerCase();
-      } else if (sortBy === 'type') {
-        valA = a.type;
-        valB = b.type;
-      } else if (sortBy === 'scope') {
-        valA = `${a.ownerType}_${a.ownerName || ''}`;
-        valB = `${b.ownerType}_${b.ownerName || ''}`;
+  // Filtered variables based on category and search query
+  const filteredVariables = useMemo(() => {
+    return allUnifiedVars.filter((v) => {
+      if (selectedCategory !== 'all' && v.ownerType !== selectedCategory) {
+        return false;
       }
-
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = (v.name || '').toLowerCase().includes(q);
+        const matchFullName = (v.fullName || '').toLowerCase().includes(q);
+        const matchOwner = (v.ownerName || '').toLowerCase().includes(q);
+        if (!matchName && !matchFullName && !matchOwner) {
+          return false;
+        }
+      }
+      return true;
     });
-  }, [allUnifiedVars, scopeFilter, searchQuery, sortBy, sortOrder]);
-
-  // Counts per scope
-  const counts = useMemo(() => {
-    const c = { all: allUnifiedVars.length, global: 0, character: 0, stage: 0, resource: 0, node: 0 };
-    allUnifiedVars.forEach((v) => {
-      if (c[v.ownerType] !== undefined) c[v.ownerType]++;
-    });
-    return c;
-  }, [allUnifiedVars]);
-
-  const toggleSort = (type: 'name' | 'type' | 'scope') => {
-    if (sortBy === type) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(type);
-      setSortOrder('asc');
-    }
-  };
+  }, [allUnifiedVars, selectedCategory, searchQuery]);
 
   const inputClass = INPUT_CLASS + ' px-2 py-1 text-xs';
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0 border-b border-border/50">
-        <div className="flex items-center gap-2">
-          <VariableIcon size={18} className="text-primary" />
-          <h3 className="text-sm font-bold text-foreground">
-            {t('variables.title') || '変数・ステータス一覧'}
-          </h3>
-          <span className="text-xs px-1.5 py-0.2 rounded-full bg-primary/10 text-primary font-semibold">
-            {allUnifiedVars.length}
-          </span>
-        </div>
+    <div
+      className="flex flex-col h-full bg-card"
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelectedNode(null);
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {/* Header (Matching ResourceList & StageList) */}
+      <div className="flex justify-between items-center px-2 pt-2 pb-1">
+        <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+          <VariableIcon size={16} />
+          {t('variables.title') || '変数'}
+        </h3>
         {mode === 'edit' && (
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setIsAdding(!isAdding);
               setEditingId(null);
             }}
-            className={`p-1.5 rounded flex items-center gap-1 text-xs font-semibold transition-colors ${
-              isAdding
-                ? 'bg-muted text-muted-foreground hover:bg-muted/80'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
-            }`}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsAdding(!isAdding);
+              setEditingId(null);
+            }}
+            className="p-1 hover:bg-muted active:bg-muted rounded text-primary hover:text-primary/80 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+            title={isAdding ? '閉じる' : '変数を追加'}
           >
-            {isAdding ? <X size={14} /> : <Plus size={14} />}
-            <span>{isAdding ? '閉じる' : '追加'}</span>
+            {isAdding ? <X size={16} /> : <Plus size={16} />}
           </button>
         )}
       </div>
 
-      {/* Scope Filter Tabs */}
-      <div className="px-2 pt-2 pb-1 shrink-0 flex gap-1 overflow-x-auto no-scrollbar border-b border-border/40">
-        {(
-          [
-            { id: 'all', label: 'すべて', count: counts.all },
-            { id: 'global', label: '全体', count: counts.global },
-            { id: 'character', label: 'キャラ', count: counts.character },
-            { id: 'stage', label: '舞台', count: counts.stage },
-            { id: 'resource', label: '部隊', count: counts.resource },
-            { id: 'node', label: '要素', count: counts.node },
-          ] as const
-        ).map((tab) => (
+      {/* Sub-tabs / Category Filter Chips with Drag, Wheel & Chevrons (Matching ResourceList & StageList) */}
+      <div className="relative border-b border-border/50 py-1.5 px-1 group" onClick={(e) => e.stopPropagation()}>
+        {/* Scroll Left Button */}
+        {canScrollLeft && (
           <button
-            key={tab.id}
             type="button"
-            onClick={() => setScopeFilter(tab.id)}
-            className={`px-2 py-1 rounded text-[11px] font-medium whitespace-nowrap shrink-0 transition-colors flex items-center gap-1 ${
-              scopeFilter === tab.id
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              scrollByAmount(-90);
+            }}
+            className="absolute left-0 top-0 bottom-0 z-10 w-6 flex items-center justify-center bg-gradient-to-r from-card via-card/90 to-transparent text-muted-foreground hover:text-foreground transition-opacity"
+            aria-label="前へスクロール"
+            title="前へスクロール"
           >
-            <span>{tab.label}</span>
-            <span
-              className={`text-[9px] px-1 rounded-full ${
-                scopeFilter === tab.id ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {tab.count}
-            </span>
+            <ChevronLeft size={14} />
           </button>
-        ))}
+        )}
+
+        {/* Scrollable Container */}
+        <div
+          ref={categoryScrollRef}
+          className={`flex items-center gap-1 overflow-x-auto px-2 select-none ${
+            isDraggingCategory ? 'cursor-grabbing' : 'cursor-grab'
+          }`}
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          onMouseDown={handleCatMouseDown}
+          onMouseMove={handleCatMouseMove}
+          onMouseUp={handleCatMouseUpOrLeave}
+          onMouseLeave={handleCatMouseUpOrLeave}
+        >
+          {VARIABLE_CATEGORIES.map((cat) => {
+            const count = counts[cat.key] || 0;
+            const isSelected = selectedCategory === cat.key;
+
+            return (
+              <button
+                key={cat.key}
+                ref={isSelected ? activeCatButtonRef : null}
+                type="button"
+                onClick={(e) => {
+                  if (hasDraggedRef.current) {
+                    e.preventDefault();
+                    return;
+                  }
+                  e.stopPropagation();
+                  setSelectedCategory(cat.key);
+                }}
+                className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-primary text-primary-foreground font-medium shadow-sm'
+                    : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                <span className="shrink-0">{cat.icon}</span>
+                <span>{cat.label}</span>
+                <span
+                  className={`text-[10px] px-1 rounded-full ${
+                    isSelected
+                      ? 'bg-primary-foreground/25 text-primary-foreground'
+                      : 'bg-background/80 text-muted-foreground'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Scroll Right Button */}
+        {canScrollRight && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              scrollByAmount(90);
+            }}
+            className="absolute right-0 top-0 bottom-0 z-10 w-6 flex items-center justify-center bg-gradient-to-l from-card via-card/90 to-transparent text-muted-foreground hover:text-foreground transition-opacity"
+            aria-label="次へスクロール"
+            title="次へスクロール"
+          >
+            <ChevronRight size={14} />
+          </button>
+        )}
       </div>
 
-      {/* Search & Sort Bar */}
-      <div className="px-3 py-2 shrink-0 flex items-center gap-2 border-b border-border/30">
-        <div className="relative flex-1">
-          <Search size={12} className="absolute left-2 top-2 text-muted-foreground" />
+      {/* Search Input (Matching ResourceList & StageList) */}
+      <div className="px-2 pt-2 pb-1" onClick={(e) => e.stopPropagation()}>
+        <div className="relative">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             type="text"
+            placeholder={t('common.search') || '検索...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="変数名・要素名で検索..."
-            className={`${inputClass} pl-7 w-full`}
+            className="w-full pl-7 pr-7 py-1 text-xs bg-muted/40 hover:bg-muted/60 focus:bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
           />
           {searchQuery && (
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1.5 text-muted-foreground hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSearchQuery('');
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
             >
               <X size={12} />
             </button>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => toggleSort('name')}
-          className={`text-[11px] px-1.5 py-1 rounded border border-border/50 shrink-0 flex items-center gap-0.5 ${
-            sortBy === 'name' ? 'text-primary bg-primary/5 font-semibold' : 'text-muted-foreground'
-          }`}
-          title="名前で並べ替え"
-        >
-          名 {sortBy === 'name' && (sortOrder === 'asc' ? <ArrowDownAZ size={12} /> : <ArrowUpAZ size={12} />)}
-        </button>
-        <button
-          type="button"
-          onClick={() => toggleSort('type')}
-          className={`text-[11px] px-1.5 py-1 rounded border border-border/50 shrink-0 flex items-center gap-0.5 ${
-            sortBy === 'type' ? 'text-primary bg-primary/5 font-semibold' : 'text-muted-foreground'
-          }`}
-          title="型で並べ替え"
-        >
-          型 {sortBy === 'type' && (sortOrder === 'asc' ? <ArrowDownAZ size={12} /> : <ArrowUpAZ size={12} />)}
-        </button>
       </div>
 
-      {/* Main List & Add Form */}
-      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
+      {/* Variable List & Forms (Matching ResourceList layout) */}
+      <div className="flex-1 overflow-y-auto space-y-1 px-2 pb-2">
         {/* Add Variable Form */}
         {isAdding && (
-          <div className="p-3 border border-primary/50 rounded-lg bg-card shadow-sm space-y-2.5 mb-3">
+          <div
+            className="p-3 border border-primary/50 rounded-lg bg-card shadow-sm space-y-2.5 mb-2 mt-1"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Plus size={14} className="text-primary" />
               新規変数・定数の作成
@@ -620,20 +751,15 @@ export const VariableList = React.memo(() => {
         )}
 
         {/* Empty State */}
-        {filteredAndSortedList.length === 0 && !isAdding && (
-          <div className="text-center py-8 px-4 border border-dashed border-border rounded-lg m-2">
-            <VariableIcon size={28} className="mx-auto text-muted-foreground/50 mb-2" />
-            <div className="text-xs font-semibold text-foreground">表示する変数がありません</div>
-            <div className="text-[11px] text-muted-foreground mt-1">
-              {searchQuery
-                ? '検索条件に一致する変数は見つかりませんでした。'
-                : '右上の「追加」ボタン、または各キャラ・舞台・要素のプロパティから変数を追加できます。'}
-            </div>
+        {filteredVariables.length === 0 && !isAdding && (
+          <div className="text-xs text-muted-foreground text-center py-6 border border-dashed rounded m-2 px-3">
+            <VariableIcon size={24} className="mx-auto text-muted-foreground/40 mb-1.5" />
+            <div>{searchQuery ? '一致する変数がありません' : '変数が定義されていません'}</div>
           </div>
         )}
 
-        {/* Variables List */}
-        {filteredAndSortedList.map((item) => {
+        {/* Variables List Items */}
+        {filteredVariables.map((item) => {
           const isItemEditing = editingId === item.id;
 
           if (isItemEditing) {
@@ -641,6 +767,7 @@ export const VariableList = React.memo(() => {
               <div
                 key={item.id}
                 className="p-3 border-2 border-primary/60 rounded-lg bg-card shadow-sm space-y-2 mb-2"
+                onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between text-xs font-bold text-foreground">
                   <span>変数編集: {item.fullName}</span>
@@ -781,11 +908,15 @@ export const VariableList = React.memo(() => {
           return (
             <div
               key={item.id}
-              className={`p-2.5 rounded-lg border transition-all duration-150 group ${
+              className={`p-2 rounded-lg border transition-all duration-150 group ${
                 isConst
                   ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
                   : 'bg-card border-border hover:border-primary/40 shadow-xs'
               }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (item.ownerId) setSelectedNode(item.ownerId);
+              }}
             >
               {/* Top Row: Scope Badge, Kind Badge, Actions */}
               <div className="flex items-center justify-between gap-1 mb-1.5">
@@ -794,9 +925,6 @@ export const VariableList = React.memo(() => {
                   <span
                     className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold rounded border ${scopeInfo.className} truncate max-w-[170px]`}
                     title={`対象: ${scopeInfo.label}`}
-                    onClick={() => {
-                      if (item.ownerId) setSelectedNode(item.ownerId);
-                    }}
                   >
                     <ScopeIcon size={10} className="shrink-0" />
                     <span className="truncate">{scopeInfo.label}</span>
@@ -837,7 +965,10 @@ export const VariableList = React.memo(() => {
                 <div className="flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
-                    onClick={() => startEdit(item)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEdit(item);
+                    }}
                     className="p-1 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors"
                     title="編集"
                   >
@@ -846,7 +977,10 @@ export const VariableList = React.memo(() => {
                   {mode === 'edit' && (
                     <button
                       type="button"
-                      onClick={() => handleDelete(item)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(item);
+                      }}
                       className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                       title="削除"
                     >
@@ -857,13 +991,14 @@ export const VariableList = React.memo(() => {
               </div>
 
               {/* Middle Row: Name and Reference Tag */}
-              <div className="flex items-baseline justify-between gap-2 mb-2">
+              <div className="flex items-baseline justify-between gap-2 mb-1.5">
                 <div className="font-bold text-sm text-foreground truncate min-w-0">
                   {item.name}
                 </div>
                 <div
                   className="font-mono text-[11px] text-primary/80 bg-primary/5 hover:bg-primary/10 px-1.5 py-0.5 rounded cursor-pointer select-all shrink-0 transition-colors"
                   title="クリックして全選択 / テキスト内で参照可能"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   ${`{${item.fullName}}`}
                 </div>
@@ -882,7 +1017,10 @@ export const VariableList = React.memo(() => {
                     <span className="text-[10px] text-muted-foreground font-normal">(固定値)</span>
                   </div>
                 ) : item.type === 'number' ? (
-                  <div className="flex items-center gap-1 bg-background border border-border rounded p-0.5">
+                  <div
+                    className="flex items-center gap-1 bg-background border border-border rounded p-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
                       type="button"
                       onClick={() => handleDelta(item, -1)}
@@ -909,7 +1047,10 @@ export const VariableList = React.memo(() => {
                 ) : item.type === 'boolean' ? (
                   <button
                     type="button"
-                    onClick={() => handleValueChange(item, !item.value)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleValueChange(item, !item.value);
+                    }}
                     className={`px-2 py-0.5 rounded text-xs font-mono font-bold transition-colors ${
                       item.value
                         ? 'bg-green-500/15 text-green-700 dark:text-green-300 border border-green-500/30'
