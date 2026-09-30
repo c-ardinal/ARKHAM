@@ -10,16 +10,11 @@ interface NodeMarkdownProps {
   inline?: boolean;
 }
 
-export const NodeMarkdown: React.FC<NodeMarkdownProps> = memo(({
-  content = '',
+const MarkdownRenderer: React.FC<{ text: string; className?: string; inline?: boolean }> = memo(({
+  text,
   className = '',
   inline = false,
 }) => {
-  const variables = useAllVariables();
-  if (!content) return null;
-
-  const resolvedText = substituteVariables(content, variables);
-
   return (
     <div className={`node-markdown prose dark:prose-invert max-w-none text-inherit leading-relaxed ${className}`}>
       <ReactMarkdown
@@ -75,10 +70,30 @@ export const NodeMarkdown: React.FC<NodeMarkdownProps> = memo(({
           hr: () => <hr className="my-1.5 border-border/60" />,
         }}
       >
-        {resolvedText}
+        {text}
       </ReactMarkdown>
     </div>
   );
+});
+
+MarkdownRenderer.displayName = 'MarkdownRenderer';
+
+const NodeMarkdownWithVariables: React.FC<NodeMarkdownProps> = ({ content = '', className, inline }) => {
+  const variables = useAllVariables();
+  const resolvedText = substituteVariables(content, variables);
+  return <MarkdownRenderer text={resolvedText} className={className} inline={inline} />;
+};
+
+export const NodeMarkdown: React.FC<NodeMarkdownProps> = memo(({
+  content = '',
+  className = '',
+  inline = false,
+}) => {
+  if (!content) return null;
+  if (content.includes('${')) {
+    return <NodeMarkdownWithVariables content={content} className={className} inline={inline} />;
+  }
+  return <MarkdownRenderer text={content} className={className} inline={inline} />;
 });
 
 NodeMarkdown.displayName = 'NodeMarkdown';

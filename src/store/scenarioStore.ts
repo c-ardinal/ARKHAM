@@ -37,6 +37,17 @@ const PUSH_HISTORY_DEBOUNCE_MS = 200;
 let _pushHistoryWindowOpen = false;
 let _pushHistoryTimer: ReturnType<typeof setTimeout> | null = null;
 
+let _cachedAllVariables: Record<string, Variable> | null = null;
+let _lastVariablesRef: any = null;
+let _lastCharactersRef: any = null;
+let _lastStagesRef: any = null;
+let _lastResourcesRef: any = null;
+let _lastTabsRef: any = null;
+
+export const invalidateAllVariablesCache = () => {
+  _cachedAllVariables = null;
+};
+
 /**
  * H-T2: loadScenario の引数型 — v2 タブ形式と v1 レガシー形式の弁別ユニオン
  * JSON.parse 経由の unknown データをここで型付けし、実装内部の as any を最小化する。
@@ -1599,6 +1610,23 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
   getAllVariables: () => {
     const state = get();
+    if (
+      _cachedAllVariables &&
+      _lastVariablesRef === state.gameState.variables &&
+      _lastCharactersRef === state.characters &&
+      _lastStagesRef === state.stages &&
+      _lastResourcesRef === state.resources &&
+      _lastTabsRef === state.tabs
+    ) {
+      return _cachedAllVariables;
+    }
+
+    _lastVariablesRef = state.gameState.variables;
+    _lastCharactersRef = state.characters;
+    _lastStagesRef = state.stages;
+    _lastResourcesRef = state.resources;
+    _lastTabsRef = state.tabs;
+
     const result: Record<string, Variable> = { ...state.gameState.variables };
 
     const registerVar = (ownerName: string, ownerId: string, v: EntityVariable) => {
@@ -1643,6 +1671,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       }
     });
 
+    _cachedAllVariables = result;
     return result;
   },
 
