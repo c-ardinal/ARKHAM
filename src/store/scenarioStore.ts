@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import {
   addEdge,
@@ -14,7 +15,7 @@ import type {
   OnEdgesChange,
   OnConnect,
 } from 'reactflow';
-import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData, StageData, SystemConfig, ScenarioMetadata, EntityVariable, Variable } from '../types';
+import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData, StageData, SystemConfig, ScenarioMetadata, EntityVariable, Variable, VariableType } from '../types';
 import { DEFAULT_SYSTEM_CONFIG, DEFAULT_SYSTEM_PRESETS } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 import { recomputeEdgeVisibility } from './edgeVisibility';
@@ -1627,9 +1628,23 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     _lastResourcesRef = state.resources;
     _lastTabsRef = state.tabs;
 
-    const result: Record<string, Variable> = { ...state.gameState.variables };
+    const result: Record<string, Variable> = {};
 
-    const registerVar = (ownerName: string, ownerId: string, v: EntityVariable) => {
+    // 1. Global variables
+    Object.entries(state.gameState.variables || {}).forEach(([k, v]) => {
+      result[k] = {
+        ...v,
+        ownerType: 'global',
+        isConstant: false,
+      };
+    });
+
+    const registerVar = (
+      ownerType: 'character' | 'stage' | 'resource' | 'node',
+      ownerName: string,
+      ownerId: string,
+      v: EntityVariable
+    ) => {
       let val = v.value;
       if (v.linkedVariable && state.gameState.variables[v.linkedVariable]) {
         val = state.gameState.variables[v.linkedVariable].value;
@@ -1638,6 +1653,12 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         name: `${ownerName}.${v.name}`,
         type: v.type,
         value: val,
+        ownerType,
+        ownerId,
+        ownerName,
+        varId: v.id,
+        isConstant: Boolean(v.isConstant),
+        linkedVariable: v.linkedVariable,
       };
       if (ownerName) {
         result[`${ownerName}.${v.name}`] = item;
@@ -1649,17 +1670,17 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
     // Characters
     state.characters.forEach((c) => {
-      (c.variables || []).forEach((v) => registerVar(c.name, c.id, v));
+      (c.variables || []).forEach((v) => registerVar('character', c.name, c.id, v));
     });
 
     // Stages
     state.stages.forEach((s) => {
-      (s.variables || []).forEach((v) => registerVar(s.name, s.id, v));
+      (s.variables || []).forEach((v) => registerVar('stage', s.name, s.id, v));
     });
 
     // Resources
     state.resources.forEach((r) => {
-      (r.variables || []).forEach((v) => registerVar(r.name, r.id, v));
+      (r.variables || []).forEach((v) => registerVar('resource', r.name, r.id, v));
     });
 
     // Nodes (e.g. element nodes)
@@ -1667,7 +1688,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     allNodes.forEach((n) => {
       if (n.data?.variables && n.data.variables.length > 0) {
         const nodeName = n.data.infoValue || n.data.label || n.id;
-        n.data.variables.forEach((v) => registerVar(nodeName, n.id, v));
+        n.data.variables.forEach((v) => registerVar('node', nodeName, n.id, v));
       }
     });
 
@@ -1872,7 +1893,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     state.pushHistory();
 
     if (name.includes('.')) {
-      const [entityPart, varPart] = name.split('.');
+      const lastDot = name.lastIndexOf('.');
+      const entityPart = name.substring(0, lastDot);
+      const varPart = name.substring(lastDot + 1);
       // Check characters
       const char = state.characters.find(c => c.name.toLowerCase() === entityPart.toLowerCase() || c.id.toLowerCase() === entityPart.toLowerCase());
       if (char) {
@@ -2069,6 +2092,47 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   deleteVariable: (name) => {
     get().pushHistory();
     const state = get();
+
+    if (name.includes('.')) {
+      const lastDot = name.lastIndexOf('.');
+      const entityPart = name.substring(0, lastDot);
+      const varPart = name.substring(lastDot + 1);
+
+      const char = state.characters.find(c => c.name.toLowerCase() === entityPart.toLowerCase() || c.id.toLowerCase() === entityPart.toLowerCase());
+      if (char) {
+        const v = (char.variables || []).find(v => v.name === varPart || v.id === varPart);
+        if (v) {
+          get().deleteEntityVariable('character', char.id, v.id);
+          return;
+        }
+      }
+      const stage = state.stages.find(s => s.name.toLowerCase() === entityPart.toLowerCase() || s.id.toLowerCase() === entityPart.toLowerCase());
+      if (stage) {
+        const v = (stage.variables || []).find(v => v.name === varPart || v.id === varPart);
+        if (v) {
+          get().deleteEntityVariable('stage', stage.id, v.id);
+          return;
+        }
+      }
+      const res = state.resources.find(r => r.name.toLowerCase() === entityPart.toLowerCase() || r.id.toLowerCase() === entityPart.toLowerCase());
+      if (res) {
+        const v = (res.variables || []).find(v => v.name === varPart || v.id === varPart);
+        if (v) {
+          get().deleteEntityVariable('resource', res.id, v.id);
+          return;
+        }
+      }
+      const allNodes = state.tabs.flatMap(t => t.nodes);
+      const node = allNodes.find(n => (n.data?.infoValue && n.data.infoValue.toLowerCase() === entityPart.toLowerCase()) || n.id.toLowerCase() === entityPart.toLowerCase());
+      if (node) {
+        const v = (node.data?.variables || []).find((v: any) => v.name === varPart || v.id === varPart);
+        if (v) {
+          get().deleteEntityVariable('node', node.id, v.id);
+          return;
+        }
+      }
+    }
+
     const newVariables = { ...state.gameState.variables };
     delete newVariables[name];
 
@@ -3574,3 +3638,141 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 }));
 
 export const useAllVariables = () => useScenarioStore((s) => s.getAllVariables());
+
+export interface UnifiedVariableItem {
+  id: string;
+  name: string;
+  fullName: string;
+  type: VariableType;
+  value: any;
+  ownerType: 'global' | 'character' | 'stage' | 'resource' | 'node';
+  ownerId?: string;
+  ownerName?: string;
+  isConstant: boolean;
+  linkedVariable?: string;
+  varId?: string;
+}
+
+export const useUnifiedVariableList = (): UnifiedVariableItem[] => {
+  const gameStateVars = useScenarioStore((s) => s.gameState.variables);
+  const characters = useScenarioStore((s) => s.characters);
+  const stages = useScenarioStore((s) => s.stages);
+  const resources = useScenarioStore((s) => s.resources);
+  const tabs = useScenarioStore((s) => s.tabs);
+
+  return useMemo(() => {
+    const list: UnifiedVariableItem[] = [];
+
+    // 1. Global
+    Object.entries(gameStateVars || {}).forEach(([k, v]) => {
+      list.push({
+        id: `global_${k}`,
+        name: k,
+        fullName: k,
+        type: v.type,
+        value: v.value,
+        ownerType: 'global',
+        isConstant: false,
+      });
+    });
+
+    // 2. Characters
+    (characters || []).forEach((c) => {
+      (c.variables || []).forEach((v) => {
+        let val = v.value;
+        if (v.linkedVariable && gameStateVars[v.linkedVariable]) {
+          val = gameStateVars[v.linkedVariable].value;
+        }
+        list.push({
+          id: `char_${c.id}_${v.id}`,
+          name: v.name,
+          fullName: `${c.name}.${v.name}`,
+          type: v.type,
+          value: val,
+          ownerType: 'character',
+          ownerId: c.id,
+          ownerName: c.name,
+          varId: v.id,
+          isConstant: Boolean(v.isConstant),
+          linkedVariable: v.linkedVariable,
+        });
+      });
+    });
+
+    // 3. Stages
+    (stages || []).forEach((s) => {
+      (s.variables || []).forEach((v) => {
+        let val = v.value;
+        if (v.linkedVariable && gameStateVars[v.linkedVariable]) {
+          val = gameStateVars[v.linkedVariable].value;
+        }
+        list.push({
+          id: `stage_${s.id}_${v.id}`,
+          name: v.name,
+          fullName: `${s.name}.${v.name}`,
+          type: v.type,
+          value: val,
+          ownerType: 'stage',
+          ownerId: s.id,
+          ownerName: s.name,
+          varId: v.id,
+          isConstant: Boolean(v.isConstant),
+          linkedVariable: v.linkedVariable,
+        });
+      });
+    });
+
+    // 4. Resources
+    (resources || []).forEach((r) => {
+      (r.variables || []).forEach((v) => {
+        let val = v.value;
+        if (v.linkedVariable && gameStateVars[v.linkedVariable]) {
+          val = gameStateVars[v.linkedVariable].value;
+        }
+        list.push({
+          id: `res_${r.id}_${v.id}`,
+          name: v.name,
+          fullName: `${r.name}.${v.name}`,
+          type: v.type,
+          value: val,
+          ownerType: 'resource',
+          ownerId: r.id,
+          ownerName: r.name,
+          varId: v.id,
+          isConstant: Boolean(v.isConstant),
+          linkedVariable: v.linkedVariable,
+        });
+      });
+    });
+
+    // 5. Nodes (Elements)
+    (tabs || []).forEach((t) => {
+      t.nodes.forEach((n) => {
+        if (n.data?.variables && n.data.variables.length > 0) {
+          const nodeName = n.data.infoValue || n.data.label || n.id;
+          n.data.variables.forEach((v) => {
+            let val = v.value;
+            if (v.linkedVariable && gameStateVars[v.linkedVariable]) {
+              val = gameStateVars[v.linkedVariable].value;
+            }
+            list.push({
+              id: `node_${n.id}_${v.id}`,
+              name: v.name,
+              fullName: `${nodeName}.${v.name}`,
+              type: v.type,
+              value: val,
+              ownerType: 'node',
+              ownerId: n.id,
+              ownerName: nodeName,
+              varId: v.id,
+              isConstant: Boolean(v.isConstant),
+              linkedVariable: v.linkedVariable,
+            });
+          });
+        }
+      });
+    });
+
+    return list;
+  }, [gameStateVars, characters, stages, resources, tabs]);
+};

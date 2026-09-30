@@ -28,7 +28,7 @@ function parseSingleCondition(expr: string): { varName: string; op: string; val:
   if (!expr || !expr.trim()) return null;
   const cleaned = expr.trim().replace(/^\((.*)\)$/, '$1').trim().replace(/^\${(.*)}$/, '$1');
 
-  const match = cleaned.match(/^([a-zA-Z0-9_\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/);
+  const match = cleaned.match(/^([a-zA-Z0-9_.\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/);
   if (!match) return null;
 
   const varName = match[1].trim();

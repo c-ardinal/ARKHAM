@@ -118,6 +118,12 @@ export interface Variable {
   name: string;
   type: VariableType;
   value: any;
+  ownerType?: 'global' | 'character' | 'stage' | 'resource' | 'node';
+  ownerId?: string;
+  ownerName?: string;
+  varId?: string;
+  isConstant?: boolean;
+  linkedVariable?: string;
 }
 
 export interface EntityVariable {

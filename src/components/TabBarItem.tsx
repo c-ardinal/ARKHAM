@@ -68,8 +68,7 @@ export function TabBarItem({
   };
 
   return (
-    <button
-      type="button"
+    <div
       role="tab"
       aria-selected={isActive}
       tabIndex={isActive ? 0 : -1}
@@ -134,6 +133,6 @@ export function TabBarItem({
       >
         <X size={12} />
       </button>
-    </button>
+    </div>
   );
 }

@@ -9,7 +9,7 @@ describe('Entity Variables & Constants System', () => {
 
   it('allows adding, updating, and deleting variables and constants on Characters', () => {
     const store = useScenarioStore.getState();
-    store.addCharacter({ name: '探索者A', type: 'Protagonist' });
+    store.addCharacter({ id: 'char_a', name: '探索者A', type: 'Person' });
     const char = useScenarioStore.getState().characters[0];
     expect(char).toBeDefined();
 
@@ -49,7 +49,7 @@ describe('Entity Variables & Constants System', () => {
 
   it('correctly aggregates dot notation variables in getAllVariables and supports substituteVariables', () => {
     const store = useScenarioStore.getState();
-    store.addCharacter({ name: 'アリス', type: 'NPC' });
+    store.addCharacter({ id: 'char_alice', name: 'アリス', type: 'Person' });
     const char = useScenarioStore.getState().characters[0];
 
     useScenarioStore.getState().addEntityVariable('character', char.id, {
@@ -59,7 +59,7 @@ describe('Entity Variables & Constants System', () => {
       isConstant: false,
     });
 
-    store.addStage({ name: '図書室', type: 'Location' });
+    store.addStage({ id: 'stage_lib', name: '図書室', type: 'Location' });
     const stage = useScenarioStore.getState().stages[0];
 
     useScenarioStore.getState().addEntityVariable('stage', stage.id, {
@@ -82,9 +82,9 @@ describe('Entity Variables & Constants System', () => {
     expect(resolved).toBe('アリスのSAN値は65で、図書室の調査度は3です。');
   });
 
-  it('supports updating entity variables via updateVariable using dot notation', () => {
+  it('supports updating and deleting entity variables via dot notation', () => {
     const store = useScenarioStore.getState();
-    store.addCharacter({ name: 'ボブ', type: 'Protagonist' });
+    store.addCharacter({ id: 'char_bob', name: 'ボブ', type: 'Person' });
     const char = useScenarioStore.getState().characters[0];
 
     useScenarioStore.getState().addEntityVariable('character', char.id, {
@@ -97,8 +97,36 @@ describe('Entity Variables & Constants System', () => {
     // Update via dot notation
     useScenarioStore.getState().updateVariable('ボブ.HP', 5);
 
-    const updatedChar = useScenarioStore.getState().characters.find((c) => c.id === char.id)!;
+    let updatedChar = useScenarioStore.getState().characters.find((c) => c.id === char.id)!;
     expect(updatedChar.variables![0].value).toBe(5);
+
+    // Delete via dot notation
+    useScenarioStore.getState().deleteVariable('ボブ.HP');
+    updatedChar = useScenarioStore.getState().characters.find((c) => c.id === char.id)!;
+    expect(updatedChar.variables).toHaveLength(0);
+  });
+
+  it('supports entity names with dots like Dr.サトウ', () => {
+    const store = useScenarioStore.getState();
+    store.addCharacter({ id: 'char_doc', name: 'Dr.サトウ', type: 'Person' });
+    const char = useScenarioStore.getState().characters[0];
+
+    useScenarioStore.getState().addEntityVariable('character', char.id, {
+      name: 'HP',
+      type: 'number',
+      value: 20,
+      isConstant: false,
+    });
+
+    // Update via dot notation with entity containing dot
+    useScenarioStore.getState().updateVariable('Dr.サトウ.HP', 15);
+
+    const updatedChar = useScenarioStore.getState().characters.find((c) => c.id === char.id)!;
+    expect(updatedChar.variables![0].value).toBe(15);
+
+    const allVars = useScenarioStore.getState().getAllVariables();
+    expect(allVars['Dr.サトウ.HP']).toBeDefined();
+    expect(allVars['Dr.サトウ.HP'].value).toBe(15);
   });
 
   it('synchronizes with linked global variable when configured', () => {
@@ -106,7 +134,7 @@ describe('Entity Variables & Constants System', () => {
     useScenarioStore.getState().addVariable('global_alarm', 'number', 100);
 
     const store = useScenarioStore.getState();
-    store.addStage({ name: '研究所', type: 'Location' });
+    store.addStage({ id: 'stage_lab', name: '研究所', type: 'Location' });
     const stage = useScenarioStore.getState().stages[0];
 
     useScenarioStore.getState().addEntityVariable('stage', stage.id, {

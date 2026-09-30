@@ -1,5 +1,5 @@
-import { useScenarioStore } from '../store/scenarioStore';
-import React, { useState, useEffect, type ChangeEvent } from 'react';
+import { useScenarioStore, useAllVariables } from '../store/scenarioStore';
+import React, { useState, useEffect, useMemo, type ChangeEvent } from 'react';
 import type { ScenarioNode } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { VariableSuggestInput } from './VariableSuggestInput';
@@ -29,7 +29,7 @@ interface PropertyPanelProps {
 
 export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPanelProps>(({ width, isMobile = false, onClose }, ref) => {
   const {
-      tabs, activeTabId, selectedNodeId, updateNodeData, gameState,
+      tabs, activeTabId, selectedNodeId, updateNodeData,
       characters, resources, stages, updateCharacter, updateResource, updateStage, systemConfig,
       addStage
   } = useScenarioStore();
@@ -100,6 +100,11 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
 
 
 
+  const allVariables = useAllVariables();
+  const modifiableVariables = useMemo(() => {
+    return Object.entries(allVariables).filter(([_, v]) => !v.isConstant);
+  }, [allVariables]);
+
   const inputClass = INPUT_CLASS;
   const labelClass = LABEL_CLASS;
 
@@ -116,12 +121,12 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
 
       if (selectedNode?.type === 'variable' && 
           !selectedNode.data.targetVariable && 
-          Object.keys(gameState.variables).length > 0) {
+          modifiableVariables.length > 0) {
           updateNodeData(selectedNode.id, { 
-             targetVariable: Object.keys(gameState.variables)[0]
+             targetVariable: modifiableVariables[0][0]
          });
       }
-  }, [selectedNode?.id, resources.length, selectedNode?.data.referenceId, selectedNode?.data.targetVariable, gameState.variables]);
+  }, [selectedNode?.id, resources.length, selectedNode?.data.referenceId, selectedNode?.data.targetVariable, modifiableVariables]);
 
   const panelClass = isMobile
       ? `bg-card border border-border rounded-lg shadow-xl w-full max-w-[400px] max-h-[85vh] flex flex-col overflow-hidden` 
@@ -846,7 +851,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       <span className="text-[10px] text-muted-foreground">通過時に変数を更新</span>
                     </div>
 
-                    {Object.keys(gameState.variables).length === 0 ? (
+                    {modifiableVariables.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground">※「変数」タブで変数を定義すると、ここで加算・代入が設定できます。</p>
                     ) : (
                       <div className="space-y-2">
@@ -861,8 +866,10 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                               }}
                               className={`${inputClass} flex-1 text-xs`}
                             >
-                              {Object.keys(gameState.variables).map((vName) => (
-                                <option key={vName} value={vName}>{vName}</option>
+                              {modifiableVariables.map(([vName, v]) => (
+                                <option key={vName} value={vName}>
+                                  {v.ownerType && v.ownerType !== 'global' ? `[${v.ownerName || v.ownerType}] ${v.name}` : vName}
+                                </option>
                               ))}
                             </select>
 
@@ -910,7 +917,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                         <button
                           type="button"
                           onClick={() => {
-                            const defaultVar = Object.keys(gameState.variables)[0] || '';
+                            const defaultVar = modifiableVariables[0]?.[0] || '';
                             const next = [
                               ...(selectedNode.data.variableOperations || []),
                               { variableName: defaultVar, operator: 'set', value: 1 },
@@ -1379,7 +1386,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                           conditionValue: val,
                                         });
                                       }}
-                                      variables={gameState.variables}
+                                      variables={allVariables}
                                       label="進出条件式"
                                     />
                                   )}
@@ -1442,15 +1449,17 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                 <div className="space-y-4">
                   <div>
                     <label className={labelClass}>{t('properties.targetVariable')}</label>
-                    {Object.keys(gameState.variables).length === 0 ? (
+                    {modifiableVariables.length === 0 ? (
                        <div className={ERROR_CLASS}>
                            {t('variables.noVariables') || "No variables defined"}
                        </div>
                     ) : (
                         <SearchableSelect
-                            items={Object.keys(gameState.variables).map((name) => ({
+                            items={modifiableVariables.map(([name, v]) => ({
                                 id: name,
-                                label: name,
+                                label: v.ownerType && v.ownerType !== 'global'
+                                  ? `[${v.ownerName || v.ownerType}] ${v.name} (${name})`
+                                  : `[全体] ${name}`,
                             }))}
                             value={selectedNode.data.targetVariable ?? null}
                             onChange={(id) => handleFieldChange('targetVariable', id ?? '')}
@@ -1466,7 +1475,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       className={inputClass}
                     >
                       <option value="set">{t('properties.variableOpSet' as any) || '代入 (＝)'}</option>
-                      {(!selectedNode.data.targetVariable || gameState.variables[selectedNode.data.targetVariable]?.type === 'number') && (
+                      {(!selectedNode.data.targetVariable || allVariables[selectedNode.data.targetVariable]?.type === 'number') && (
                         <>
                           <option value="add">{t('properties.variableOpAdd' as any) || '加算 (＋)'}</option>
                           <option value="subtract">{t('properties.variableOpSubtract' as any) || '減算 (－)'}</option>
@@ -1485,9 +1494,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                     </label>
                     {(() => {
                         const targetVarName = selectedNode.data.targetVariable;
-                        const variables = useScenarioStore.getState().gameState.variables;
-                        
-                        const targetVar = targetVarName ? variables[targetVarName] : (Object.keys(variables).length > 0 ? variables[Object.keys(variables)[0]] : null);
+                        const targetVar = targetVarName ? allVariables[targetVarName] : (modifiableVariables.length > 0 ? modifiableVariables[0][1] : null);
 
                         if (targetVar && targetVar.type === 'boolean') {
                             return (
