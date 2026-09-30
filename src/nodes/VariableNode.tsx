@@ -2,14 +2,14 @@ import { memo, useEffect } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { Variable, ArrowLeft } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
-import { useScenarioStore } from '../store/scenarioStore';
+import { useScenarioStore, useAllVariables } from '../store/scenarioStore';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const VariableNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const variables = useScenarioStore((s) => s.gameState.variables);
+  const variables = useAllVariables();
   const updateNodeData = useScenarioStore((s) => s.updateNodeData);
   const description = data.description;
 

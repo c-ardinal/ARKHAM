@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { BranchNodeData } from '../types';
-import { useScenarioStore } from '../store/scenarioStore';
+import { useScenarioStore, useAllVariables } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
@@ -9,7 +9,7 @@ import { GitBranch, AlertTriangle } from 'lucide-react';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
-  const variables = useScenarioStore((s) => s.gameState.variables);
+  const variables = useAllVariables();
   const edges = useScenarioStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.edges || []);
 
   const label = substituteVariables(data.label, variables);

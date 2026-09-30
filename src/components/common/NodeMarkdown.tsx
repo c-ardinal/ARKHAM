@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { substituteVariables } from '../../utils/textUtils';
-import { useScenarioStore } from '../../store/scenarioStore';
+import { useAllVariables } from '../../store/scenarioStore';
 
 interface NodeMarkdownProps {
   content?: string;
@@ -15,7 +15,7 @@ export const NodeMarkdown: React.FC<NodeMarkdownProps> = memo(({
   className = '',
   inline = false,
 }) => {
-  const variables = useScenarioStore((s) => s.gameState.variables);
+  const variables = useAllVariables();
   if (!content) return null;
 
   const resolvedText = substituteVariables(content, variables);

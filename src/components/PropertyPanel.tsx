@@ -10,6 +10,7 @@ import { JumpTargetCombobox } from './JumpTargetCombobox';
 import { SearchableSelect } from './SearchableSelect';
 import { FORBIDDEN_READ_ALOUD_TERMS } from '../core/linter';
 import { VisualConditionBuilder } from './VisualConditionBuilder';
+import { EntityVariablesPropertySection } from './common/EntityVariablesPropertySection';
 
 const MobileBackdrop = ({ children, isMobile }: { children: React.ReactNode, isMobile: boolean }) => {
     if (!isMobile) return <>{children}</>;
@@ -249,6 +250,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                  className={`${inputClass} min-h-[60px]`}
                              />
                          </div>
+                          <EntityVariablesPropertySection variables={selectedCharacter.variables} entityType="character" entityId={selectedCharacter.id} />
                      </div>
                  </aside>
             </MobileBackdrop>
@@ -329,6 +331,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                  className={`${inputClass} min-h-[60px]`}
                              />
                          </div>
+                          <EntityVariablesPropertySection variables={selectedResource.variables} entityType="resource" entityId={selectedResource.id} />
                      </div>
                  </aside>
             </MobileBackdrop>
@@ -401,6 +404,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                  className={`${inputClass} min-h-[60px]`}
                              />
                          </div>
+                          <EntityVariablesPropertySection variables={selectedStage.variables} entityType="stage" entityId={selectedStage.id} />
                      </div>
                  </aside>
             </MobileBackdrop>
@@ -1012,6 +1016,12 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                       placeholder="入手時の演出やメモなど"
                     />
                   </div>
+
+                  <EntityVariablesPropertySection
+                    variables={selectedNode.data.variables}
+                    entityType="node"
+                    entityId={selectedNode.id}
+                  />
                 </div>
               )}
 

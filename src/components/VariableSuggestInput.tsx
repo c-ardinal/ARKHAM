@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useScenarioStore } from '../store/scenarioStore';
+import { useAllVariables } from '../store/scenarioStore';
 
 interface VariableSuggestInputProps {
     value: string;
@@ -20,7 +20,7 @@ export const VariableSuggestInput = ({
     onBlur,
     onFocus
 }: VariableSuggestInputProps) => {
-    const variablesMap = useScenarioStore((s) => s.gameState.variables);
+    const variablesMap = useAllVariables();
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);

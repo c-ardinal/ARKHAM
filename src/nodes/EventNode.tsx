@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { ScenarioNodeData } from '../types';
-import { useScenarioStore } from '../store/scenarioStore';
+import { useScenarioStore, useAllVariables } from '../store/scenarioStore';
 import { substituteVariables } from '../utils/textUtils';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
@@ -12,7 +12,7 @@ import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
-  const variables = useScenarioStore((s) => s.gameState.variables);
+  const variables = useAllVariables();
   const resources = useScenarioStore((s) => s.resources);
   const edges = useScenarioStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.edges || []);
   const itemMap = useMemo(() => new Map(resources.map((r) => [r.id, r.name])), [resources]);
