@@ -7,8 +7,9 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
+import { EntityVariablesWidget } from '../components/common/EntityVariablesWidget';
 
-const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
+const ElementNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   const description = data.description;
 
   const getIcon = () => {
@@ -75,6 +76,12 @@ const ElementNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
               </span>
             </div>
         </div>
+
+        <EntityVariablesWidget
+          variables={data.variables}
+          entityType="node"
+          entityId={id}
+        />
       </div>
 
       <Handle

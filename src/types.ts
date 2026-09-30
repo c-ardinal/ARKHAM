@@ -59,6 +59,9 @@ export interface ScenarioNodeData {
   // For Reference nodes (Character/Resource)
   referenceId?: string;
 
+  // Attached variables/constants for entity/element nodes
+  variables?: EntityVariable[];
+
   // State
   revealed?: boolean;
   
@@ -117,6 +120,15 @@ export interface Variable {
   value: any;
 }
 
+export interface EntityVariable {
+  id: string;
+  name: string;
+  type: VariableType;
+  value: any;
+  isConstant?: boolean; // true = 定数, false/undefined = 変数
+  linkedVariable?: string; // Optional: name of linked global variable in gameState.variables
+}
+
 export interface GameState {
   currentNodes: string[]; // IDs of active nodes
   revealedNodes: string[]; // IDs of revealed nodes
@@ -139,6 +151,7 @@ export interface CharacterData {
   abilities?: string;
   skills?: string;
   note?: string;
+  variables?: EntityVariable[];
 }
 
 export interface ScenarioMetadata {
@@ -176,6 +189,7 @@ export interface StageData {
   description?: string;
   details?: string;
   note?: string;
+  variables?: EntityVariable[];
 }
 
 export type ResourceType = 'Item' | 'Equipment' | 'Knowledge' | 'Skill' | 'Status' | 'Location';
@@ -189,6 +203,7 @@ export interface ResourceData {
   cost?: string;
   effect?: string;
   note?: string;
+  variables?: EntityVariable[];
 }
 
 

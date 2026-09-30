@@ -7,6 +7,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
+import { EntityVariablesWidget } from '../components/common/EntityVariablesWidget';
 
 
 
@@ -83,6 +84,12 @@ const CharacterNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
                  </div>
              </div>
           )}
+
+          <EntityVariablesWidget
+            variables={character.variables}
+            entityType="character"
+            entityId={character.id}
+          />
       </div>
 
       {data.hasSticky && <StickyIndicator />}

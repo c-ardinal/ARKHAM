@@ -7,6 +7,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
+import { EntityVariablesWidget } from '../components/common/EntityVariablesWidget';
 
 const StageNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
@@ -79,6 +80,12 @@ const StageNode = ({ data, selected }: NodeProps<ScenarioNodeData>) => {
             <NodeMarkdown content={stage.note} />
           </div>
         )}
+
+        <EntityVariablesWidget
+          variables={stage.variables}
+          entityType="stage"
+          entityId={stage.id}
+        />
       </div>
 
       {data.hasSticky && <StickyIndicator />}

@@ -14,7 +14,7 @@ import type {
   OnEdgesChange,
   OnConnect,
 } from 'reactflow';
-import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData, StageData, SystemConfig, ScenarioMetadata } from '../types';
+import type { ScenarioNode, ScenarioEdge, GameState, CharacterData, ResourceData, StageData, SystemConfig, ScenarioMetadata, EntityVariable, Variable } from '../types';
 import { DEFAULT_SYSTEM_CONFIG, DEFAULT_SYSTEM_PRESETS } from '../types';
 import { evaluateFormula } from '../utils/textUtils';
 import { recomputeEdgeVisibility } from './edgeVisibility';
@@ -127,6 +127,13 @@ interface ScenarioState {
   updateVariableMetadata: (oldName: string, newName: string, newType: 'boolean' | 'number' | 'string') => void;
   batchRenameVariables: (renames: Record<string, string>) => void;
   deleteVariable: (name: string) => void;
+
+  // Entity Variables (Character, Stage, Resource, Node)
+  getAllVariables: () => Record<string, Variable>;
+  addEntityVariable: (entityType: 'character' | 'stage' | 'resource' | 'node', entityId: string, variable: Omit<EntityVariable, 'id'>) => void;
+  updateEntityVariable: (entityType: 'character' | 'stage' | 'resource' | 'node', entityId: string, varId: string, updates: Partial<EntityVariable>) => void;
+  deleteEntityVariable: (entityType: 'character' | 'stage' | 'resource' | 'node', entityId: string, varId: string) => void;
+  updateEntityVariableValue: (entityType: 'character' | 'stage' | 'resource' | 'node', entityId: string, varIdOrName: string, deltaOrValue: any, isDelta?: boolean) => void;
 
   // Characters
   characters: CharacterData[];
@@ -1590,9 +1597,280 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     });
   },
 
+  getAllVariables: () => {
+    const state = get();
+    const result: Record<string, Variable> = { ...state.gameState.variables };
+
+    const registerVar = (ownerName: string, ownerId: string, v: EntityVariable) => {
+      let val = v.value;
+      if (v.linkedVariable && state.gameState.variables[v.linkedVariable]) {
+        val = state.gameState.variables[v.linkedVariable].value;
+      }
+      const item: Variable = {
+        name: `${ownerName}.${v.name}`,
+        type: v.type,
+        value: val,
+      };
+      if (ownerName) {
+        result[`${ownerName}.${v.name}`] = item;
+      }
+      if (ownerId && ownerId !== ownerName) {
+        result[`${ownerId}.${v.name}`] = { ...item, name: `${ownerId}.${v.name}` };
+      }
+    };
+
+    // Characters
+    state.characters.forEach((c) => {
+      (c.variables || []).forEach((v) => registerVar(c.name, c.id, v));
+    });
+
+    // Stages
+    state.stages.forEach((s) => {
+      (s.variables || []).forEach((v) => registerVar(s.name, s.id, v));
+    });
+
+    // Resources
+    state.resources.forEach((r) => {
+      (r.variables || []).forEach((v) => registerVar(r.name, r.id, v));
+    });
+
+    // Nodes (e.g. element nodes)
+    const allNodes = state.tabs.flatMap((t) => t.nodes);
+    allNodes.forEach((n) => {
+      if (n.data?.variables && n.data.variables.length > 0) {
+        const nodeName = n.data.infoValue || n.data.label || n.id;
+        n.data.variables.forEach((v) => registerVar(nodeName, n.id, v));
+      }
+    });
+
+    return result;
+  },
+
+  addEntityVariable: (entityType, entityId, variable) => {
+    get().pushHistory();
+    const state = get();
+    const newVar: EntityVariable = {
+      id: `var_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      ...variable,
+    };
+
+    if (entityType === 'character') {
+      set({
+        characters: state.characters.map((c) =>
+          c.id === entityId ? { ...c, variables: [...(c.variables || []), newVar] } : c
+        ),
+      });
+    } else if (entityType === 'stage') {
+      set({
+        stages: state.stages.map((s) =>
+          s.id === entityId ? { ...s, variables: [...(s.variables || []), newVar] } : s
+        ),
+      });
+    } else if (entityType === 'resource') {
+      set({
+        resources: state.resources.map((r) =>
+          r.id === entityId ? { ...r, variables: [...(r.variables || []), newVar] } : r
+        ),
+      });
+    } else if (entityType === 'node') {
+      set({
+        tabs: state.tabs.map((tab) => ({
+          ...tab,
+          nodes: tab.nodes.map((node) =>
+            node.id === entityId
+              ? { ...node, data: { ...node.data, variables: [...(node.data.variables || []), newVar] } }
+              : node
+          ),
+        })),
+      });
+    }
+  },
+
+  updateEntityVariable: (entityType, entityId, varId, updates) => {
+    get().pushHistory();
+    const state = get();
+    const updateVars = (vars?: EntityVariable[]) =>
+      (vars || []).map((v) => (v.id === varId ? { ...v, ...updates } : v));
+
+    if (entityType === 'character') {
+      set({
+        characters: state.characters.map((c) =>
+          c.id === entityId ? { ...c, variables: updateVars(c.variables) } : c
+        ),
+      });
+    } else if (entityType === 'stage') {
+      set({
+        stages: state.stages.map((s) =>
+          s.id === entityId ? { ...s, variables: updateVars(s.variables) } : s
+        ),
+      });
+    } else if (entityType === 'resource') {
+      set({
+        resources: state.resources.map((r) =>
+          r.id === entityId ? { ...r, variables: updateVars(r.variables) } : r
+        ),
+      });
+    } else if (entityType === 'node') {
+      set({
+        tabs: state.tabs.map((tab) => ({
+          ...tab,
+          nodes: tab.nodes.map((node) =>
+            node.id === entityId
+              ? { ...node, data: { ...node.data, variables: updateVars(node.data.variables) } }
+              : node
+          ),
+        })),
+      });
+    }
+  },
+
+  deleteEntityVariable: (entityType, entityId, varId) => {
+    get().pushHistory();
+    const state = get();
+    const filterVars = (vars?: EntityVariable[]) => (vars || []).filter((v) => v.id !== varId);
+
+    if (entityType === 'character') {
+      set({
+        characters: state.characters.map((c) =>
+          c.id === entityId ? { ...c, variables: filterVars(c.variables) } : c
+        ),
+      });
+    } else if (entityType === 'stage') {
+      set({
+        stages: state.stages.map((s) =>
+          s.id === entityId ? { ...s, variables: filterVars(s.variables) } : s
+        ),
+      });
+    } else if (entityType === 'resource') {
+      set({
+        resources: state.resources.map((r) =>
+          r.id === entityId ? { ...r, variables: filterVars(r.variables) } : r
+        ),
+      });
+    } else if (entityType === 'node') {
+      set({
+        tabs: state.tabs.map((tab) => ({
+          ...tab,
+          nodes: tab.nodes.map((node) =>
+            node.id === entityId
+              ? { ...node, data: { ...node.data, variables: filterVars(node.data.variables) } }
+              : node
+          ),
+        })),
+      });
+    }
+  },
+
+  updateEntityVariableValue: (entityType, entityId, varIdOrName, deltaOrValue, isDelta = false) => {
+    get().pushHistory();
+    const state = get();
+    let linkedVarToUpdate: string | undefined;
+    let computedNewValue: any;
+
+    const updateVarsList = (vars?: EntityVariable[]) => {
+      if (!vars) return vars;
+      return vars.map((v) => {
+        if (v.id === varIdOrName || v.name === varIdOrName) {
+          let currentVal = v.value;
+          if (v.linkedVariable && state.gameState.variables[v.linkedVariable]) {
+            currentVal = state.gameState.variables[v.linkedVariable].value;
+          }
+          let newVal: any;
+          if (isDelta) {
+            newVal = (Number(currentVal) || 0) + Number(deltaOrValue);
+          } else {
+            newVal = deltaOrValue;
+          }
+          computedNewValue = newVal;
+          if (v.linkedVariable) {
+            linkedVarToUpdate = v.linkedVariable;
+          }
+          return { ...v, value: newVal };
+        }
+        return v;
+      });
+    };
+
+    if (entityType === 'character') {
+      set({
+        characters: state.characters.map((c) =>
+          c.id === entityId ? { ...c, variables: updateVarsList(c.variables) } : c
+        ),
+      });
+    } else if (entityType === 'stage') {
+      set({
+        stages: state.stages.map((s) =>
+          s.id === entityId ? { ...s, variables: updateVarsList(s.variables) } : s
+        ),
+      });
+    } else if (entityType === 'resource') {
+      set({
+        resources: state.resources.map((r) =>
+          r.id === entityId ? { ...r, variables: updateVarsList(r.variables) } : r
+        ),
+      });
+    } else if (entityType === 'node') {
+      set({
+        tabs: state.tabs.map((tab) => ({
+          ...tab,
+          nodes: tab.nodes.map((node) =>
+            node.id === entityId
+              ? { ...node, data: { ...node.data, variables: updateVarsList(node.data.variables) } }
+              : node
+          ),
+        })),
+      });
+    }
+
+    if (linkedVarToUpdate && computedNewValue !== undefined) {
+      set((s) => ({
+        gameState: {
+          ...s.gameState,
+          variables: {
+            ...s.gameState.variables,
+            [linkedVarToUpdate!]: {
+              ...s.gameState.variables[linkedVarToUpdate!],
+              value: computedNewValue,
+            },
+          },
+        },
+      }));
+    }
+  },
+
   updateVariable: (name, value) => {
     const state = get();
     state.pushHistory();
+
+    if (name.includes('.')) {
+      const [entityPart, varPart] = name.split('.');
+      // Check characters
+      const char = state.characters.find(c => c.name.toLowerCase() === entityPart.toLowerCase() || c.id.toLowerCase() === entityPart.toLowerCase());
+      if (char) {
+        get().updateEntityVariableValue('character', char.id, varPart, value, false);
+        return;
+      }
+      // Check stages
+      const stage = state.stages.find(s => s.name.toLowerCase() === entityPart.toLowerCase() || s.id.toLowerCase() === entityPart.toLowerCase());
+      if (stage) {
+        get().updateEntityVariableValue('stage', stage.id, varPart, value, false);
+        return;
+      }
+      // Check resources
+      const res = state.resources.find(r => r.name.toLowerCase() === entityPart.toLowerCase() || r.id.toLowerCase() === entityPart.toLowerCase());
+      if (res) {
+        get().updateEntityVariableValue('resource', res.id, varPart, value, false);
+        return;
+      }
+      // Check nodes
+      const allNodes = state.tabs.flatMap(t => t.nodes);
+      const node = allNodes.find(n => (n.data?.infoValue && n.data.infoValue.toLowerCase() === entityPart.toLowerCase()) || n.id.toLowerCase() === entityPart.toLowerCase());
+      if (node) {
+        get().updateEntityVariableValue('node', node.id, varPart, value, false);
+        return;
+      }
+    }
+
     const variable = state.gameState.variables[name];
     if (!variable) return;
 
@@ -3265,3 +3543,5 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     get().createNewScenario('無題のシナリオ', DEFAULT_SYSTEM_CONFIG);
   },
 }));
+
+export const useAllVariables = () => useScenarioStore((s) => s.getAllVariables());
