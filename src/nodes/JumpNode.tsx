@@ -1,4 +1,4 @@
-import { memo, useContext } from 'react';
+import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { Rabbit, AlertTriangle } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
@@ -6,12 +6,8 @@ import { useScenarioStore } from '../store/scenarioStore';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
-import { ZoomLevelContext } from '../contexts/ZoomLevelContext';
 
 const JumpNode = ({ id: _id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const zoomLevel = useContext(ZoomLevelContext);
-  const isLowDetail = zoomLevel === 'low' || zoomLevel === 'ultra-low';
-
   const targetNodeId = typeof data.jumpTarget === 'string'
     ? data.jumpTarget
     : data.jumpTarget?.nodeId;
@@ -65,7 +61,7 @@ const JumpNode = ({ id: _id, data, selected }: NodeProps<ScenarioNodeData>) => {
             </div>
         </div>
 
-        {description && !isLowDetail && (
+        {description && (
             <div className="mt-2 pt-2 border-t border-yellow-300 dark:border-yellow-700">
                 <div className="text-sm opacity-90 text-yellow-900 dark:text-yellow-100">
                     <NodeMarkdown content={data.description} />

@@ -1,19 +1,16 @@
-import { memo, useMemo, useContext } from 'react';
+import { memo, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { ScenarioNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { useTranslation } from '../hooks/useTranslation';
-import { ZoomLevelContext } from '../contexts/ZoomLevelContext';
 
 import { Flag, Star, Clock, KeyRound, Gift, Zap, Dices, AlertTriangle } from 'lucide-react';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
-  const zoomLevel = useContext(ZoomLevelContext);
-  const isLowDetail = zoomLevel === 'low' || zoomLevel === 'ultra-low';
 
   // Only subscribe to resources if the node actually has items
   const hasItems = Boolean(
@@ -105,8 +102,8 @@ const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
           </div>
         </div>
 
-        {/* Encapsulated Event Badges (Hidden in low detail zoom) */}
-        {hasBadges && !isLowDetail && (
+        {/* Encapsulated Event Badges */}
+        {hasBadges && (
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pt-1.5 border-t border-orange-200/60 dark:border-orange-800/60 max-w-full">
             {typeof data.timeCostMinutes === 'number' && (
               <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 border border-orange-200/60 dark:border-orange-800/60 font-medium shrink-0">
@@ -145,7 +142,7 @@ const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
           </div>
         )}
         
-        {data.description && !isLowDetail && (
+        {data.description && (
             <div className="mt-2 pt-2 border-t border-orange-200 dark:border-orange-800">
                 <div className="text-sm opacity-80 text-orange-800 dark:text-orange-200/70 break-words">
                     <NodeMarkdown content={data.description} />

@@ -1,4 +1,4 @@
-import { memo, useContext } from 'react';
+import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { Plus, Minus } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
@@ -6,11 +6,8 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
 import { EntityVariablesWidget } from '../components/common/EntityVariablesWidget';
-import { ZoomLevelContext } from '../contexts/ZoomLevelContext';
 
 const ElementNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const zoomLevel = useContext(ZoomLevelContext);
-  const isLowDetail = zoomLevel === 'low' || zoomLevel === 'ultra-low';
   const description = data.description;
 
   const getIcon = () => {
@@ -55,7 +52,7 @@ const ElementNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
           </div>
         </div>
 
-        {description && !isLowDetail && (
+        {description && (
             <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
                 <div className="text-sm opacity-80 break-words text-blue-900 dark:text-blue-100">
                     <NodeMarkdown content={data.description || ''} />
@@ -78,13 +75,11 @@ const ElementNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
             </div>
         </div>
 
-        {!isLowDetail && (
-          <EntityVariablesWidget
-            variables={data.variables}
-            entityType="node"
-            entityId={id}
-          />
-        )}
+        <EntityVariablesWidget
+          variables={data.variables}
+          entityType="node"
+          entityId={id}
+        />
       </div>
 
       <Handle

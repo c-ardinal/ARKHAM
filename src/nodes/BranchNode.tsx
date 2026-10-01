@@ -1,4 +1,4 @@
-import { memo, useContext } from 'react';
+import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { BranchNodeData } from '../types';
 import { useScenarioStore } from '../store/scenarioStore';
@@ -7,11 +7,8 @@ import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { GitBranch, AlertTriangle } from 'lucide-react';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
-import { ZoomLevelContext } from '../contexts/ZoomLevelContext';
 
 const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
-  const zoomLevel = useContext(ZoomLevelContext);
-  const isLowDetail = zoomLevel === 'low' || zoomLevel === 'ultra-low';
 
   // Only subscribe to the handles connected directly to this node using useShallow.
   // This prevents BranchNode from re-rendering when other nodes/edges in the canvas are modified or moved.
@@ -116,7 +113,7 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
           </div>
         </div>
 
-        {data.description && !isLowDetail && (
+        {data.description && (
           <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-800">
             <div className="text-sm opacity-80 text-purple-900 dark:text-purple-300/70 break-words">
               <NodeMarkdown content={data.description} />
