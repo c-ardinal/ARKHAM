@@ -1,34 +1,53 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useContext } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { ScenarioNodeData } from '../types';
-import { useScenarioStore, useAllVariables } from '../store/scenarioStore';
-import { substituteVariables } from '../utils/textUtils';
+import { useScenarioStore } from '../store/scenarioStore';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { useTranslation } from '../hooks/useTranslation';
+import { ZoomLevelContext } from '../contexts/ZoomLevelContext';
 
 import { Flag, Star, Clock, KeyRound, Gift, Zap, Dices, AlertTriangle } from 'lucide-react';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
 
 const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
   const { t } = useTranslation();
-  const variables = useAllVariables();
-  const resources = useScenarioStore((s) => s.resources);
-  const edges = useScenarioStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.edges || []);
-  const itemMap = useMemo(() => new Map(resources.map((r) => [r.id, r.name])), [resources]);
+  const zoomLevel = useContext(ZoomLevelContext);
+  const isLowDetail = zoomLevel === 'low' || zoomLevel === 'ultra-low';
 
-  const narrativeOuts = edges.filter(
-    (e) => e.source === id && e.type !== 'reference' && !e.sourceHandle?.startsWith('ref-') && !e.targetHandle?.startsWith('ref-')
+  // Only subscribe to resources if the node actually has items
+  const hasItems = Boolean(
+    (data.requiredItems && data.requiredItems.length > 0) ||
+    (data.acquiredItems && data.acquiredItems.length > 0)
   );
-  const hasMultipleOutputs = narrativeOuts.length > 1;
+  const resources = useScenarioStore((s) => (hasItems ? s.resources : null));
+  const itemMap = useMemo(() => {
+    if (!resources) return null;
+    return new Map(resources.map((r) => [r.id, r.name]));
+  }, [resources]);
 
-  const label = substituteVariables(data.label, variables);
-  const description = substituteVariables(data.description || '', variables);
+  // Return primitive number so Zustand avoids re-rendering this node when other edges change
+  const narrativeOutCount = useScenarioStore((s) => {
+    const tab = s.tabs.find((t) => t.id === s.activeTabId);
+    if (!tab) return 0;
+    let count = 0;
+    for (const e of tab.edges) {
+      if (
+        e.source === id &&
+        e.type !== 'reference' &&
+        !e.sourceHandle?.startsWith('ref-') &&
+        !e.targetHandle?.startsWith('ref-')
+      ) {
+        count++;
+      }
+    }
+    return count;
+  });
+  const hasMultipleOutputs = narrativeOutCount > 1;
 
   const hasBadges = Boolean(
     data.timeCostMinutes ||
-    (data.requiredItems && data.requiredItems.length > 0) ||
-    (data.acquiredItems && data.acquiredItems.length > 0) ||
+    hasItems ||
     (data.variableOperations && data.variableOperations.length > 0) ||
     data.resourceCheck ||
     data.sanCheck
@@ -77,17 +96,17 @@ const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
                 title="イベントノードの出力は1本のみです。複数分岐する場合は「分岐ノード」を使用してください。"
               >
                 <AlertTriangle size={12} className="text-amber-600 dark:text-amber-400" />
-                複数出力不可 ({narrativeOuts.length}本)
+                複数出力不可 ({narrativeOutCount}本)
               </span>
             )}
             <div className="text-lg font-bold text-orange-900 dark:text-orange-100 break-words">
-              <NodeMarkdown content={label} inline />
+              <NodeMarkdown content={data.label} inline />
             </div>
           </div>
         </div>
 
-        {/* Encapsulated Event Badges */}
-        {hasBadges && (
+        {/* Encapsulated Event Badges (Hidden in low detail zoom) */}
+        {hasBadges && !isLowDetail && (
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pt-1.5 border-t border-orange-200/60 dark:border-orange-800/60 max-w-full">
             {typeof data.timeCostMinutes === 'number' && (
               <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 border border-orange-200/60 dark:border-orange-800/60 font-medium shrink-0">
@@ -97,16 +116,16 @@ const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
             )}
 
             {data.requiredItems && data.requiredItems.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/80 font-medium max-w-[280px] break-words" title={data.requiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/80 font-medium max-w-[280px] break-words" title={data.requiredItems.map((id) => itemMap?.get(id) || id).join(', ')}>
                 <KeyRound size={10} className="shrink-0" />
-                <span>要: {data.requiredItems.map((id) => itemMap.get(id) || id).join(', ')}</span>
+                <span>要: {data.requiredItems.map((id) => itemMap?.get(id) || id).join(', ')}</span>
               </span>
             )}
 
             {data.acquiredItems && data.acquiredItems.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/80 font-medium max-w-[280px] break-words" title={data.acquiredItems.map((id) => itemMap.get(id) || id).join(', ')}>
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/80 font-medium max-w-[280px] break-words" title={data.acquiredItems.map((id) => itemMap?.get(id) || id).join(', ')}>
                 <Gift size={10} className="shrink-0" />
-                <span>獲: {data.acquiredItems.map((id) => itemMap.get(id) || id).join(', ')}</span>
+                <span>獲: {data.acquiredItems.map((id) => itemMap?.get(id) || id).join(', ')}</span>
               </span>
             )}
 
@@ -126,10 +145,10 @@ const EventNode = ({ id, data, selected }: NodeProps<ScenarioNodeData>) => {
           </div>
         )}
         
-        {description && (
+        {data.description && !isLowDetail && (
             <div className="mt-2 pt-2 border-t border-orange-200 dark:border-orange-800">
                 <div className="text-sm opacity-80 text-orange-800 dark:text-orange-200/70 break-words">
-                    <NodeMarkdown content={description} />
+                    <NodeMarkdown content={data.description} />
                 </div>
             </div>
         )}

@@ -1407,21 +1407,25 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
   // Sort nodes so groups are rendered first (bottom)
   // Ensure correct z-index and render order
   // Sticky Node (2000) > Sticky Edge (1000) > Target Node (0) > Group Node (-1)
-  // Sort nodes so groups are rendered first (bottom)
   const sortedNodes = useMemo(() => {
-      // Sort in place copy
-      return [...nodes].sort((a, b) => {
-        const getScore = (type: string) => {
-            if (type === 'group') return -1;
-            if (type === 'sticky') return 1;
-            return 0;
-        };
-        return getScore(a.type || '') - getScore(b.type || '');
-      });
+    const getNodeScore = (type?: string) => {
+      if (type === 'group') return -1;
+      if (type === 'sticky') return 1;
+      return 0;
+    };
+    return [...nodes].sort((a, b) => getNodeScore(a.type) - getNodeScore(b.type));
   }, [nodes]);
 
   // Group nodes are configured with dragHandle: '.group-drag-handle' so only their title/description badge can move them
   const processedNodes = useMemo(() => {
+    let needsUpdate = false;
+    for (const node of sortedNodes) {
+      if (node.type === 'group' && node.dragHandle !== '.group-drag-handle') {
+        needsUpdate = true;
+        break;
+      }
+    }
+    if (!needsUpdate) return sortedNodes;
     return sortedNodes.map((node) => {
       if (node.type === 'group' && node.dragHandle !== '.group-drag-handle') {
         return {

@@ -1,20 +1,33 @@
-import { memo } from 'react';
+import { memo, useContext } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { BranchNodeData } from '../types';
-import { useScenarioStore, useAllVariables } from '../store/scenarioStore';
-import { substituteVariables } from '../utils/textUtils';
+import { useScenarioStore } from '../store/scenarioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { GitBranch, AlertTriangle } from 'lucide-react';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
+import { ZoomLevelContext } from '../contexts/ZoomLevelContext';
 
 const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
-  const variables = useAllVariables();
-  const edges = useScenarioStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.edges || []);
+  const zoomLevel = useContext(ZoomLevelContext);
+  const isLowDetail = zoomLevel === 'low' || zoomLevel === 'ultra-low';
 
-  const label = substituteVariables(data.label, variables);
-  const description = substituteVariables(data.description || '', variables);
-  const conditionValue = substituteVariables(data.conditionValue || '', variables);
+  // Only subscribe to the handles connected directly to this node using useShallow.
+  // This prevents BranchNode from re-rendering when other nodes/edges in the canvas are modified or moved.
+  const connectedHandles = useScenarioStore(
+    useShallow((s) => {
+      const tab = s.tabs.find((t) => t.id === s.activeTabId);
+      if (!tab) return [] as string[];
+      const handles: string[] = [];
+      for (const e of tab.edges) {
+        if (e.source === id) {
+          handles.push(e.sourceHandle || '');
+        }
+      }
+      return handles;
+    })
+  );
 
   const rawBranches = data.branches || [];
   const hasLegacyCondition = Boolean(data.conditionValue);
@@ -26,9 +39,7 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
 
   // Helper to check which pin has an outgoing edge for this branch route
   const isRightConnected = (bId: string) =>
-    edges.some((e) => {
-      if (e.source !== id) return false;
-      const sh = e.sourceHandle || '';
+    connectedHandles.some((sh) => {
       if (sh === bId || sh === `${bId}-right`) return true;
       if (bId === 'false' && (sh === 'else' || sh === 'else-right')) return true;
       if (bId === 'else' && (sh === 'false' || sh === 'false-right')) return true;
@@ -36,9 +47,7 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
     });
 
   const isLeftConnected = (bId: string) =>
-    edges.some((e) => {
-      if (e.source !== id) return false;
-      const sh = e.sourceHandle || '';
+    connectedHandles.some((sh) => {
       if (sh === `${bId}-left`) return true;
       if (bId === 'false' && sh === 'else-left') return true;
       if (bId === 'else' && sh === 'false-left') return true;
@@ -103,14 +112,14 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
             </span>
           )}
           <div className="text-base font-bold text-purple-900 dark:text-purple-100 break-words">
-            <NodeMarkdown content={label} inline />
+            <NodeMarkdown content={data.label} inline />
           </div>
         </div>
 
-        {description && (
+        {data.description && !isLowDetail && (
           <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-800">
             <div className="text-sm opacity-80 text-purple-900 dark:text-purple-300/70 break-words">
-              <NodeMarkdown content={description} />
+              <NodeMarkdown content={data.description} />
             </div>
           </div>
         )}
@@ -119,7 +128,7 @@ const BranchNode = ({ id, data, selected }: NodeProps<BranchNodeData>) => {
           <span className="text-[11px] text-purple-900/80 dark:text-purple-200/80 bg-purple-200/50 dark:bg-purple-800/50 rounded px-2 py-0.5 font-medium break-words inline-block max-w-full">
             {isMulti 
               ? `条件分岐 (${effectiveBranches.length} ルート)` 
-              : (effectiveBranches[0]?.conditionValue ? `条件: ${effectiveBranches[0].conditionValue}` : (conditionValue ? `条件: ${conditionValue}` : '条件分岐'))}
+              : (effectiveBranches[0]?.conditionValue ? `条件: ${effectiveBranches[0].conditionValue}` : (data.conditionValue ? `条件: ${data.conditionValue}` : '条件分岐'))}
           </span>
         </div>
       </div>

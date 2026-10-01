@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useContext } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { Rabbit, AlertTriangle } from 'lucide-react';
 import type { ScenarioNodeData } from '../types';
@@ -6,30 +6,35 @@ import { useScenarioStore } from '../store/scenarioStore';
 import { RevealedBadge } from '../components/common/RevealedBadge';
 import { StickyIndicator } from '../components/common/StickyIndicator';
 import { NodeMarkdown } from '../components/common/NodeMarkdown';
+import { ZoomLevelContext } from '../contexts/ZoomLevelContext';
 
 const JumpNode = ({ id: _id, data, selected }: NodeProps<ScenarioNodeData>) => {
-  const allTabs = useScenarioStore((s) => s.tabs);
-  const description = data.description;
+  const zoomLevel = useContext(ZoomLevelContext);
+  const isLowDetail = zoomLevel === 'low' || zoomLevel === 'ultra-low';
 
   const targetNodeId = typeof data.jumpTarget === 'string'
     ? data.jumpTarget
     : data.jumpTarget?.nodeId;
   const targetTabId = typeof data.jumpTarget === 'object' ? data.jumpTarget?.tabId : null;
 
-  const targetNode = useMemo(() => {
+  // Primitive selector: returns target node's label if found, null if unconfigured, false if broken link.
+  // Because it returns primitive strings/booleans, JumpNode will NOT re-render on node movements or edits to unrelated nodes.
+  const targetLabel = useScenarioStore((s) => {
     if (!targetNodeId) return null;
     if (targetTabId) {
-      const tab = allTabs.find((t) => t.id === targetTabId);
-      return tab?.nodes.find((n) => n.id === targetNodeId) ?? null;
+      const tab = s.tabs.find((t) => t.id === targetTabId);
+      const n = tab?.nodes.find((x) => x.id === targetNodeId);
+      return n ? (n.data.label || 'Unknown Node') : false;
     }
-    for (const t of allTabs) {
+    for (const t of s.tabs) {
       const n = t.nodes.find((x) => x.id === targetNodeId);
-      if (n) return n;
+      if (n) return n.data.label || 'Unknown Node';
     }
-    return null;
-  }, [allTabs, targetNodeId, targetTabId]);
+    return false;
+  });
 
-  const isBroken = !data.jumpTarget || !targetNode;
+  const isBroken = !data.jumpTarget || targetLabel === false;
+  const description = data.description;
 
   return (
     <div
@@ -60,7 +65,7 @@ const JumpNode = ({ id: _id, data, selected }: NodeProps<ScenarioNodeData>) => {
             </div>
         </div>
 
-        {description && (
+        {description && !isLowDetail && (
             <div className="mt-2 pt-2 border-t border-yellow-300 dark:border-yellow-700">
                 <div className="text-sm opacity-90 text-yellow-900 dark:text-yellow-100">
                     <NodeMarkdown content={data.description} />
@@ -71,8 +76,8 @@ const JumpNode = ({ id: _id, data, selected }: NodeProps<ScenarioNodeData>) => {
         <div className="mt-2 pt-2 border-t border-yellow-300 dark:border-yellow-700">
           <label className="text-sm uppercase font-bold opacity-70 block mb-1 cursor-pointer text-yellow-900 dark:text-yellow-100">Jump To</label>
           <div className={`text-sm p-1 rounded border min-h-[24px] cursor-pointer ${isBroken ? 'border-amber-400 bg-amber-100/60 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300' : 'border-yellow-300 dark:border-yellow-700 bg-white/50 dark:bg-black/20'}`}>
-              {targetNode ? (
-                  <NodeMarkdown content={targetNode.data.label || 'Unknown Node'} inline />
+              {typeof targetLabel === 'string' ? (
+                  <NodeMarkdown content={targetLabel} inline />
               ) : (
                   <span className="opacity-70 italic font-semibold">{!data.jumpTarget ? '⚠️ 未設定' : '⚠️ リンク切れ (削除済)'}</span>
               )}
@@ -95,3 +100,4 @@ const JumpNode = ({ id: _id, data, selected }: NodeProps<ScenarioNodeData>) => {
 };
 
 export default memo(JumpNode);
+

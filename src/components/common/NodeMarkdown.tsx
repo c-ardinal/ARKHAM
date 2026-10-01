@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { substituteVariables } from '../../utils/textUtils';
+import { substituteVariables, nl2br } from '../../utils/textUtils';
 import { useAllVariables } from '../../store/scenarioStore';
 
 interface NodeMarkdownProps {
@@ -10,11 +10,26 @@ interface NodeMarkdownProps {
   inline?: boolean;
 }
 
+// Fast check for markdown formatting triggers. If false, text is rendered directly without ReactMarkdown AST pipeline.
+export const MARKDOWN_TRIGGER_REGEX = /[*_~`\[\]#|<>\\]|^(?:- |\+ |\d+\. )/m;
+
 const MarkdownRenderer: React.FC<{ text: string; className?: string; inline?: boolean }> = memo(({
   text,
   className = '',
   inline = false,
 }) => {
+  // Fast path for plain text: skip AST compilation entirely
+  if (!MARKDOWN_TRIGGER_REGEX.test(text)) {
+    if (inline) {
+      return <span className={className}>{text}</span>;
+    }
+    return (
+      <div className={`node-markdown prose dark:prose-invert max-w-none text-inherit leading-relaxed ${className}`}>
+        <p className="mb-1 last:mb-0 leading-snug break-words">{nl2br(text)}</p>
+      </div>
+    );
+  }
+
   return (
     <div className={`node-markdown prose dark:prose-invert max-w-none text-inherit leading-relaxed ${className}`}>
       <ReactMarkdown
