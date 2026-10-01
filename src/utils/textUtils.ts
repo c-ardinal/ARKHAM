@@ -1,5 +1,9 @@
 import type { Variable } from '../types';
 import React from 'react';
+import { safeEvaluateMath } from './mathEvaluator';
+
+// Forbidden keys for prototype pollution defense
+const FORBIDDEN_PROPERTIES = new Set(['__proto__', 'constructor', 'prototype', 'tostring', 'valueof']);
 
 // LRU cache for substituteVariables results. Each entry is keyed by the
 // input text plus the *referenced* variables' current values, so the same
@@ -11,20 +15,37 @@ const SUBST_CACHE_LIMIT = 500;
 
 const buildCacheKey = (text: string, variables: Record<string, Variable>): string | null => {
     const refs = new Set<string>();
+    const lowerKeyMap = new Map<string, string>();
+    for (const k of Object.keys(variables)) {
+        if (!FORBIDDEN_PROPERTIES.has(k.toLowerCase())) {
+            lowerKeyMap.set(k.toLowerCase(), k);
+        }
+    }
+    if (lowerKeyMap.size === 0) return null;
+
+    // Match all ${...} blocks (nested or flat)
     const re = /\$\{([^{}]+)\}/g;
     let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
-        refs.add(m[1].toLowerCase());
+        const inner = m[1].toLowerCase().trim();
+        // Check direct key
+        if (lowerKeyMap.has(inner)) {
+            refs.add(inner);
+        } else {
+            // Also extract potential variable names embedded in expressions
+            for (const key of lowerKeyMap.keys()) {
+                if (inner.includes(key)) {
+                    refs.add(key);
+                }
+            }
+        }
     }
     if (refs.size === 0) return null;
-    // Build a lowered-name -> real-name lookup once per call so we don't
-    // walk Object.keys(variables) inside the loop.
-    const lowerKeyMap = new Map<string, string>();
-    for (const k of Object.keys(variables)) lowerKeyMap.set(k.toLowerCase(), k);
+
     const parts: string[] = [];
     for (const r of refs) {
         const realKey = lowerKeyMap.get(r);
-        const v = realKey ? variables[realKey].value : '';
+        const v = realKey && variables[realKey] ? variables[realKey].value : '';
         parts.push(`${r}=${String(v)}`);
     }
     parts.sort();
@@ -60,6 +81,13 @@ export const substituteVariables = (text: string, variables: Record<string, Vari
       if (hit !== undefined) return hit;
   }
 
+  const lowerKeyMap = new Map<string, string>();
+  for (const k of Object.keys(variables)) {
+    if (!FORBIDDEN_PROPERTIES.has(k.toLowerCase())) {
+      lowerKeyMap.set(k.toLowerCase(), k);
+    }
+  }
+
   let result = text;
   let depth = 0;
   const maxDepth = 10; // Prevent infinite loops
@@ -68,14 +96,24 @@ export const substituteVariables = (text: string, variables: Record<string, Vari
   // Recursively substitute
   while (result.includes('${') && depth < maxDepth) {
       const prevResult = result;
-      // Match innermost variable: ${var} with no { or } inside
-      result = result.replace(/\$\{([^{}]+)\}/g, (match, varName) => {
-        // Case insensitive lookup
-        const variableKey = Object.keys(variables).find(k => k.toLowerCase() === varName.toLowerCase());
-        if (variableKey) {
-          return String(variables[variableKey].value);
+      // Match innermost variable/expression: ${...} with no { or } inside
+      result = result.replace(/\$\{([^{}]+)\}/g, (match, rawInner) => {
+        const trimmed = rawInner.trim();
+
+        // 1. Direct variable lookup (case-insensitive)
+        const realKey = lowerKeyMap.get(trimmed.toLowerCase());
+        if (realKey && variables[realKey] !== undefined) {
+          return String(variables[realKey].value);
         }
-        return match; // Return original if variable not found
+
+        // 2. Safe math expression evaluation (e.g. "100+200", "charaa.money + charab.money")
+        // requireOperator: true ensures single words/identifiers that are not known variables are preserved as-is
+        const mathVal = safeEvaluateMath(trimmed, variables, { requireOperator: true });
+        if (mathVal !== null) {
+          return String(mathVal);
+        }
+
+        return match; // Return original if neither variable nor valid math expression
       });
 
       if (result.length > maxLength) {
@@ -92,29 +130,30 @@ export const substituteVariables = (text: string, variables: Record<string, Vari
 
 export const evaluateFormula = (formula: string, variables: Record<string, Variable>): number | string => {
   if (typeof formula !== 'string') return formula;
-  
-  // 1. Substitute variables
-  const substituted = substituteVariables(formula, variables);
-  
-  // Check length again (though substituteVariables handles it, the formula itself might be long)
-  if (substituted.length > 10000) {
-      return substituted; // Too long to evaluate safely
-  }
-  
-  // 2. Check if it looks like a math expression (digits, operators, parens, spaces, decimals)
-  // We allow: 0-9, ., +, -, *, /, (, ), and whitespace
-  if (!/^[\d\.\+\-\*\/\(\)\s]+$/.test(substituted)) {
-      return substituted; // Not a clean formula, return as string
+  const trimmed = formula.trim();
+  if (!trimmed) return formula;
+
+  // Check length to prevent DoS
+  if (trimmed.length > 10000) {
+      return trimmed;
   }
 
-  try {
-      // 3. Evaluate safely-ish
-      // eslint-disable-next-line no-new-func
-      const result = new Function(`return ${substituted}`)();
-      return typeof result === 'number' && !isNaN(result) ? result : substituted;
-  } catch (e) {
-      return substituted;
+  // 1. Direct safe math evaluation without new Function() or eval()
+  const directMath = safeEvaluateMath(trimmed, variables, { requireOperator: false });
+  if (directMath !== null) {
+      return directMath;
   }
+
+  // 2. Substitute variables for templates or nested expressions
+  const substituted = substituteVariables(trimmed, variables);
+
+  // 3. Attempt safe math on the substituted result
+  const substitutedMath = safeEvaluateMath(substituted, variables, { requireOperator: false });
+  if (substitutedMath !== null) {
+      return substitutedMath;
+  }
+
+  return substituted;
 };
 
 /**

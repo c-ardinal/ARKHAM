@@ -40,10 +40,12 @@ export const useRenderMetrics = (componentName: string) => {
 
       // デバッグストアを更新(頻度を抑えるため、10回に1回のみ)
       if (newCount % 10 === 0) {
-        updatePerformanceMetrics({
-          componentRenders: {
-            [componentName]: { ...metricsRef.current },
-          },
+        queueMicrotask(() => {
+          updatePerformanceMetrics({
+            componentRenders: {
+              [componentName]: { ...metricsRef.current },
+            },
+          });
         });
       }
     };
