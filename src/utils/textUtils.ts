@@ -1,9 +1,6 @@
 import type { Variable } from '../types';
 import React from 'react';
-import { safeEvaluateMath } from './mathEvaluator';
-
-// Forbidden keys for prototype pollution defense
-const FORBIDDEN_PROPERTIES = new Set(['__proto__', 'constructor', 'prototype', 'tostring', 'valueof']);
+import { safeEvaluateMath, isForbiddenIdentifier } from './mathEvaluator';
 
 // LRU cache for substituteVariables results. Each entry is keyed by the
 // input text plus the *referenced* variables' current values, so the same
@@ -17,7 +14,7 @@ const buildCacheKey = (text: string, variables: Record<string, Variable>): strin
     const refs = new Set<string>();
     const lowerKeyMap = new Map<string, string>();
     for (const k of Object.keys(variables)) {
-        if (!FORBIDDEN_PROPERTIES.has(k.toLowerCase())) {
+        if (!isForbiddenIdentifier(k)) {
             lowerKeyMap.set(k.toLowerCase(), k);
         }
     }
@@ -45,7 +42,7 @@ const buildCacheKey = (text: string, variables: Record<string, Variable>): strin
     const parts: string[] = [];
     for (const r of refs) {
         const realKey = lowerKeyMap.get(r);
-        const v = realKey && variables[realKey] ? variables[realKey].value : '';
+        const v = realKey && Object.prototype.hasOwnProperty.call(variables, realKey) && variables[realKey] ? variables[realKey].value : '';
         parts.push(`${r}=${String(v)}`);
     }
     parts.sort();
@@ -83,7 +80,7 @@ export const substituteVariables = (text: string, variables: Record<string, Vari
 
   const lowerKeyMap = new Map<string, string>();
   for (const k of Object.keys(variables)) {
-    if (!FORBIDDEN_PROPERTIES.has(k.toLowerCase())) {
+    if (!isForbiddenIdentifier(k)) {
       lowerKeyMap.set(k.toLowerCase(), k);
     }
   }
@@ -102,11 +99,11 @@ export const substituteVariables = (text: string, variables: Record<string, Vari
 
         // 1. Direct variable lookup (case-insensitive)
         const realKey = lowerKeyMap.get(trimmed.toLowerCase());
-        if (realKey && variables[realKey] !== undefined) {
+        if (realKey && Object.prototype.hasOwnProperty.call(variables, realKey) && variables[realKey] !== undefined) {
           return String(variables[realKey].value);
         }
 
-        // 2. Safe math expression evaluation (e.g. "100+200", "charaa.money + charab.money")
+        // 2. Safe math expression evaluation (e.g. "100+200", "charaa.money + charab.money", "PC-1.HP + 5")
         // requireOperator: true ensures single words/identifiers that are not known variables are preserved as-is
         const mathVal = safeEvaluateMath(trimmed, variables, { requireOperator: true });
         if (mathVal !== null) {

@@ -8,6 +8,20 @@ const FORBIDDEN_KEYS = new Set([
   'valueof',
 ]);
 
+/**
+ * Checks whether an identifier or any of its segments (separated by dots, hyphens, spaces, etc.)
+ * is a forbidden prototype/reflection property name.
+ */
+export const isForbiddenIdentifier = (name: string): boolean => {
+  if (!name) return false;
+  const lowered = name.toLowerCase().trim();
+  if (FORBIDDEN_KEYS.has(lowered)) return true;
+
+  // Split on dots, spaces, hyphens, slashes, parens, brackets, etc.
+  const segments = lowered.split(/[^a-zA-Z0-9_\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf]+/);
+  return segments.some((seg) => FORBIDDEN_KEYS.has(seg));
+};
+
 type TokenType = 'NUMBER' | 'OPERATOR' | 'LPAREN' | 'RPAREN' | 'IDENTIFIER' | 'EOF';
 
 interface Token {
@@ -18,13 +32,31 @@ interface Token {
 /**
  * Tokenize a math expression.
  * Only allows numbers, basic arithmetic operators (+, -, *, /, %), parentheses,
- * and valid variable identifiers (including Japanese, Latin, underscores, and dots).
- * Immediately rejects any illegal characters (quotes, semicolons, brackets, etc.) to prevent injection attacks.
+ * and valid variable identifiers.
+ *
+ * To handle character names or variable names containing operators/hyphens/spaces/parens
+ * (e.g., "PC-1.HP", "C++.level", "山田 (隊長).HP"), known registered variables are matched
+ * first using longest-match greedy prefix matching before attempting fallback operator/identifier lexing.
+ *
+ * Immediately rejects any illegal characters or forbidden prototype injection attempts.
  */
-function tokenizeMath(input: string): Token[] | null {
+function tokenizeMath(
+  input: string,
+  variables: Record<string, Variable | { value: any }> = {}
+): Token[] | null {
   const tokens: Token[] = [];
   let i = 0;
   const len = input.length;
+
+  // Build sorted list of valid registered variable keys for exact greedy matching
+  const registeredKeys: string[] = [];
+  for (const k of Object.keys(variables)) {
+    if (!isForbiddenIdentifier(k)) {
+      registeredKeys.push(k);
+    }
+  }
+  // Sort descending by length so longer names match first (e.g. "PC-1.HP" before "PC")
+  registeredKeys.sort((a, b) => b.length - a.length);
 
   while (i < len) {
     const ch = input[i];
@@ -35,7 +67,21 @@ function tokenizeMath(input: string): Token[] | null {
       continue;
     }
 
-    // Number literal: e.g. 100, 3.14, .5
+    // 1. Check if current position matches a registered variable name
+    let matchedVar: string | null = null;
+    for (const key of registeredKeys) {
+      if (input.slice(i, i + key.length).toLowerCase() === key.toLowerCase()) {
+        matchedVar = key;
+        break;
+      }
+    }
+    if (matchedVar) {
+      tokens.push({ type: 'IDENTIFIER', value: matchedVar });
+      i += matchedVar.length;
+      continue;
+    }
+
+    // 2. Number literal: e.g. 100, 3.14, .5
     if (/\d/.test(ch) || (ch === '.' && i + 1 < len && /\d/.test(input[i + 1]))) {
       let numStr = '';
       while (i < len && /[\d.]/.test(input[i])) {
@@ -50,7 +96,7 @@ function tokenizeMath(input: string): Token[] | null {
       continue;
     }
 
-    // Variable template notation within formula: ${var_name}
+    // 3. Variable template notation within formula: ${var_name}
     if (ch === '$' && i + 1 < len && input[i + 1] === '{') {
       i += 2;
       let varName = '';
@@ -63,21 +109,21 @@ function tokenizeMath(input: string): Token[] | null {
       }
       i++; // skip '}'
       const trimmedName = varName.trim();
-      if (FORBIDDEN_KEYS.has(trimmedName.toLowerCase())) {
+      if (isForbiddenIdentifier(trimmedName)) {
         return null;
       }
       tokens.push({ type: 'IDENTIFIER', value: trimmedName });
       continue;
     }
 
-    // Operators: +, -, *, /, %
+    // 4. Operators: +, -, *, /, %
     if (ch === '+' || ch === '-' || ch === '*' || ch === '/' || ch === '%') {
       tokens.push({ type: 'OPERATOR', value: ch });
       i++;
       continue;
     }
 
-    // Parentheses: (, )
+    // 5. Parentheses: (, )
     if (ch === '(') {
       tokens.push({ type: 'LPAREN', value: '(' });
       i++;
@@ -89,7 +135,7 @@ function tokenizeMath(input: string): Token[] | null {
       continue;
     }
 
-    // Identifiers: Latin, numbers, Japanese characters, underscore, dot (e.g., chara.hp, Dr.サトウ.HP)
+    // 6. Generic Identifiers: Latin, numbers, Japanese characters, underscore, dot (e.g. chara.hp, Dr.サトウ.HP)
     if (/[a-zA-Z_\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf]/.test(ch)) {
       let idStr = '';
       while (
@@ -99,19 +145,18 @@ function tokenizeMath(input: string): Token[] | null {
         idStr += input[i];
         i++;
       }
-      // Trim trailing dot if any
       if (idStr.endsWith('.')) {
         idStr = idStr.slice(0, -1);
         i--;
       }
-      if (FORBIDDEN_KEYS.has(idStr.toLowerCase())) {
+      if (isForbiddenIdentifier(idStr)) {
         return null;
       }
       tokens.push({ type: 'IDENTIFIER', value: idStr });
       continue;
     }
 
-    // Any unrecognized character (e.g. ;, =, <, >, ", ', `, \, {, }) is rejected
+    // Any unrecognized character (e.g. ;, =, <, >, ", ', `, \, {, }) is rejected immediately
     return null;
   }
 
@@ -133,7 +178,7 @@ class MathParser {
     this.variables = variables;
     this.lowerKeyMap = new Map();
     for (const k of Object.keys(variables)) {
-      if (!FORBIDDEN_KEYS.has(k.toLowerCase())) {
+      if (!isForbiddenIdentifier(k)) {
         this.lowerKeyMap.set(k.toLowerCase(), k);
       }
     }
@@ -241,9 +286,16 @@ class MathParser {
     if (token.type === 'IDENTIFIER') {
       this.consume();
       const id = String(token.value).trim();
+      if (isForbiddenIdentifier(id)) {
+        return null;
+      }
       const realKey = this.lowerKeyMap.get(id.toLowerCase());
       if (!realKey) {
         return null; // Unknown variable, cannot evaluate math
+      }
+      // Never access prototype properties
+      if (!Object.prototype.hasOwnProperty.call(this.variables, realKey)) {
+        return null;
       }
       const rawObj = this.variables[realKey];
       const rawVal =
@@ -291,7 +343,7 @@ export function safeEvaluateMath(
   const trimmed = expr.trim();
   if (trimmed.length > 500) return null; // Prevent DoS on excessively long formulas
 
-  const tokens = tokenizeMath(trimmed);
+  const tokens = tokenizeMath(trimmed, variables);
   if (!tokens || tokens.length === 0) return null;
 
   const parser = new MathParser(tokens, variables);
