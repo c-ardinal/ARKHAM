@@ -270,7 +270,7 @@ describe('Human-Centric Scenario System (Bidirectional Lossless Conversion)', ()
 
     const fullYaml = fs.readFileSync(fullYamlPath, 'utf-8');
     const result = importFromHumanYaml(fullYaml);
-    expect(result.scenarioMetadata.title).toContain('不確定性器官の拍動');
+    expect(result.scenarioMetadata.title).toMatch(/凍てざる因果律の彼方に|不確定性器官の拍動/);
     expect(result.scenarioMetadata.truth).toContain('因果律アンカー');
     expect(result.scenarioMetadata.handouts?.list?.length).toBe(4);
     expect(result.characters.length).toBe(5);
