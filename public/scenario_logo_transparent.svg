@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 360" width="100%" height="100%">
+  <defs>
+    <!-- Metallic & Crystal Linear Gradients -->
+    <linearGradient id="t-ice-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="25%" stop-color="#e0f7fe"/>
+      <stop offset="60%" stop-color="#7dd3fc"/>
+      <stop offset="85%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <linearGradient id="t-accent-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#c084fc"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+
+    <linearGradient id="t-facet-1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="50%" stop-color="#38bdf8" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#0369a1" stop-opacity="0.7"/>
+    </linearGradient>
+
+    <linearGradient id="t-facet-2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" stop-opacity="0.95"/>
+      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#312e81" stop-opacity="0.6"/>
+    </linearGradient>
+
+    <linearGradient id="t-facet-3" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="50%" stop-color="#a5f3fc" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <linearGradient id="t-line-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0"/>
+      <stop offset="35%" stop-color="#38bdf8" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="65%" stop-color="#c084fc" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#c084fc" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Filters for Glow & Shadow -->
+    <filter id="t-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur1"/>
+      <feGaussianBlur stdDeviation="15" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="t-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#0284c7" flood-opacity="0.5"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.9"/>
+    </filter>
+  </defs>
+
+  <!-- Central Time-Space Crystal Anchor Emblem Above Text -->
+  <g transform="translate(500, 85)">
+    <!-- Radiating Calibration Rings -->
+    <g opacity="0.4">
+      <circle cx="0" cy="0" r="72" fill="none" stroke="#38bdf8" stroke-width="1" stroke-dasharray="2 4"/>
+      <circle cx="0" cy="0" r="56" fill="none" stroke="#c084fc" stroke-width="0.75"/>
+      <line x1="-120" y1="0" x2="120" y2="0" stroke="url(#t-line-glow)" stroke-width="1.2"/>
+    </g>
+
+    <!-- Occult Hexagon -->
+    <polygon points="0,-48 42,-24 42,24 0,48 -42,24 -42,-24" fill="none" stroke="#7dd3fc" stroke-width="1.2" opacity="0.55"/>
+
+    <!-- Faceted Crystal Anchor -->
+    <g filter="url(#t-shadow)">
+      <polygon points="0,-42 16,-12 0,-3" fill="url(#t-facet-1)"/>
+      <polygon points="0,-42 -16,-12 0,-3" fill="url(#t-facet-2)"/>
+      <polygon points="0,-3 16,-12 20,24 0,42" fill="url(#t-facet-2)"/>
+      <polygon points="0,-3 -16,-12 -20,24 0,42" fill="url(#t-facet-1)"/>
+      <polygon points="0,-24 8,-10 0,4 -8,-10" fill="url(#t-facet-3)"/>
+      <circle cx="0" cy="-3" r="3" fill="#ffffff" filter="url(#t-glow)"/>
+    </g>
+
+    <!-- Side Shards -->
+    <polygon points="32,-35 37,-32 35,-27 30,-30" fill="#a5f3fc" opacity="0.75"/>
+    <polygon points="-32,-35 -27,-32 -29,-27 -34,-30" fill="#c084fc" opacity="0.75"/>
+    <polygon points="46,12 52,15 49,20 43,17" fill="#38bdf8" opacity="0.75"/>
+    <polygon points="-46,12 -40,15 -43,20 -49,17" fill="#818cf8" opacity="0.75"/>
+  </g>
+
+  <!-- Call of Cthulhu Header Pill -->
+  <g transform="translate(500, 162)">
+    <line x1="-280" y1="0" x2="-110" y2="0" stroke="url(#t-line-glow)" stroke-width="1"/>
+    <line x1="110" y1="0" x2="280" y2="0" stroke="url(#t-line-glow)" stroke-width="1"/>
+    <rect x="-100" y="-10" width="200" height="20" rx="10" fill="#082f49" fill-opacity="0.85" stroke="#38bdf8" stroke-width="0.8"/>
+    <text x="0" y="4" font-family="'Inter', sans-serif" font-size="9" font-weight="700" fill="#7dd3fc" text-anchor="middle" letter-spacing="3">
+      CALL OF CTHULHU TRPG
+    </text>
+  </g>
+
+  <!-- Main Japanese Kanji Title -->
+  <g transform="translate(500, 235)">
+    <!-- Neon Bloom Underlay -->
+    <text x="0" y="0" 
+          font-family="'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif" 
+          font-size="52" 
+          font-weight="900" 
+          letter-spacing="12" 
+          text-anchor="middle" 
+          fill="#38bdf8" 
+          opacity="0.6" 
+          filter="url(#t-glow)">
+      凍てざる因果律の彼方に
+    </text>
+
+    <!-- Foreground Metallic Crystalline Fill -->
+    <text x="0" y="0" 
+          font-family="'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif" 
+          font-size="52" 
+          font-weight="900" 
+          letter-spacing="12" 
+          text-anchor="middle" 
+          fill="url(#t-ice-grad)" 
+          stroke="#082f49" 
+          stroke-width="1"
+          filter="url(#t-shadow)">
+      凍てざる因果律の彼方に
+    </text>
+  </g>
+
+  <!-- English Subtitle -->
+  <g transform="translate(500, 275)">
+    <line x1="-360" y1="0" x2="360" y2="0" stroke="url(#t-line-glow)" stroke-width="1"/>
+    <polygon points="0,-3 3,0 0,3 -3,0" fill="#ffffff" filter="url(#t-glow)"/>
+    <text x="0" y="20" 
+          font-family="'Cinzel', 'Times New Roman', serif" 
+          font-size="13" 
+          font-weight="700" 
+          letter-spacing="8" 
+          text-anchor="middle" 
+          fill="url(#t-accent-grad)">
+      BEYOND THE UNFROZEN LAW OF CAUSALITY
+    </text>
+  </g>
+
+  <!-- Bottom Tagline -->
+  <text x="500" y="325" 
+        font-family="'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Noto Sans JP', sans-serif" 
+        font-size="10.5" 
+        font-weight="500" 
+        fill="#7dd3fc" 
+        opacity="0.85" 
+        text-anchor="middle" 
+        letter-spacing="4">
+    極寒の白銀に閉ざされた極秘施設。72時間の沈黙を破り、同僚たちを救出せよ。
+  </text>
+</svg>
