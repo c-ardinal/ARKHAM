@@ -37,8 +37,8 @@ const VARIABLE_CATEGORIES: VariableCategoryDef[] = [
   { key: 'global', label: '全体', icon: <Globe size={12} /> },
   { key: 'character', label: 'キャラ', icon: <User size={12} /> },
   { key: 'stage', label: '舞台', icon: <MapPin size={12} /> },
-  { key: 'resource', label: '部隊', icon: <Package size={12} /> },
-  { key: 'node', label: '要素', icon: <Layers size={12} /> },
+  { key: 'resource', label: '要素', icon: <Package size={12} /> },
+  { key: 'node', label: 'ノード', icon: <Layers size={12} /> },
 ];
 
 export const VariableList = React.memo(() => {
@@ -577,10 +577,10 @@ export const VariableList = React.memo(() => {
                   </optgroup>
                 )}
                 {resources.length > 0 && (
-                  <optgroup label="部隊・リソース">
+                  <optgroup label="要素・リソース">
                     {resources.map((r) => (
                       <option key={`resource:${r.id}`} value={`resource:${r.id}`}>
-                        部隊/リソース: {r.name}
+                        要素/リソース: {r.name}
                       </option>
                     ))}
                   </optgroup>
@@ -891,12 +891,12 @@ export const VariableList = React.memo(() => {
               className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
             },
             resource: {
-              label: `部隊: ${item.ownerName || ''}`,
+              label: `要素: ${item.ownerName || ''}`,
               icon: Package,
               className: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20',
             },
             node: {
-              label: `要素: ${item.ownerName || ''}`,
+              label: `ノード: ${item.ownerName || ''}`,
               icon: Layers,
               className: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
             },

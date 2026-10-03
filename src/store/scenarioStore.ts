@@ -2208,81 +2208,122 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       const newSkills: Record<string, number> = {};
       const newStats: Record<string, number> = {};
 
-      // 1. Scan all Element nodes to populate keys (init 0)
-      allNodes.forEach(node => {
-          if (node.type === 'element' || node.type === 'information') {
-              let type: string = node.data.infoType || 'knowledge';
-              let name = node.data.infoValue;
+      const getCollection = (type?: string) => {
+          const t = (type || 'knowledge').toLowerCase();
+          if (t === 'item') return newInventory;
+          if (t === 'equipment') return newEquipment;
+          if (t === 'skill') return newSkills;
+          if (t === 'stat' || t === 'status') return newStats;
+          return newKnowledge;
+      };
 
-              // Resolve from resource if available
-              if (node.type === 'element' && node.data.referenceId) {
-                 const res = state.resources.find(r => r.id === node.data.referenceId);
-                 if (res) {
-                     name = res.name;
-                     switch(res.type) {
-                         case 'Item': type = 'item'; break;
-                         case 'Equipment': type = 'equipment'; break;
-                         case 'Knowledge': type = 'knowledge'; break;
-                         case 'Skill': type = 'skill'; break;
-                         case 'Status': type = 'stat'; break;
-                         default: type = 'knowledge';
-                     }
-                 }
-              }
+      // Helper to extract item operations from a node
+      const extractItems = (node: ScenarioNode) => {
+          const items: Array<{ name: string; type: string; quantity: number; action: 'obtain' | 'consume' }> = [];
+          const rawAction = (node.data?.actionType || 'obtain').toLowerCase();
+          const action: 'obtain' | 'consume' = rawAction === 'consume' ? 'consume' : 'obtain';
+          const quantity = Number(node.data?.quantity) || 1;
 
-              if (name) {
-                  if (type === 'item') {
-                      if (newInventory[name] === undefined) newInventory[name] = 0;
-                  } else if (type === 'equipment') {
-                      if (newEquipment[name] === undefined) newEquipment[name] = 0;
-                  } else if (type === 'skill') {
-                      if (newSkills[name] === undefined) newSkills[name] = 0;
-                  } else if (type === 'stat') {
-                      if (newStats[name] === undefined) newStats[name] = 0;
+          // 1. Check acquiredItems / consumedItems (present on element or event nodes)
+          const acquiredList: string[] = node.data?.acquiredItems || [];
+          const consumedList: string[] = node.data?.consumedItems || [];
+
+          if (acquiredList.length > 0) {
+              acquiredList.forEach(idOrName => {
+                  const res = state.resources.find(r => r.id === idOrName || r.name === idOrName);
+                  if (res) {
+                      items.push({ name: res.name, type: res.type, quantity: 1, action: 'obtain' });
+                  } else if (node.data?.infoValue) {
+                      const infoRes = state.resources.find(r => r.name === node.data.infoValue || r.id === node.data.infoValue);
+                      if (infoRes) {
+                          items.push({ name: infoRes.name, type: infoRes.type, quantity: 1, action: 'obtain' });
+                      } else {
+                          items.push({ name: node.data.infoValue, type: node.data?.infoType || 'item', quantity: 1, action: 'obtain' });
+                      }
                   } else {
-                      if (newKnowledge[name] === undefined) newKnowledge[name] = 0;
+                      items.push({ name: idOrName, type: node.data?.infoType || 'item', quantity: 1, action: 'obtain' });
+                  }
+              });
+          }
+
+          if (consumedList.length > 0) {
+              consumedList.forEach(idOrName => {
+                  const res = state.resources.find(r => r.id === idOrName || r.name === idOrName);
+                  if (res) {
+                      items.push({ name: res.name, type: res.type, quantity: 1, action: 'consume' });
+                  } else if (node.data?.infoValue) {
+                      const infoRes = state.resources.find(r => r.name === node.data.infoValue || r.id === node.data.infoValue);
+                      if (infoRes) {
+                          items.push({ name: infoRes.name, type: infoRes.type, quantity: 1, action: 'consume' });
+                      } else {
+                          items.push({ name: node.data.infoValue, type: node.data?.infoType || 'item', quantity: 1, action: 'consume' });
+                      }
+                  } else {
+                      items.push({ name: idOrName, type: node.data?.infoType || 'item', quantity: 1, action: 'consume' });
+                  }
+              });
+          }
+
+          // 2. If it is an element/information node and no acquiredItems/consumedItems were extracted
+          if ((node.type === 'element' || node.type === 'information') && items.length === 0) {
+              let defaultType = node.data?.infoType || 'knowledge';
+              let infoVal = node.data?.infoValue || node.data?.label || '';
+
+              // If referenceId is present
+              if (node.data?.referenceId) {
+                  const res = state.resources.find(r => r.id === node.data.referenceId || r.name === node.data.referenceId);
+                  if (res) {
+                      items.push({ name: res.name, type: res.type, quantity, action });
+                      return items;
                   }
               }
+
+              // Check if infoVal has multiple comma-separated items
+              if (infoVal.includes(',') || infoVal.includes('、')) {
+                  const parts = infoVal.split(/[,、]/).map(s => s.trim()).filter(Boolean);
+                  parts.forEach(part => {
+                      const res = state.resources.find(r => r.name === part || r.id === part);
+                      if (res) {
+                          items.push({ name: res.name, type: res.type, quantity: 1, action });
+                      } else {
+                          items.push({ name: part, type: defaultType, quantity: 1, action });
+                      }
+                  });
+              } else if (infoVal) {
+                  items.push({ name: infoVal, type: defaultType, quantity, action });
+              }
           }
+
+          return items;
+      };
+
+      // 1. Scan all nodes to populate keys (init 0)
+      allNodes.forEach(node => {
+          const items = extractItems(node);
+          items.forEach(it => {
+              const col = getCollection(it.type);
+              if (col[it.name] === undefined) col[it.name] = 0;
+          });
+      });
+
+      // Also ensure all defined resources exist in their category with at least 0
+      state.resources.forEach(res => {
+          const col = getCollection(res.type);
+          if (col[res.name] === undefined) col[res.name] = 0;
       });
 
       // 2. Scan revealed nodes to update quantities
       allNodes.forEach(node => {
-          if (node.data.revealed && (node.type === 'element' || node.type === 'information')) {
-               let type: string = node.data.infoType || 'knowledge';
-               let name = node.data.infoValue;
-               const quantity = Number(node.data.quantity) || 1;
-               const action = node.data.actionType || 'obtain';
-
-              // Resolve from resource if available
-              if (node.type === 'element' && node.data.referenceId) {
-                 const res = state.resources.find(r => r.id === node.data.referenceId);
-                 if (res) {
-                     name = res.name;
-                     switch(res.type) {
-                         case 'Item': type = 'item'; break;
-                         case 'Equipment': type = 'equipment'; break;
-                         case 'Knowledge': type = 'knowledge'; break;
-                         case 'Skill': type = 'skill'; break;
-                         case 'Status': type = 'stat'; break;
-                         default: type = 'knowledge';
-                     }
-                 }
-              }
-
-              if (name) {
-                  let collection = newKnowledge;
-                  if (type === 'item') collection = newInventory;
-                  else if (type === 'equipment') collection = newEquipment;
-                  else if (type === 'skill') collection = newSkills;
-                  else if (type === 'stat') collection = newStats;
-
-                  if (action === 'obtain') {
-                      collection[name] = (collection[name] || 0) + quantity;
-                  } else if (action === 'consume') {
-                      collection[name] = Math.max(0, (collection[name] || 0) - quantity);
+          if (node.data?.revealed) {
+              const items = extractItems(node);
+              items.forEach(it => {
+                  const col = getCollection(it.type);
+                  if (it.action === 'obtain') {
+                      col[it.name] = (col[it.name] || 0) + it.quantity;
+                  } else if (it.action === 'consume') {
+                      col[it.name] = Math.max(0, (col[it.name] || 0) - it.quantity);
                   }
-              }
+              });
           }
       });
 
@@ -2311,9 +2352,12 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           return { ...t, nodes: newNodes };
       });
 
+      const revealedNodeIds = allNodes.filter(n => n.data?.revealed).map(n => n.id);
+
       const updates: Partial<ScenarioState> = {
           gameState: {
               ...state.gameState,
+              revealedNodes: revealedNodeIds,
               inventory: newInventory,
               equipment: newEquipment,
               knowledge: newKnowledge,

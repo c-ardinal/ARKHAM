@@ -197,7 +197,7 @@ export function exportToHumanDocument(input: HumanExportInput): HumanScenarioDoc
     else if (node.type === 'branch') {
       typeJp = d.label?.includes('判定') ? '判定' : (d.branchType === 'switch' ? '行動選択' : '分岐');
     } else if (node.type === 'element') {
-      typeJp = d.infoType === 'Knowledge' ? '手がかり' : 'アイテム';
+      typeJp = d.infoType?.toLowerCase() === 'knowledge' ? '手がかり' : 'アイテム';
     } else if (node.type === 'memo') {
       typeJp = 'メモ';
     } else if (node.type === 'character') {

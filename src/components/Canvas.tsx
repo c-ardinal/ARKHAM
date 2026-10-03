@@ -725,6 +725,7 @@ const CanvasContent = React.memo(forwardRef<{ zoomIn: () => void; zoomOut: () =>
     };
 
     if (mode === 'play') {
+          setSelectedNode(node.id);
           // Play Mode Logic
           if (isDoubleClick) {
               if (node.type === 'sticky') {

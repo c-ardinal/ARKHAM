@@ -427,11 +427,16 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                             const definedItems = resources.filter(r => r.type === definitionType || r.type === definitionType.toLowerCase());
                                             
                                             // 3. Map to display items (Name, Quantity)
-                                            const displayItems = definedItems.map(def => {
-                                                // gameState keys are Names.
-                                                const qty = section.data[def.name] || 0;
-                                                return { name: def.name, quantity: qty };
+                                            const displayMap = new Map<string, number>();
+                                            definedItems.forEach(def => {
+                                                displayMap.set(def.name, section.data?.[def.name] || 0);
                                             });
+                                            Object.entries(section.data || {}).forEach(([name, qty]) => {
+                                                if (!displayMap.has(name)) {
+                                                    displayMap.set(name, qty as number);
+                                                }
+                                            });
+                                            const displayItems = Array.from(displayMap.entries()).map(([name, quantity]) => ({ name, quantity }));
 
                                             // 4. Determine Empty State
                                             const isEmpty = displayItems.length === 0;

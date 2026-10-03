@@ -506,7 +506,11 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
       const acquiredList = resolveItemIds(scene.獲得アイテム);
       let refItemId: string | undefined = scene.参照ID;
       if (refItemId && !resIdToData.has(refItemId)) {
-        if (resNameToId.has(refItemId)) refItemId = resNameToId.get(refItemId);
+        if (resNameToId.has(refItemId)) {
+          refItemId = resNameToId.get(refItemId);
+        } else if (acquiredList.length > 0 && resIdToData.has(acquiredList[0])) {
+          refItemId = acquiredList[0];
+        }
       }
       if (!refItemId && acquiredList.length > 0) refItemId = acquiredList[0];
 
@@ -527,6 +531,10 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
         infoVal = resIdToData.get(refItemId)!.name;
       }
 
+      const combinedAcquired = refItemId
+        ? (acquiredList.includes(refItemId) ? acquiredList : [refItemId, ...acquiredList])
+        : acquiredList;
+
       flowNodes.push({
         id: nodeId,
         type: 'element',
@@ -536,9 +544,10 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
           label: scene.場面,
           referenceId: refItemId,
           infoValue: infoVal,
-          infoType: (kind === '手がかり' || kind === '情報') ? 'Knowledge' : 'Item',
-          actionType: 'acquire',
-          acquiredItems: refItemId ? [refItemId] : acquiredList,
+          infoType: (kind === '手がかり' || kind === '情報') ? 'knowledge' : 'item',
+          actionType: 'obtain',
+          quantity: 1,
+          acquiredItems: combinedAcquired.length > 0 ? combinedAcquired : undefined,
           chapter: scene.章 !== undefined ? scene.章 : 1,
           tab: scene.タブ,
           description: scene.描写,
