@@ -144,6 +144,7 @@ export interface GameState {
   skills: Record<string, number>; // Name -> Quantity
   stats: Record<string, number>;
   variables: Record<string, Variable>;
+  manualConsumptions?: Record<string, number>; // Category:Name -> Consumed quantity at arbitrary timing
 }
 
 export type CharacterType = 'Person' | 'Participant' | 'Monster' | 'Other';
@@ -210,6 +211,8 @@ export interface ResourceData {
   effect?: string;
   note?: string;
   variables?: EntityVariable[];
+  category?: 'key' | 'data' | 'weapon' | 'consumable' | 'clue';
+  isConsumable?: boolean;
 }
 
 

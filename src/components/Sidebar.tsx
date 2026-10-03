@@ -29,6 +29,8 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
   const resources = useScenarioStore(s => s.resources);
   const characters = useScenarioStore(s => s.characters);
   const stages = useScenarioStore(s => s.stages);
+  const consumeGameStateItem = useScenarioStore(s => s.consumeGameStateItem);
+  const restoreGameStateItem = useScenarioStore(s => s.restoreGameStateItem);
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -453,12 +455,42 @@ export const Sidebar = React.memo(React.forwardRef<HTMLElement, SidebarProps>(({
                                                         <div className="text-xs text-muted-foreground italic pl-6">{emptyText}</div>
                                                     ) : (
                                                         <ul className="pl-6 space-y-1">
-                                                            {displayItems.map(({name, quantity}) => (
-                                                                <li key={name} className="text-sm flex justify-between items-center">
-                                                                    <span>{name}</span>
-                                                                    <span className="text-muted-foreground text-xs">x{quantity}</span>
-                                                                </li>
-                                                            ))}
+                                                            {displayItems.map(({name, quantity}) => {
+                                                                const manualKey = `${section.key}:${name}`;
+                                                                const isManuallyConsumed = (gameState.manualConsumptions?.[manualKey] || 0) > 0;
+                                                                return (
+                                                                    <li key={name} className="text-sm flex justify-between items-center group py-0.5">
+                                                                        <span className="truncate pr-2">{name}</span>
+                                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                                            <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${quantity > 0 ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground'}`}>
+                                                                                x{quantity}
+                                                                            </span>
+                                                                            {mode === 'play' && (
+                                                                                <div className="flex items-center gap-0.5">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        title={`${name}を1つ消費`}
+                                                                                        disabled={quantity <= 0}
+                                                                                        onClick={() => consumeGameStateItem(section.key, name, 1)}
+                                                                                        className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none text-xs font-bold leading-none border border-transparent hover:border-border"
+                                                                                    >
+                                                                                        -
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        title={`${name}の消費を1つ取消`}
+                                                                                        disabled={!isManuallyConsumed}
+                                                                                        onClick={() => restoreGameStateItem(section.key, name, 1)}
+                                                                                        className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none text-xs font-bold leading-none border border-transparent hover:border-border"
+                                                                                    >
+                                                                                        +
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </li>
+                                                                );
+                                                            })}
                                                         </ul>
                                                     )}
                                                 </div>

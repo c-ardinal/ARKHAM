@@ -400,7 +400,8 @@ function createDefaultGameState(): GameState {
     knowledge: {},
     skills: {},
     stats: {},
-    variables: {}
+    variables: {},
+    manualConsumptions: {}
   };
 }
 
@@ -413,7 +414,8 @@ function validateGameState(gameState: any): GameState {
     knowledge: typeof gameState.knowledge === 'object' ? gameState.knowledge : {},
     skills: typeof gameState.skills === 'object' ? gameState.skills : {},
     stats: typeof gameState.stats === 'object' ? gameState.stats : {},
-    variables: typeof gameState.variables === 'object' ? gameState.variables : {}
+    variables: typeof gameState.variables === 'object' ? gameState.variables : {},
+    manualConsumptions: typeof gameState.manualConsumptions === 'object' && gameState.manualConsumptions !== null ? gameState.manualConsumptions : {}
   };
 }
 

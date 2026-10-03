@@ -1006,6 +1006,7 @@ export const PropertyPanel = React.memo(React.forwardRef<HTMLElement, PropertyPa
                                 updateNodeData(selectedNode.id, {
                                     referenceId: id,
                                     infoValue: resource?.name || '',
+                                    infoType: resource?.type?.toLowerCase() || 'item',
                                 });
                             }}
                         />

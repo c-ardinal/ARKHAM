@@ -261,7 +261,15 @@ export const ja: TranslationKeys = {
     statusView: {
         empty: '空',
         none: 'なし',
+        consume: '消費',
+        consumeTooltip: '1つ消費する (任意タイミングでの使用)',
+        restore: '+1',
+        restoreTooltip: '消費を取り消して1つ戻す',
+        consumableBadge: '消耗品',
+        breakdownTooltip: '所持数: {quantity} (開示獲得: {base} / 任意消費: {consumed})',
     },
+    isConsumable: '消耗品 (任意タイミングで消費可能)',
+    isConsumableDesc: 'チェックを入れると、進行モードの状態タブで消耗品バッジが表示され、任意タイミングでの消費管理が行いやすくなります。',
     noResources: '要素が定義されていません',
   },
   manual: {

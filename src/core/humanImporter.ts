@@ -130,6 +130,12 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
       else if (r.種別 === '手がかり' || r.種別 === '情報') type = 'Knowledge';
       else if (r.種別 === 'その他') type = 'Status';
 
+      const isMedicineOrFood = /薬|安定剤|鎮静剤|アンプル|回復|スプレー|食料|食塩水|キット|包帯|ポーション|電池|バッテリー|使い捨て/i.test(
+        (r.名前 || '') + (r.概要 || '') + (r.効果 || '') + (r.備考 || '')
+      );
+      const isConsumable = isMedicineOrFood || (r as any).種別 === '消耗品' || (r as any).消耗品 === true || (r as any).isConsumable === true;
+      if ((r as any).種別 === '消耗品') type = 'Item';
+
       const resData: ResourceData = {
         id,
         name: r.名前,
@@ -137,6 +143,8 @@ export function importFromHumanDocument(doc: HumanScenarioDocument): HumanImport
         description: r.概要,
         effect: r.効果,
         note: r.備考,
+        isConsumable,
+        category: isConsumable ? 'consumable' : undefined,
       };
       resources.push(resData);
       resIdToData.set(id, resData);

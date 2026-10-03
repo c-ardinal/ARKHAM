@@ -262,7 +262,15 @@ export const en: TranslationKeys = {
     statusView: {
         empty: 'Empty',
         none: 'None',
+        consume: 'Use',
+        consumeTooltip: 'Consume 1 (arbitrary timing usage)',
+        restore: '+1',
+        restoreTooltip: 'Restore 1 previously consumed item',
+        consumableBadge: 'Consumable',
+        breakdownTooltip: 'Quantity: {quantity} (Obtained: {base} / Consumed: {consumed})',
     },
+    isConsumable: 'Consumable (Arbitrary Timing)',
+    isConsumableDesc: 'When checked, a consumable badge will appear in the play mode status tab for easier arbitrary consumption tracking.',
     noResources: 'No elements defined',
   },
   manual: {

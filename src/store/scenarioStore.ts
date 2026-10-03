@@ -169,6 +169,8 @@ interface ScenarioState {
   reset: () => void;
   resetGame: () => void;
   recalculateGameState: () => void;
+  consumeGameStateItem: (category: string, name: string, quantity?: number) => void;
+  restoreGameStateItem: (category: string, name: string, quantity?: number) => void;
   revealAll: () => void;
   unrevealAll: () => void;
   triggerNode: (nodeId: string) => void;
@@ -380,6 +382,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     skills: {},
     stats: {},
     variables: {},
+    manualConsumptions: {},
   },
   mode: initialStoredState?.mode || 'edit',
   characters: initialStoredState?.characters || [],
@@ -459,6 +462,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         skills: {},
         stats: {},
         variables: {},
+        manualConsumptions: {},
       },
       mode: 'edit',
       characters: [],
@@ -602,29 +606,37 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
       return { resources: newResources, tabs: newTabs };
   }),
-  updateResource: (id, res) => set((state) => {
-      const updatedResources = state.resources.map((r) => (r.id === id ? { ...r, ...res } : r));
-      const updatedResource = updatedResources.find((r) => r.id === id);
+  updateResource: (id, res) => {
+      set((state) => {
+          const updatedResources = state.resources.map((r) => (r.id === id ? { ...r, ...res } : r));
+          const updatedResource = updatedResources.find((r) => r.id === id);
 
-      // Update element nodes that reference this resource across all tabs
-      const newTabs = state.tabs.map((t) => {
-          const updatedNodes = t.nodes.map((node) => {
-              if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
-                  if (updatedResource) {
-                      return {
-                          ...node,
-                          data: { ...node.data, infoValue: updatedResource.name },
-                      };
+          // Update element nodes that reference this resource across all tabs
+          const newTabs = state.tabs.map((t) => {
+              const updatedNodes = t.nodes.map((node) => {
+                  if ((node.type === 'element' || node.type === 'information') && node.data.referenceId === id) {
+                      if (updatedResource) {
+                          return {
+                              ...node,
+                              data: {
+                                  ...node.data,
+                                  infoValue: updatedResource.name,
+                                  infoType: updatedResource.type?.toLowerCase() || node.data.infoType || 'item',
+                              },
+                          };
+                      }
                   }
-              }
-              return node;
+                  return node;
+              });
+              return { ...t, nodes: updatedNodes };
           });
-          return { ...t, nodes: updatedNodes };
-      });
 
-      return { resources: updatedResources, tabs: newTabs };
-  }),
-  deleteResource: (id) => set((state) => {
+          return { resources: updatedResources, tabs: newTabs };
+      });
+      get().recalculateGameState();
+  },
+  deleteResource: (id) => {
+       set((state) => {
        const resources = state.resources.filter((r) => r.id !== id);
        const fallbackResource = resources.length > 0 ? resources[0] : null;
 
@@ -687,7 +699,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
        });
 
        return { resources, tabs: newTabs };
-  }),
+       });
+       get().recalculateGameState();
+  },
 
   selectedNodeId: null,
 
@@ -1260,6 +1274,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               skills: {},
               stats: {},
               variables: {},
+              manualConsumptions: {},
            },
            characters: characters || [],
            stages: loadedStages,
@@ -2193,6 +2208,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
             skills: {},
             stats: {},
             variables: state.gameState.variables,
+            manualConsumptions: {},
         }
     });
     get().recalculateGameState();
@@ -2327,7 +2343,32 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
           }
       });
 
-      // 3. Update sticky status on nodes across all tabs
+      // 3. Apply manual / arbitrary consumptions (things consumed arbitrarily outside nodes)
+      const manualConsumptions = state.gameState?.manualConsumptions || {};
+      const applyManualConsumption = (col: Record<string, number>, category: string) => {
+          Object.keys(col).forEach(name => {
+              const consumed = manualConsumptions[`${category}:${name}`] || 0;
+              if (consumed > 0) {
+                  col[name] = Math.max(0, col[name] - consumed);
+              }
+          });
+          Object.entries(manualConsumptions).forEach(([key, consumed]) => {
+              if (key.startsWith(`${category}:`) && consumed > 0) {
+                  const name = key.slice(category.length + 1);
+                  if (col[name] === undefined) {
+                      col[name] = 0;
+                  }
+              }
+          });
+      };
+
+      applyManualConsumption(newInventory, 'inventory');
+      applyManualConsumption(newEquipment, 'equipment');
+      applyManualConsumption(newKnowledge, 'knowledge');
+      applyManualConsumption(newSkills, 'skills');
+      applyManualConsumption(newStats, 'stats');
+
+      // 4. Update sticky status on nodes across all tabs
       // Each tab is self-contained: sticky targets only reference nodes in the same tab.
       let tabsChanged = false;
       const updatedTabs = state.tabs.map((t) => {
@@ -2362,7 +2403,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
               equipment: newEquipment,
               knowledge: newKnowledge,
               skills: newSkills,
-              stats: newStats
+              stats: newStats,
+              manualConsumptions
           }
       };
 
@@ -2371,6 +2413,55 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       }
 
       set(updates);
+  },
+
+  consumeGameStateItem: (category: string, name: string, quantity: number = 1) => {
+      get().pushHistory();
+      const state = get();
+      const key = `${category}:${name}`;
+      const currentConsumed = state.gameState?.manualConsumptions?.[key] || 0;
+      const currentQty = (state.gameState as any)?.[category]?.[name] || 0;
+      if (currentQty <= 0) return; // Cannot consume if none available
+
+      const actualConsume = Math.min(quantity, currentQty);
+      const newManualConsumptions = {
+          ...(state.gameState?.manualConsumptions || {}),
+          [key]: currentConsumed + actualConsume
+      };
+
+      set({
+          gameState: {
+              ...state.gameState,
+              manualConsumptions: newManualConsumptions
+          }
+      });
+
+      get().recalculateGameState();
+  },
+
+  restoreGameStateItem: (category: string, name: string, quantity: number = 1) => {
+      get().pushHistory();
+      const state = get();
+      const key = `${category}:${name}`;
+      const currentConsumed = state.gameState?.manualConsumptions?.[key] || 0;
+      if (currentConsumed <= 0) return;
+
+      const newConsumed = Math.max(0, currentConsumed - quantity);
+      const newManualConsumptions = { ...(state.gameState?.manualConsumptions || {}) };
+      if (newConsumed === 0) {
+          delete newManualConsumptions[key];
+      } else {
+          newManualConsumptions[key] = newConsumed;
+      }
+
+      set({
+          gameState: {
+              ...state.gameState,
+              manualConsumptions: newManualConsumptions
+          }
+      });
+
+      get().recalculateGameState();
   },
 
   revealAll: () => {
@@ -2462,7 +2553,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
       set({
           tabs: newTabs,
-          gameState: { ...state.gameState, variables: newVariables }
+          gameState: { ...state.gameState, variables: newVariables, manualConsumptions: {} }
       });
       get().recalculateGameState();
   },
@@ -3400,7 +3491,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         knowledge: {},
         skills: {},
         stats: {},
-        variables: {}
+        variables: {},
+        manualConsumptions: {},
       },
       characters: [],
       resources: [],

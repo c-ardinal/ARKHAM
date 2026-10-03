@@ -168,4 +168,81 @@ describe('Element Node Disclosure & Quantity Calculation', () => {
     expect(useScenarioStore.getState().gameState.inventory['警備室のカードキー']).toBe(0);
     expect(useScenarioStore.getState().gameState.knowledge['血塗られた観察メモ']).toBe(0);
   });
+
+  it('supports manual item consumption and restoration during play', () => {
+    const store = useScenarioStore.getState();
+    const itemNode: ScenarioNode = {
+      id: 'elem_potion',
+      type: 'element',
+      position: { x: 0, y: 0 },
+      data: {
+        label: '回復薬入手',
+        infoValue: '回復薬',
+        infoType: 'item',
+        actionType: 'obtain',
+        quantity: 3,
+        referenceId: 'res_potion',
+        revealed: true,
+      },
+    };
+
+    useScenarioStore.setState((s) => ({
+      tabs: s.tabs.map((t) => (t.id === 'tab_test' ? { ...t, nodes: [itemNode] } : t)),
+    }));
+    store.recalculateGameState();
+
+    expect(useScenarioStore.getState().gameState.inventory['回復薬']).toBe(3);
+
+    // Consume 1
+    store.consumeGameStateItem('inventory', '回復薬', 1);
+    expect(useScenarioStore.getState().gameState.inventory['回復薬']).toBe(2);
+    expect(useScenarioStore.getState().gameState.manualConsumptions?.['inventory:回復薬']).toBe(1);
+
+    // Consume 1 more
+    store.consumeGameStateItem('inventory', '回復薬', 1);
+    expect(useScenarioStore.getState().gameState.inventory['回復薬']).toBe(1);
+    expect(useScenarioStore.getState().gameState.manualConsumptions?.['inventory:回復薬']).toBe(2);
+
+    // Restore 1
+    store.restoreGameStateItem('inventory', '回復薬', 1);
+    expect(useScenarioStore.getState().gameState.inventory['回復薬']).toBe(2);
+    expect(useScenarioStore.getState().gameState.manualConsumptions?.['inventory:回復薬']).toBe(1);
+
+    // Toggle node to unrevealed -> unreveal resets manualConsumptions
+    store.unrevealAll();
+    expect(useScenarioStore.getState().gameState.inventory['回復薬']).toBe(0);
+    expect(useScenarioStore.getState().gameState.manualConsumptions).toEqual({});
+  });
+
+  it('synchronizes element nodes and recalculates game state on resource rename or type change', () => {
+    const store = useScenarioStore.getState();
+    const node: ScenarioNode = {
+      id: 'elem_renamed',
+      type: 'element',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'カード入手',
+        infoValue: '警備室のカードキー',
+        infoType: 'item',
+        actionType: 'obtain',
+        quantity: 1,
+        referenceId: 'res_card_key',
+        revealed: true,
+      },
+    };
+
+    useScenarioStore.setState((s) => ({
+      tabs: s.tabs.map((t) => (t.id === 'tab_test' ? { ...t, nodes: [node] } : t)),
+    }));
+    store.recalculateGameState();
+
+    expect(useScenarioStore.getState().gameState.inventory['警備室のカードキー']).toBe(1);
+
+    // Rename the resource
+    store.updateResource('res_card_key', { name: 'マスターキー', type: 'Item' });
+
+    const activeNode = useScenarioStore.getState().tabs[0].nodes[0];
+    expect(activeNode.data.infoValue).toBe('マスターキー');
+    expect(useScenarioStore.getState().gameState.inventory['マスターキー']).toBe(1);
+  });
 });

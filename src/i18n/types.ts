@@ -257,7 +257,15 @@ export type TranslationKeys = {
     statusView: {
         empty: string;
         none: string;
+        consume: string;
+        consumeTooltip: string;
+        restore: string;
+        restoreTooltip: string;
+        consumableBadge: string;
+        breakdownTooltip: string;
     };
+    isConsumable: string;
+    isConsumableDesc: string;
     noResources: string;
   };
   manual: {
