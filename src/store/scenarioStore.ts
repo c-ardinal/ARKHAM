@@ -804,7 +804,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     let validChanges = changes;
     if (state.mode === 'play') {
         validChanges = changes.filter(change => {
-            if (change.type === 'position' || change.type === 'dimensions') {
+            if (change.type === 'position') {
                  const node = currentNodes.find(n => n.id === change.id);
                  if (node && node.type !== 'sticky') {
                      return false; // Prevent movement for non-sticky nodes in Play Mode

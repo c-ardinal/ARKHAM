@@ -831,6 +831,8 @@ export function getLayoutedElements(
             x: Math.round(pos.x - dim.width / 2),
             y: Math.round(pos.y - dim.height / 2),
           },
+          width: dim.width,
+          height: dim.height,
         };
       });
 
@@ -997,6 +999,8 @@ export function getLayoutedElements(
         x: parentX,
         y: parentY,
       },
+      width: alloc.baseDim.width,
+      height: alloc.baseDim.height,
     };
     updatedTopLevelNodes.push(updatedParent);
 
@@ -1012,6 +1016,8 @@ export function getLayoutedElements(
           x: parentX + alloc.baseDim.width + satGap,
           y: currentSatY,
         },
+        width: satDim.width,
+        height: satDim.height,
       };
       updatedTopLevelNodes.push(updatedSat);
       currentSatY += satDim.height + 16;
